@@ -131,14 +131,37 @@ def percent_to_basis_points(
 def bool_to_action(value: object) -> str:
     """Преобразует значение из базы в подпись интерфейса."""
 
-    if value is True:
+    if value is None or pd.isna(value):
+        return UNDEFINED_ACTION
+
+    if bool(value):
         return INCLUDE_ACTION
 
-    if value is False:
-        return EXCLUDE_ACTION
+    return EXCLUDE_ACTION
 
-    return UNDEFINED_ACTION
+def text_or_empty(value: object) -> str:
+    """Преобразует пустое значение базы в пустую строку."""
 
+    if value is None or pd.isna(value):
+        return ""
+
+    return str(value).strip()
+
+
+def option_index(
+    options: list[str],
+    current_value: object,
+) -> int:
+    """Находит безопасный индекс текущего значения."""
+
+    current_text = text_or_empty(
+        current_value
+    )
+
+    try:
+        return options.index(current_text)
+    except ValueError:
+        return 0
 
 def prepare_classification_editor(
     transactions: pd.DataFrame,
@@ -1766,107 +1789,606 @@ with classification_tab:
                 "но исключить из P&L, и наоборот."
             )
 
-            editor_source = prepare_classification_editor(
-                classification_transactions
+            selection_source = (
+                prepare_classification_editor(
+                    classification_transactions
+                )
+                .reset_index(drop=True)
             )
 
-            edited_classifications = st.data_editor(
-                editor_source,
+            st.markdown(
+                "#### Выберите операцию"
+            )
+
+            st.caption(
+                "Нажмите на строку или на маркер слева. "
+                "Редактирование выбранной операции "
+                "откроется ниже."
+            )
+
+            selection_columns = [
+                "id",
+                "Дата",
+                "Сумма, ₽",
+                "Контрагент",
+                "Описание",
+                "Решение P&L",
+                "Категория P&L",
+                "Решение Cash Flow",
+                "Категория Cash Flow",
+            ]
+
+            classification_ui_version = int(
+                st.session_state.get(
+                    "classification_ui_version",
+                    0,
+                )
+            )
+
+            selection_event = st.dataframe(
+                selection_source[
+                    selection_columns
+                ],
                 use_container_width=True,
                 hide_index=True,
-                disabled=[
-                    "id",
-                    "Дата",
-                    "Сумма, ₽",
-                    "Контрагент",
-                    "Описание",
-                    "Назначение платежа",
-                ],
+                on_select="rerun",
+                selection_mode="single-row",
+                key=(
+                    "classification_selection_table_"
+                    f"{classification_ui_version}"
+                ),
                 column_config={
-                    "id": st.column_config.NumberColumn(
-                        "ID",
-                        format="%d",
-                    ),
+                    "id":
+                        st.column_config.NumberColumn(
+                            "ID",
+                            format="%d",
+                        ),
                     "Сумма, ₽":
                         st.column_config.NumberColumn(
                             "Сумма, ₽",
                             format="%.2f",
                         ),
-                    "Решение P&L":
-                        st.column_config.SelectboxColumn(
-                            "Решение P&L",
-                            options=list(REPORT_ACTIONS),
-                            required=True,
-                        ),
-                    "Категория P&L":
-                        st.column_config.SelectboxColumn(
-                            "Категория P&L",
-                            options=list(PNL_CATEGORIES),
-                            required=True,
-                        ),
-                    "Решение Cash Flow":
-                        st.column_config.SelectboxColumn(
-                            "Решение Cash Flow",
-                            options=list(REPORT_ACTIONS),
-                            required=True,
-                        ),
-                    "Категория Cash Flow":
-                        st.column_config.SelectboxColumn(
-                            "Категория Cash Flow",
-                            options=list(CF_CATEGORIES),
-                            required=True,
-                        ),
-                    "Комментарий":
-                        st.column_config.TextColumn(
-                            "Комментарий",
-                            max_chars=500,
-                        ),
                 },
-                key="classification_editor",
             )
 
-            if st.button(
-                "Сохранить классификацию",
-                type="primary",
-                use_container_width=True,
+            displayed_ids = (
+                selection_source["id"]
+                .astype(int)
+                .tolist()
+            )
+
+            selected_rows = (
+                selection_event.selection.rows
+            )
+
+            if selected_rows:
+                selected_position = int(
+                    selected_rows[0]
+                )
+
+                if (
+                        0
+                        <= selected_position
+                        < len(selection_source)
+                ):
+                    selected_from_table = int(
+                        selection_source.iloc[
+                            selected_position
+                        ]["id"]
+                    )
+
+                    st.session_state[
+                        "classification_selected_id"
+                    ] = selected_from_table
+
+            selected_transaction_id = (
+                st.session_state.get(
+                    "classification_selected_id"
+                )
+            )
+
+            if (
+                    selected_transaction_id
+                    not in displayed_ids
             ):
-                classification_payload = (
-                    edited_classifications.rename(
-                        columns={
-                            "id": "id",
-                            "Решение P&L":
-                                "pnl_action",
-                            "Категория P&L":
-                                "pnl_category",
-                            "Решение Cash Flow":
-                                "cf_action",
-                            "Категория Cash Flow":
-                                "cf_category",
-                            "Комментарий":
-                                "comment",
-                        }
+                selected_transaction_id = (
+                    displayed_ids[0]
+                )
+
+                st.session_state[
+                    "classification_selected_id"
+                ] = selected_transaction_id
+
+            selected_rows_in_database = (
+                classification_transactions.loc[
+                    pd.to_numeric(
+                        classification_transactions[
+                            "id"
+                        ],
+                        errors="coerce",
+                    )
+                    == selected_transaction_id
+                    ]
+            )
+
+            if selected_rows_in_database.empty:
+                st.error(
+                    "Выбранная операция не найдена. "
+                    "Обновите страницу."
+                )
+            else:
+                selected_transaction = (
+                    selected_rows_in_database.iloc[0]
+                )
+
+                selected_position = (
+                    displayed_ids.index(
+                        selected_transaction_id
                     )
                 )
 
-                try:
-                    save_result = save_classifications(
-                        classification_payload
-                    )
-                except ValueError as exc:
-                    st.error(str(exc))
+                st.divider()
+                st.markdown(
+                    "#### Классификация выбранной операции"
+                )
+
+                operation_header_columns = (
+                    st.columns([1, 1, 2])
+                )
+
+                posted_at = pd.to_datetime(
+                    selected_transaction[
+                        "posted_at"
+                    ],
+                    errors="coerce",
+                )
+
+                if pd.isna(posted_at):
+                    posted_at_text = "—"
                 else:
-                    st.session_state[
-                        "classification_message"
-                    ] = (
-                        f"Сохранено операций: "
-                        f"{save_result.updated}. "
-                        f"Полностью классифицировано: "
-                        f"{save_result.classified}. "
-                        f"Частично: "
-                        f"{save_result.partial}."
+                    posted_at_text = (
+                        posted_at.strftime(
+                            "%d.%m.%Y"
+                        )
                     )
 
-                    st.rerun()
+                operation_header_columns[0].metric(
+                    "Дата",
+                    posted_at_text,
+                )
+
+                operation_header_columns[1].metric(
+                    "Сумма",
+                    format_rubles(
+                        int(
+                            selected_transaction[
+                                "signed_amount_kopecks"
+                            ]
+                        )
+                    ),
+                )
+
+                operation_header_columns[2].metric(
+                    "Операция",
+                    (
+                        f"{selected_position + 1} "
+                        f"из {len(displayed_ids)}"
+                    ),
+                )
+
+                counterparty_text = text_or_empty(
+                    selected_transaction[
+                        "counterparty_name"
+                    ]
+                )
+
+                description_text = text_or_empty(
+                    selected_transaction[
+                        "description"
+                    ]
+                )
+
+                purpose_text = text_or_empty(
+                    selected_transaction[
+                        "payment_purpose"
+                    ]
+                )
+
+                st.write(
+                    "**Контрагент:** "
+                    + (
+                            counterparty_text
+                            or "не указан"
+                    )
+                )
+
+                st.write(
+                    "**Описание:** "
+                    + (
+                            description_text
+                            or "не указано"
+                    )
+                )
+
+                with st.expander(
+                        "Назначение платежа",
+                        expanded=True,
+                ):
+                    st.write(
+                        purpose_text
+                        or "Не указано"
+                    )
+
+                current_pnl_action = (
+                    bool_to_action(
+                        selected_transaction[
+                            "include_in_pnl"
+                        ]
+                    )
+                )
+
+                current_cf_action = (
+                    bool_to_action(
+                        selected_transaction[
+                            "include_in_cf"
+                        ]
+                    )
+                )
+
+                current_pnl_category = (
+                    text_or_empty(
+                        selected_transaction[
+                            "pnl_category"
+                        ]
+                    )
+                )
+
+                current_cf_category = (
+                    text_or_empty(
+                        selected_transaction[
+                            "cf_category"
+                        ]
+                    )
+                )
+
+                current_comment = text_or_empty(
+                    selected_transaction[
+                        "comment"
+                    ]
+                )
+
+                pnl_action_options = list(
+                    REPORT_ACTIONS
+                )
+
+                cf_action_options = list(
+                    REPORT_ACTIONS
+                )
+
+                pnl_category_options = list(
+                    dict.fromkeys(
+                        [
+                            "",
+                            *list(PNL_CATEGORIES),
+                            current_pnl_category,
+                        ]
+                    )
+                )
+
+                cf_category_options = list(
+                    dict.fromkeys(
+                        [
+                            "",
+                            *list(CF_CATEGORIES),
+                            current_cf_category,
+                        ]
+                    )
+                )
+
+                form_key = (
+                    "classification_form_"
+                    f"{selected_transaction_id}_"
+                    f"{classification_ui_version}"
+                )
+
+                with st.form(
+                        form_key,
+                        clear_on_submit=False,
+                ):
+                    pnl_column, cf_column = (
+                        st.columns(2)
+                    )
+
+                    with pnl_column:
+                        st.markdown("### P&L")
+
+                        selected_pnl_action = (
+                            st.selectbox(
+                                "Решение P&L",
+                                options=(
+                                    pnl_action_options
+                                ),
+                                index=option_index(
+                                    pnl_action_options,
+                                    current_pnl_action,
+                                ),
+                                key=(
+                                    "classification_pnl_action_"
+                                    f"{selected_transaction_id}_"
+                                    f"{classification_ui_version}"
+                                ),
+                            )
+                        )
+
+                        selected_pnl_category = (
+                            st.selectbox(
+                                "Категория P&L",
+                                options=(
+                                    pnl_category_options
+                                ),
+                                index=option_index(
+                                    pnl_category_options,
+                                    current_pnl_category,
+                                ),
+                                key=(
+                                    "classification_pnl_category_"
+                                    f"{selected_transaction_id}_"
+                                    f"{classification_ui_version}"
+                                ),
+                                help=(
+                                    "Категория обязательна, "
+                                    "если операция включается "
+                                    "в P&L."
+                                ),
+                            )
+                        )
+
+                    with cf_column:
+                        st.markdown("### Cash Flow")
+
+                        selected_cf_action = (
+                            st.selectbox(
+                                "Решение Cash Flow",
+                                options=(
+                                    cf_action_options
+                                ),
+                                index=option_index(
+                                    cf_action_options,
+                                    current_cf_action,
+                                ),
+                                key=(
+                                    "classification_cf_action_"
+                                    f"{selected_transaction_id}_"
+                                    f"{classification_ui_version}"
+                                ),
+                            )
+                        )
+
+                        selected_cf_category = (
+                            st.selectbox(
+                                "Категория Cash Flow",
+                                options=(
+                                    cf_category_options
+                                ),
+                                index=option_index(
+                                    cf_category_options,
+                                    current_cf_category,
+                                ),
+                                key=(
+                                    "classification_cf_category_"
+                                    f"{selected_transaction_id}_"
+                                    f"{classification_ui_version}"
+                                ),
+                                help=(
+                                    "Категория обязательна, "
+                                    "если операция включается "
+                                    "в Cash Flow."
+                                ),
+                            )
+                        )
+
+                    selected_comment = st.text_area(
+                        "Комментарий",
+                        value=current_comment,
+                        max_chars=500,
+                        key=(
+                            "classification_comment_"
+                            f"{selected_transaction_id}_"
+                            f"{classification_ui_version}"
+                        ),
+                    )
+
+                    button_columns = st.columns(
+                        [1, 1.3, 1.3]
+                    )
+
+                    with button_columns[0]:
+                        save_current = (
+                            st.form_submit_button(
+                                "Сохранить",
+                                use_container_width=True,
+                            )
+                        )
+
+                    with button_columns[1]:
+                        save_and_next = (
+                            st.form_submit_button(
+                                "Сохранить и перейти дальше",
+                                type="primary",
+                                use_container_width=True,
+                            )
+                        )
+
+                    with button_columns[2]:
+                        exclude_from_both = (
+                            st.form_submit_button(
+                                "Исключить из обоих",
+                                use_container_width=True,
+                            )
+                        )
+
+                if (
+                        save_current
+                        or save_and_next
+                        or exclude_from_both
+                ):
+                    if exclude_from_both:
+                        final_pnl_action = (
+                            EXCLUDE_ACTION
+                        )
+
+                        final_cf_action = (
+                            EXCLUDE_ACTION
+                        )
+
+                        final_pnl_category = ""
+                        final_cf_category = ""
+
+                    else:
+                        final_pnl_action = (
+                            selected_pnl_action
+                        )
+
+                        final_cf_action = (
+                            selected_cf_action
+                        )
+
+                        final_pnl_category = (
+                            selected_pnl_category
+                        )
+
+                        final_cf_category = (
+                            selected_cf_category
+                        )
+
+                        if (
+                                final_pnl_action
+                                != INCLUDE_ACTION
+                        ):
+                            final_pnl_category = ""
+
+                        if (
+                                final_cf_action
+                                != INCLUDE_ACTION
+                        ):
+                            final_cf_category = ""
+
+                    validation_errors = []
+
+                    if (
+                            final_pnl_action
+                            == INCLUDE_ACTION
+                            and not final_pnl_category
+                    ):
+                        validation_errors.append(
+                            "Выберите категорию P&L."
+                        )
+
+                    if (
+                            final_cf_action
+                            == INCLUDE_ACTION
+                            and not final_cf_category
+                    ):
+                        validation_errors.append(
+                            "Выберите категорию "
+                            "Cash Flow."
+                        )
+
+                    if validation_errors:
+                        for error_message in (
+                                validation_errors
+                        ):
+                            st.error(error_message)
+
+                    else:
+                        classification_payload = (
+                            pd.DataFrame(
+                                [
+                                    {
+                                        "id":
+                                            selected_transaction_id,
+                                        "pnl_action":
+                                            final_pnl_action,
+                                        "pnl_category":
+                                            final_pnl_category,
+                                        "cf_action":
+                                            final_cf_action,
+                                        "cf_category":
+                                            final_cf_category,
+                                        "comment":
+                                            selected_comment,
+                                    }
+                                ]
+                            )
+                        )
+
+                        try:
+                            save_result = (
+                                save_classifications(
+                                    classification_payload
+                                )
+                            )
+                        except ValueError as exc:
+                            st.error(str(exc))
+                        else:
+                            next_transaction_id = None
+
+                            if save_and_next:
+                                next_position = (
+                                        selected_position + 1
+                                )
+
+                                if (
+                                        next_position
+                                        < len(displayed_ids)
+                                ):
+                                    next_transaction_id = (
+                                        displayed_ids[
+                                            next_position
+                                        ]
+                                    )
+
+                            if (
+                                    next_transaction_id
+                                    is not None
+                            ):
+                                st.session_state[
+                                    "classification_selected_id"
+                                ] = (
+                                    next_transaction_id
+                                )
+
+                            st.session_state[
+                                "classification_ui_version"
+                            ] = (
+                                    classification_ui_version
+                                    + 1
+                            )
+
+                            action_text = (
+                                "Операция исключена "
+                                "из обоих отчётов."
+                                if exclude_from_both
+                                else (
+                                    "Классификация "
+                                    "сохранена."
+                                )
+                            )
+
+                            st.session_state[
+                                "classification_message"
+                            ] = (
+                                f"{action_text} "
+                                f"Обновлено: "
+                                f"{save_result.updated}. "
+                                f"Полностью "
+                                f"классифицировано: "
+                                f"{save_result.classified}. "
+                                f"Частично: "
+                                f"{save_result.partial}."
+                            )
+
+                            st.rerun()
 
 with rules_tab:
     st.subheader("Правила автоматической классификации")
