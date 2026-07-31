@@ -359,9 +359,409 @@ def prepare_report_details(
         ]
     ]
 
+def _safe_percent(
+    numerator: int | float,
+    denominator: int | float,
+) -> float | None:
+    """Безопасно рассчитывает процентное отношение."""
+
+    if denominator <= 0:
+        return None
+
+    return (
+        float(numerator)
+        / float(denominator)
+        * 100
+    )
+
+
+def _format_optional_percent(
+    value: float | None,
+) -> str:
+    """Форматирует процент или выводит прочерк."""
+
+    if value is None or pd.isna(value):
+        return "—"
+
+    return f"{float(value):.1f}%"
+
+
+def _format_optional_rubles(
+    value: float | int | None,
+) -> str:
+    """Форматирует сумму или выводит прочерк."""
+
+    if value is None or pd.isna(value):
+        return "—"
+
+    return format_rubles(
+        int(round(float(value)))
+    )
+
+
+def _percentage_point_delta(
+    current_value: float | None,
+    comparison_value: float | None,
+) -> str | None:
+    """Возвращает изменение процентного показателя."""
+
+    if (
+        current_value is None
+        or comparison_value is None
+        or pd.isna(current_value)
+        or pd.isna(comparison_value)
+    ):
+        return None
+
+    difference = (
+        float(current_value)
+        - float(comparison_value)
+    )
+
+    return f"{difference:+.1f} п.п."
+
+
+def _rubles_delta(
+    current_value: float | None,
+    comparison_value: float | None,
+) -> str | None:
+    """Возвращает изменение денежного показателя."""
+
+    if (
+        current_value is None
+        or comparison_value is None
+        or pd.isna(current_value)
+        or pd.isna(comparison_value)
+    ):
+        return None
+
+    difference = int(
+        round(
+            float(current_value)
+            - float(comparison_value)
+        )
+    )
+
+    formatted_difference = format_rubles(
+        difference
+    )
+
+    if difference > 0:
+        return f"+{formatted_difference}"
+
+    return formatted_difference
+
+
+def _count_delta(
+    current_value: int,
+    comparison_value: int,
+) -> str:
+    """Возвращает изменение количества операций."""
+
+    difference = (
+        int(current_value)
+        - int(comparison_value)
+    )
+
+    return f"{difference:+d}"
+
+
+def _get_report_operation_counts(
+    report: ReportResult,
+) -> tuple[int, int]:
+    """Считает доходные и расходные операции отчёта."""
+
+    transactions = report.transactions
+
+    if transactions.empty:
+        return 0, 0
+
+    if (
+        "signed_amount_kopecks"
+        in transactions.columns
+    ):
+        amounts = pd.to_numeric(
+            transactions[
+                "signed_amount_kopecks"
+            ],
+            errors="coerce",
+        ).fillna(0)
+
+        income_count = int(
+            (amounts > 0).sum()
+        )
+
+        expense_count = int(
+            (amounts < 0).sum()
+        )
+
+        return income_count, expense_count
+
+    if "direction" in transactions.columns:
+        directions = (
+            transactions["direction"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.lower()
+        )
+
+        income_values = {
+            "income",
+            "inflow",
+            "credit",
+            "поступление",
+            "приход",
+        }
+
+        expense_values = {
+            "expense",
+            "outflow",
+            "debit",
+            "списание",
+            "расход",
+        }
+
+        income_count = int(
+            directions.isin(
+                income_values
+            ).sum()
+        )
+
+        expense_count = int(
+            directions.isin(
+                expense_values
+            ).sum()
+        )
+
+        return income_count, expense_count
+
+    return 0, 0
+
+
+def _build_pnl_kpis(
+    report: ReportResult,
+) -> dict[str, float | int | None]:
+    """Рассчитывает доступные KPI кассового P&L."""
+
+    income_count, expense_count = (
+        _get_report_operation_counts(report)
+    )
+
+    decided_count = (
+        report.included_count
+        + report.excluded_count
+    )
+
+    total_count = (
+        decided_count
+        + report.pending_count
+    )
+
+    profitability = _safe_percent(
+        numerator=report.net_kopecks,
+        denominator=report.inflow_kopecks,
+    )
+
+    expense_share = _safe_percent(
+        numerator=report.outflow_kopecks,
+        denominator=report.inflow_kopecks,
+    )
+
+    expense_coverage = _safe_percent(
+        numerator=report.inflow_kopecks,
+        denominator=report.outflow_kopecks,
+    )
+
+    classification_rate = _safe_percent(
+        numerator=decided_count,
+        denominator=total_count,
+    )
+
+    average_income = (
+        report.inflow_kopecks / income_count
+        if income_count > 0
+        else None
+    )
+
+    average_expense = (
+        report.outflow_kopecks / expense_count
+        if expense_count > 0
+        else None
+    )
+
+    return {
+        "profitability": profitability,
+        "expense_share": expense_share,
+        "expense_coverage": expense_coverage,
+        "classification_rate":
+            classification_rate,
+        "average_income": average_income,
+        "average_expense": average_expense,
+        "income_count": income_count,
+        "expense_count": expense_count,
+    }
+
+
+def show_pnl_kpis(
+    report: ReportResult,
+    comparison_report: ReportResult | None,
+) -> None:
+    """Показывает KPI текущего кассового P&L."""
+
+    current = _build_pnl_kpis(
+        report
+    )
+
+    comparison = (
+        _build_pnl_kpis(
+            comparison_report
+        )
+        if comparison_report is not None
+        else None
+    )
+
+    st.subheader("KPI P&L")
+
+    first_row = st.columns(4)
+
+    first_row[0].metric(
+        "Рентабельность продаж",
+        _format_optional_percent(
+            current["profitability"]
+        ),
+        delta=(
+            _percentage_point_delta(
+                current["profitability"],
+                comparison["profitability"],
+            )
+            if comparison is not None
+            else None
+        ),
+    )
+
+    first_row[1].metric(
+        "Доля расходов в доходах",
+        _format_optional_percent(
+            current["expense_share"]
+        ),
+        delta=(
+            _percentage_point_delta(
+                current["expense_share"],
+                comparison["expense_share"],
+            )
+            if comparison is not None
+            else None
+        ),
+        delta_color="inverse",
+    )
+
+    first_row[2].metric(
+        "Покрытие расходов",
+        _format_optional_percent(
+            current["expense_coverage"]
+        ),
+        delta=(
+            _percentage_point_delta(
+                current["expense_coverage"],
+                comparison[
+                    "expense_coverage"
+                ],
+            )
+            if comparison is not None
+            else None
+        ),
+    )
+
+    first_row[3].metric(
+        "Обработано операций",
+        _format_optional_percent(
+            current["classification_rate"]
+        ),
+        delta=(
+            _percentage_point_delta(
+                current[
+                    "classification_rate"
+                ],
+                comparison[
+                    "classification_rate"
+                ],
+            )
+            if comparison is not None
+            else None
+        ),
+    )
+
+    second_row = st.columns(4)
+
+    second_row[0].metric(
+        "Среднее поступление",
+        _format_optional_rubles(
+            current["average_income"]
+        ),
+        delta=(
+            _rubles_delta(
+                current["average_income"],
+                comparison["average_income"],
+            )
+            if comparison is not None
+            else None
+        ),
+    )
+
+    second_row[1].metric(
+        "Среднее списание",
+        _format_optional_rubles(
+            current["average_expense"]
+        ),
+        delta=(
+            _rubles_delta(
+                current["average_expense"],
+                comparison["average_expense"],
+            )
+            if comparison is not None
+            else None
+        ),
+        delta_color="off",
+    )
+
+    second_row[2].metric(
+        "Доходных операций",
+        int(current["income_count"]),
+        delta=(
+            _count_delta(
+                int(current["income_count"]),
+                int(comparison["income_count"]),
+            )
+            if comparison is not None
+            else None
+        ),
+    )
+
+    second_row[3].metric(
+        "Расходных операций",
+        int(current["expense_count"]),
+        delta=(
+            _count_delta(
+                int(current["expense_count"]),
+                int(comparison["expense_count"]),
+            )
+            if comparison is not None
+            else None
+        ),
+        delta_color="off",
+    )
+
+    st.caption(
+        "KPI рассчитаны по включённым банковским "
+        "операциям. Это управленческий P&L "
+        "по кассовому методу, а не бухгалтерский "
+        "отчёт по методу начисления."
+    )
 
 def show_report_result(
     report: ReportResult,
+    report_type: str,
     category_column: str,
     inflow_label: str,
     outflow_label: str,
@@ -469,6 +869,12 @@ def show_report_result(
         st.warning(
             "Часть операций выбранного периода "
             "ещё не классифицирована для этого отчёта."
+        )
+
+    if report_type == "pnl":
+        show_pnl_kpis(
+            report=report,
+            comparison_report=comparison_report,
         )
 
     if report.transactions.empty:
@@ -705,13 +1111,291 @@ def show_report_result(
                 },
             )
 
+REPORT_START_DATE_STATE_KEY = (
+    "shared_report_start_date"
+)
+
+REPORT_END_DATE_STATE_KEY = (
+    "shared_report_end_date"
+)
+
+REPORT_COMPARISON_STATE_KEY = (
+    "shared_report_comparison_mode"
+)
+
+
+REPORT_START_DATE_WIDGET_KEYS = {
+    "pnl": "pnl_report_start_date",
+    "cash_flow": "cash_flow_report_start_date",
+}
+
+REPORT_END_DATE_WIDGET_KEYS = {
+    "pnl": "pnl_report_end_date",
+    "cash_flow": "cash_flow_report_end_date",
+}
+
+REPORT_COMPARISON_WIDGET_KEYS = {
+    "pnl": "pnl_report_comparison_mode",
+    "cash_flow": "cash_flow_report_comparison_mode",
+}
+
+
+def _clamp_report_date(
+    value,
+    min_date,
+    max_date,
+    default_date,
+):
+    """Ограничивает дату диапазоном имеющихся операций."""
+
+    # None и pandas.NaT не являются корректными датами.
+    if value is None or pd.isna(value):
+        return default_date
+
+    try:
+        timestamp = pd.Timestamp(value)
+    except (TypeError, ValueError, OverflowError):
+        return default_date
+
+    # pd.Timestamp(pd.NaT) не выбрасывает ошибку,
+    # поэтому NaT требуется проверять отдельно.
+    if pd.isna(timestamp):
+        return default_date
+
+    result = timestamp.date()
+
+    if result < min_date:
+        return min_date
+
+    if result > max_date:
+        return max_date
+
+    return result
+
+def _set_report_widget_values(
+    widget_keys: dict[str, str],
+    value,
+) -> None:
+    """Устанавливает одно значение всем связанным виджетам."""
+
+    for widget_key in widget_keys.values():
+        st.session_state[widget_key] = value
+
+
+def _sync_report_start_date(
+    source_widget_key: str,
+) -> None:
+    """Синхронизирует начало периода между отчётами."""
+
+    selected_start = st.session_state.get(
+        source_widget_key
+    )
+
+    if (
+            selected_start is None
+            or pd.isna(selected_start)
+    ):
+        return
+
+    st.session_state[
+        REPORT_START_DATE_STATE_KEY
+    ] = selected_start
+
+    _set_report_widget_values(
+        REPORT_START_DATE_WIDGET_KEYS,
+        selected_start,
+    )
+
+    current_end = st.session_state.get(
+        REPORT_END_DATE_STATE_KEY
+    )
+
+    if (
+            current_end is not None
+            and not pd.isna(current_end)
+            and selected_start > current_end
+    ):
+        st.session_state[
+            REPORT_END_DATE_STATE_KEY
+        ] = selected_start
+
+        _set_report_widget_values(
+            REPORT_END_DATE_WIDGET_KEYS,
+            selected_start,
+        )
+
+
+def _sync_report_end_date(
+    source_widget_key: str,
+) -> None:
+    """Синхронизирует конец периода между отчётами."""
+
+    selected_end = st.session_state.get(
+        source_widget_key
+    )
+
+    if (
+        selected_end is None
+        or pd.isna(selected_end)
+    ):
+        return
+
+    st.session_state[
+        REPORT_END_DATE_STATE_KEY
+    ] = selected_end
+
+    _set_report_widget_values(
+        REPORT_END_DATE_WIDGET_KEYS,
+        selected_end,
+    )
+
+    current_start = st.session_state.get(
+        REPORT_START_DATE_STATE_KEY
+    )
+
+    if (
+        current_start is not None
+        and not pd.isna(current_start)
+        and selected_end < current_start
+    ):
+        st.session_state[
+            REPORT_START_DATE_STATE_KEY
+        ] = selected_end
+
+        _set_report_widget_values(
+            REPORT_START_DATE_WIDGET_KEYS,
+            selected_end,
+        )
+
+def _sync_report_comparison_mode(
+    source_widget_key: str,
+) -> None:
+    """Синхронизирует режим сравнения отчётов."""
+
+    selected_mode = st.session_state.get(
+        source_widget_key
+    )
+
+    if selected_mode not in COMPARISON_MODES:
+        return
+
+    st.session_state[
+        REPORT_COMPARISON_STATE_KEY
+    ] = selected_mode
+
+    _set_report_widget_values(
+        REPORT_COMPARISON_WIDGET_KEYS,
+        selected_mode,
+    )
+
+
+def _prepare_report_filter_state(
+    *,
+    report_key: str,
+    min_date,
+    max_date,
+) -> None:
+    """Подготавливает общий период перед созданием виджетов."""
+
+    if report_key not in {
+        "pnl",
+        "cash_flow",
+    }:
+        raise ValueError(
+            f"Неизвестный ключ отчёта: {report_key}"
+        )
+
+    shared_start = _clamp_report_date(
+        value=st.session_state.get(
+            REPORT_START_DATE_STATE_KEY
+        ),
+        min_date=min_date,
+        max_date=max_date,
+        default_date=min_date,
+    )
+
+    shared_end = _clamp_report_date(
+        value=st.session_state.get(
+            REPORT_END_DATE_STATE_KEY
+        ),
+        min_date=min_date,
+        max_date=max_date,
+        default_date=max_date,
+    )
+
+    if shared_start > shared_end:
+        shared_end = shared_start
+
+    comparison_mode = st.session_state.get(
+        REPORT_COMPARISON_STATE_KEY,
+        "none",
+    )
+
+    if comparison_mode not in COMPARISON_MODES:
+        comparison_mode = "none"
+
+    st.session_state[
+        REPORT_START_DATE_STATE_KEY
+    ] = shared_start
+
+    st.session_state[
+        REPORT_END_DATE_STATE_KEY
+    ] = shared_end
+
+    st.session_state[
+        REPORT_COMPARISON_STATE_KEY
+    ] = comparison_mode
+
+    start_widget_key = (
+        REPORT_START_DATE_WIDGET_KEYS[
+            report_key
+        ]
+    )
+
+    end_widget_key = (
+        REPORT_END_DATE_WIDGET_KEYS[
+            report_key
+        ]
+    )
+
+    comparison_widget_key = (
+        REPORT_COMPARISON_WIDGET_KEYS[
+            report_key
+        ]
+    )
+
+    if (
+        st.session_state.get(start_widget_key)
+        != shared_start
+    ):
+        st.session_state[
+            start_widget_key
+        ] = shared_start
+
+    if (
+        st.session_state.get(end_widget_key)
+        != shared_end
+    ):
+        st.session_state[
+            end_widget_key
+        ] = shared_end
+
+    if (
+        st.session_state.get(
+            comparison_widget_key
+        )
+        != comparison_mode
+    ):
+        st.session_state[
+            comparison_widget_key
+        ] = comparison_mode
 
 def show_financial_report(
     transactions: pd.DataFrame,
     report_type: str,
     key_prefix: str,
 ) -> None:
-    """Показывает отчёт и сравнение выбранных периодов."""
+    """Показывает отчёт с общими финансовыми фильтрами."""
 
     if transactions.empty:
         st.info(
@@ -733,32 +1417,78 @@ def show_financial_report(
     min_date = posted_dates.min().date()
     max_date = posted_dates.max().date()
 
-    selected_period = st.date_input(
-        "Период отчёта",
-        value=(min_date, max_date),
-        min_value=min_date,
-        max_value=max_date,
-        format="DD.MM.YYYY",
-        key=f"{key_prefix}_period",
-    )
-
-    comparison_mode = st.selectbox(
-        "Сравнить с",
-        options=list(COMPARISON_MODES),
-        format_func=COMPARISON_MODES.get,
-        key=f"{key_prefix}_comparison_mode",
-    )
-
-    if (
-        not isinstance(selected_period, tuple)
-        or len(selected_period) != 2
-    ):
-        st.info(
-            "Выбери дату начала и окончания периода."
+    try:
+        _prepare_report_filter_state(
+            report_key=key_prefix,
+            min_date=min_date,
+            max_date=max_date,
         )
+    except ValueError as exc:
+        st.error(str(exc))
         return
 
-    start_date, end_date = selected_period
+    start_widget_key = (
+        REPORT_START_DATE_WIDGET_KEYS[
+            key_prefix
+        ]
+    )
+
+    end_widget_key = (
+        REPORT_END_DATE_WIDGET_KEYS[
+            key_prefix
+        ]
+    )
+
+    comparison_widget_key = (
+        REPORT_COMPARISON_WIDGET_KEYS[
+            key_prefix
+        ]
+    )
+
+    start_column, end_column, comparison_column = (
+        st.columns(
+            [1, 1, 1.25]
+        )
+    )
+
+    with start_column:
+        start_date = st.date_input(
+            "Начало периода",
+            min_value=min_date,
+            max_value=max_date,
+            format="DD.MM.YYYY",
+            key=start_widget_key,
+            on_change=_sync_report_start_date,
+            args=(start_widget_key,),
+        )
+
+    with end_column:
+        end_date = st.date_input(
+            "Конец периода",
+            min_value=min_date,
+            max_value=max_date,
+            format="DD.MM.YYYY",
+            key=end_widget_key,
+            on_change=_sync_report_end_date,
+            args=(end_widget_key,),
+        )
+
+    with comparison_column:
+        comparison_mode = st.selectbox(
+            "Сравнить с",
+            options=list(COMPARISON_MODES),
+            format_func=COMPARISON_MODES.get,
+            key=comparison_widget_key,
+            on_change=(
+                _sync_report_comparison_mode
+            ),
+            args=(comparison_widget_key,),
+        )
+
+    st.caption(
+        "Период и режим сравнения общие "
+        "для P&L и Cash Flow."
+    )
 
     try:
         period_transactions = (
@@ -845,6 +1575,7 @@ def show_financial_report(
 
     show_report_result(
         report=report,
+        report_type=report_type,
         category_column=category_column,
         inflow_label=inflow_label,
         outflow_label=outflow_label,
