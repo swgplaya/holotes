@@ -9,6 +9,11 @@ from sqlalchemy import select
 
 from src.database import SessionLocal
 from src.models import BankTransaction
+from src.categories import (
+    EXCLUDE_ACTION,
+    INCLUDE_ACTION,
+    UNDEFINED_ACTION
+)
 
 
 @dataclass(frozen=True)
@@ -199,7 +204,11 @@ def get_transactions_dataframe() -> pd.DataFrame:
         "payment_purpose",
         "pnl_category",
         "cf_category",
+        "include_in_pnl",
+        "include_in_cf",
         "classification_status",
+        "classification_source",
+        "comment",
     ]
 
     statement = select(
@@ -234,8 +243,199 @@ def get_transactions_dataframe() -> pd.DataFrame:
                 "cf_category": transaction.cf_category,
                 "classification_status":
                     transaction.classification_status,
+                "include_in_pnl":
+                    transaction.include_in_pnl,
+                "include_in_cf":
+                    transaction.include_in_cf,
+                "classification_source":
+                    transaction.classification_source,
+                "comment":
+                    transaction.comment,
             }
             for transaction in transactions
         ]
 
     return pd.DataFrame(rows, columns=columns)
+
+@dataclass(frozen=True)
+class ClassificationSaveResult:
+    """Результат сохранения ручной классификации."""
+
+    received: int
+    updated: int
+    classified: int
+    partial: int
+    unclassified: int
+
+
+def _action_to_bool(value: Any) -> bool | None:
+    """Преобразует решение пользователя во внутреннее значение."""
+
+    if value is None or pd.isna(value):
+        return None
+
+    text = str(value).strip()
+
+    if text == INCLUDE_ACTION:
+        return True
+
+    if text == EXCLUDE_ACTION:
+        return False
+
+    if text == UNDEFINED_ACTION or not text:
+        return None
+
+    raise ValueError(
+        f"Неизвестное решение по операции: {value!r}"
+    )
+
+
+def _get_classification_status(
+    include_in_pnl: bool | None,
+    include_in_cf: bool | None,
+) -> str:
+    """Определяет полноту классификации операции."""
+
+    if (
+        include_in_pnl is not None
+        and include_in_cf is not None
+    ):
+        return "classified"
+
+    if (
+        include_in_pnl is not None
+        or include_in_cf is not None
+    ):
+        return "partial"
+
+    return "unclassified"
+
+
+def save_classifications(
+    classifications: pd.DataFrame,
+) -> ClassificationSaveResult:
+    """Сохраняет решения пользователя по P&L и Cash Flow."""
+
+    required_columns = {
+        "id",
+        "pnl_action",
+        "pnl_category",
+        "cf_action",
+        "cf_category",
+        "comment",
+    }
+
+    missing_columns = (
+        required_columns - set(classifications.columns)
+    )
+
+    if missing_columns:
+        raise ValueError(
+            "Не хватает столбцов классификации: "
+            + ", ".join(sorted(missing_columns))
+        )
+
+    received = len(classifications)
+    updated = 0
+    classified = 0
+    partial = 0
+    unclassified = 0
+
+    errors: list[str] = []
+
+    with SessionLocal() as session:
+        for _, row in classifications.iterrows():
+            row_errors: list[str] = []
+
+            transaction_id = int(row["id"])
+
+            transaction = session.get(
+                BankTransaction,
+                transaction_id,
+            )
+
+            if transaction is None:
+                errors.append(
+                    f"Операция с ID {transaction_id} не найдена."
+                )
+                continue
+
+            include_in_pnl = _action_to_bool(
+                row["pnl_action"]
+            )
+            include_in_cf = _action_to_bool(
+                row["cf_action"]
+            )
+
+            pnl_category = _optional_text(
+                row["pnl_category"]
+            )
+            cf_category = _optional_text(
+                row["cf_category"]
+            )
+
+            if (
+                    include_in_pnl is True
+                    and pnl_category is None
+            ):
+                row_errors.append(
+                    f"ID {transaction_id}: "
+                    "для включения в P&L выбери категорию."
+                )
+
+            if (
+                    include_in_cf is True
+                    and cf_category is None
+            ):
+                row_errors.append(
+                    f"ID {transaction_id}: "
+                    "для включения в Cash Flow выбери категорию."
+                )
+
+            if row_errors:
+                errors.extend(row_errors)
+                continue
+
+            status = _get_classification_status(
+                include_in_pnl=include_in_pnl,
+                include_in_cf=include_in_cf,
+            )
+
+            transaction.include_in_pnl = include_in_pnl
+            transaction.include_in_cf = include_in_cf
+            transaction.pnl_category = pnl_category
+            transaction.cf_category = cf_category
+            transaction.comment = _optional_text(
+                row["comment"]
+            )
+            transaction.classification_status = status
+
+            if status == "unclassified":
+                transaction.classification_source = None
+                unclassified += 1
+            else:
+                transaction.classification_source = "manual"
+
+                if status == "classified":
+                    classified += 1
+                else:
+                    partial += 1
+
+            updated += 1
+
+        if errors:
+            session.rollback()
+
+            raise ValueError(
+                "\n".join(errors)
+            )
+
+        session.commit()
+
+    return ClassificationSaveResult(
+        received=received,
+        updated=updated,
+        classified=classified,
+        partial=partial,
+        unclassified=unclassified,
+    )
