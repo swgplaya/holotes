@@ -163,6 +163,86 @@ class BankTransaction(Base):
         onupdate=func.current_timestamp(),
     )
 
+class ImportBatch(Base):
+    """Одна загруженная банковская выписка."""
+
+    __tablename__ = "import_batches"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    source_filename: Mapped[str] = mapped_column(
+        String(512),
+        nullable=False,
+    )
+
+    source_size_bytes: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+    )
+
+    source_sha256: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        index=True,
+    )
+
+    received_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    inserted_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    duplicate_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    warnings_json: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        index=True,
+    )
+
+
+class ImportBatchTransaction(Base):
+    """Связь банковской выписки с операцией."""
+
+    __tablename__ = "import_batch_transactions"
+
+    import_batch_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "import_batches.id",
+            ondelete="CASCADE",
+        ),
+        primary_key=True,
+    )
+
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "bank_transactions.id",
+            ondelete="CASCADE",
+        ),
+        primary_key=True,
+        index=True,
+    )
+
 class ClassificationRule(Base):
     """Правило автоматической классификации операций."""
 

@@ -1,5 +1,7 @@
+import hashlib
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from io import BytesIO
 
 import pandas as pd
 import streamlit as st
@@ -24,7 +26,13 @@ from src.bank_import import (
 )
 from src.database import init_db
 from src.transaction_repository import (
+    clear_bank_data,
+    delete_import_batch,
+    delete_untracked_transactions,
+    get_import_batch_transactions_dataframe,
+    get_import_batches_dataframe,
     get_transactions_dataframe,
+    get_untracked_transaction_count,
     save_classifications,
     save_transactions,
 )
@@ -4105,8 +4113,16 @@ with import_tab:
             "Выберите CSV-файл для предварительной проверки."
         )
     else:
+        uploaded_bytes = uploaded_file.getvalue()
+
+        source_sha256 = hashlib.sha256(
+            uploaded_bytes
+        ).hexdigest()
+
         try:
-            result = read_tbank_csv(uploaded_file)
+            result = read_tbank_csv(
+                BytesIO(uploaded_bytes)
+            )
         except BankStatementError as exc:
             st.error(str(exc))
             st.stop()
@@ -4115,6 +4131,26 @@ with import_tab:
             st.stop()
 
         imported_transactions = result.transactions
+
+        file_info_columns = st.columns(3)
+
+        file_info_columns[0].metric(
+            "Имя файла",
+            uploaded_file.name,
+        )
+
+        file_info_columns[1].metric(
+            "Размер",
+            (
+                f"{len(uploaded_bytes) / 1024:.1f} КБ"
+            ),
+        )
+
+        file_info_columns[2].metric(
+            "SHA-256",
+            source_sha256[:12] + "…",
+            help=source_sha256,
+        )
 
         for warning in result.warnings:
             st.warning(warning)
@@ -4134,17 +4170,404 @@ with import_tab:
             type="primary",
             use_container_width=True,
         ):
-            save_result = save_transactions(
-                imported_transactions
+            try:
+                save_result = save_transactions(
+                    imported_transactions,
+                    source_filename=uploaded_file.name,
+                    source_size_bytes=len(
+                        uploaded_bytes
+                    ),
+                    source_sha256=source_sha256,
+                    warnings=result.warnings,
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                st.session_state[
+                    "last_import_message"
+                ] = (
+                    f"Импорт #{save_result.import_batch_id}. "
+                    f"Получено операций: "
+                    f"{save_result.received}. "
+                    f"Добавлено новых: "
+                    f"{save_result.inserted}. "
+                    f"Пропущено дублей: "
+                    f"{save_result.duplicates}."
+                )
+
+                st.rerun()
+    st.divider()
+    st.subheader("Управление банковскими данными")
+
+    import_batches = get_import_batches_dataframe()
+    untracked_count = get_untracked_transaction_count()
+    total_transaction_count = len(
+        get_transactions_dataframe()
+    )
+
+    management_metrics = st.columns(3)
+
+    management_metrics[0].metric(
+        "Загрузок в журнале",
+        len(import_batches),
+    )
+
+    management_metrics[1].metric(
+        "Операций без журнала",
+        untracked_count,
+    )
+
+    management_metrics[2].metric(
+        "Всего банковских операций",
+        total_transaction_count,
+    )
+
+    st.caption(
+        "Операции без журнала были загружены до появления "
+        "учёта банковских импортов."
+    )
+
+    if import_batches.empty:
+        st.info(
+            "В журнале пока нет сохранённых импортов."
+        )
+    else:
+        st.markdown("#### Журнал импортов")
+
+        import_history = import_batches.copy()
+
+        import_history["Импортирован"] = (
+            pd.to_datetime(
+                import_history["imported_at"],
+                errors="coerce",
+            ).dt.strftime("%d.%m.%Y %H:%M")
+        )
+
+        import_history["Размер, КБ"] = (
+            pd.to_numeric(
+                import_history["source_size_bytes"],
+                errors="coerce",
+            ) / 1024
+        )
+
+        import_history = import_history.rename(
+            columns={
+                "id": "ID",
+                "source_filename": "Файл",
+                "received_count": "Получено",
+                "inserted_count": "Добавлено",
+                "duplicate_count": "Дубли",
+                "linked_transaction_count":
+                    "Связано операций",
+            }
+        )
+
+        st.dataframe(
+            import_history[
+                [
+                    "ID",
+                    "Файл",
+                    "Импортирован",
+                    "Размер, КБ",
+                    "Получено",
+                    "Добавлено",
+                    "Дубли",
+                    "Связано операций",
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn(
+                    "ID",
+                    format="%d",
+                ),
+                "Размер, КБ":
+                    st.column_config.NumberColumn(
+                        "Размер, КБ",
+                        format="%.1f",
+                    ),
+            },
+        )
+
+        batch_ids = (
+            import_batches["id"]
+            .astype(int)
+            .tolist()
+        )
+
+        batch_labels: dict[int, str] = {}
+
+        for _, batch_row in (
+            import_batches.iterrows()
+        ):
+            batch_id = int(batch_row["id"])
+
+            imported_at = pd.to_datetime(
+                batch_row["imported_at"],
+                errors="coerce",
             )
 
-            st.session_state["last_import_message"] = (
-                f"Получено операций: "
-                f"{save_result.received}. "
-                f"Добавлено новых: "
-                f"{save_result.inserted}. "
-                f"Пропущено дублей: "
-                f"{save_result.duplicates}."
+            if pd.isna(imported_at):
+                imported_at_text = (
+                    "дата неизвестна"
+                )
+            else:
+                imported_at_text = (
+                    imported_at.strftime(
+                        "%d.%m.%Y %H:%M"
+                    )
+                )
+
+            batch_labels[batch_id] = (
+                f"#{batch_id} — "
+                f"{batch_row['source_filename']} — "
+                f"{imported_at_text}"
+            )
+
+        selected_batch_id = st.selectbox(
+            "Выберите импорт",
+            options=batch_ids,
+            format_func=lambda value: (
+                batch_labels[int(value)]
+            ),
+            key="selected_import_batch_id",
+        )
+
+        selected_batch = import_batches.loc[
+            import_batches["id"].astype(int)
+            == int(selected_batch_id)
+        ].iloc[0]
+
+        selected_warnings = text_or_empty(
+            selected_batch["warnings"]
+        )
+
+        if selected_warnings:
+            st.warning(selected_warnings)
+
+        selected_transactions = (
+            get_import_batch_transactions_dataframe(
+                int(selected_batch_id)
+            )
+        )
+
+        st.markdown(
+            "#### Операции выбранного импорта"
+        )
+
+        if selected_transactions.empty:
+            st.info(
+                "С выбранным импортом не связано операций."
+            )
+        else:
+            transaction_view = (
+                selected_transactions.copy()
+            )
+
+            transaction_view["Дата"] = (
+                pd.to_datetime(
+                    transaction_view["posted_at"],
+                    errors="coerce",
+                ).dt.strftime("%d.%m.%Y")
+            )
+
+            transaction_view["Сумма, ₽"] = (
+                pd.to_numeric(
+                    transaction_view[
+                        "signed_amount_kopecks"
+                    ],
+                    errors="coerce",
+                ) / 100
+            )
+
+            transaction_view = (
+                transaction_view.rename(
+                    columns={
+                        "id": "ID",
+                        "counterparty_name":
+                            "Контрагент",
+                        "description": "Описание",
+                        "payment_purpose":
+                            "Назначение платежа",
+                        "classification_status":
+                            "Классификация",
+                    }
+                )
+            )
+
+            st.dataframe(
+                transaction_view[
+                    [
+                        "ID",
+                        "Дата",
+                        "Сумма, ₽",
+                        "Контрагент",
+                        "Описание",
+                        "Назначение платежа",
+                        "Классификация",
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "ID":
+                        st.column_config.NumberColumn(
+                            "ID",
+                            format="%d",
+                        ),
+                    "Сумма, ₽":
+                        st.column_config.NumberColumn(
+                            "Сумма, ₽",
+                            format="%.2f",
+                        ),
+                },
+            )
+
+        st.markdown(
+            "#### Удаление выбранного импорта"
+        )
+
+        st.caption(
+            "Операции, связанные также с другой выпиской, "
+            "останутся в базе."
+        )
+
+        delete_batch_phrase = (
+            f"УДАЛИТЬ ИМПОРТ {selected_batch_id}"
+        )
+
+        delete_batch_confirmation = st.text_input(
+            "Для удаления введите:",
+            placeholder=delete_batch_phrase,
+            key=(
+                "delete_import_batch_confirmation_"
+                f"{selected_batch_id}"
+            ),
+        )
+
+        if st.button(
+            "Удалить выбранный импорт",
+            disabled=(
+                delete_batch_confirmation.strip()
+                != delete_batch_phrase
+            ),
+            key=(
+                "delete_import_batch_button_"
+                f"{selected_batch_id}"
+            ),
+            use_container_width=True,
+        ):
+            try:
+                delete_result = delete_import_batch(
+                    int(selected_batch_id)
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                st.session_state[
+                    "last_import_message"
+                ] = (
+                    f"Импорт "
+                    f"#{delete_result.import_batch_id} "
+                    f"удалён. Удалено связей: "
+                    f"{delete_result.links_deleted}. "
+                    f"Удалено банковских операций: "
+                    f"{delete_result.transactions_deleted}."
+                )
+
+                st.rerun()
+
+    if untracked_count > 0:
+        st.divider()
+        st.markdown(
+            "#### Операции без журнала импорта"
+        )
+
+        st.warning(
+            f"Найдено операций, загруженных до появления "
+            f"журнала импортов: {untracked_count}. "
+            "Их можно удалить отдельно."
+        )
+
+        delete_untracked_phrase = (
+            "УДАЛИТЬ ОПЕРАЦИИ БЕЗ ЖУРНАЛА"
+        )
+
+        delete_untracked_confirmation = (
+            st.text_input(
+                "Для удаления старых операций введите:",
+                placeholder=delete_untracked_phrase,
+                key="delete_untracked_confirmation",
+            )
+        )
+
+        if st.button(
+            "Удалить операции без журнала",
+            disabled=(
+                delete_untracked_confirmation.strip()
+                != delete_untracked_phrase
+            ),
+            key="delete_untracked_button",
+            use_container_width=True,
+        ):
+            deleted_count = (
+                delete_untracked_transactions()
+            )
+
+            st.session_state[
+                "last_import_message"
+            ] = (
+                "Удалены операции без журнала импорта: "
+                f"{deleted_count}."
+            )
+
+            st.rerun()
+
+    st.divider()
+
+    with st.expander(
+        "Опасная зона: полная очистка банковских данных",
+        expanded=False,
+    ):
+        st.warning(
+            "Будут удалены все банковские операции, "
+            "журналы импортов и связи между ними. "
+            "Правила, платёжный календарь и "
+            "Unit Economics останутся."
+        )
+
+        clear_phrase = (
+            "УДАЛИТЬ ВСЕ БАНКОВСКИЕ ДАННЫЕ"
+        )
+
+        clear_confirmation = st.text_input(
+            "Для полной очистки введите:",
+            placeholder=clear_phrase,
+            key="clear_bank_data_confirmation",
+        )
+
+        if st.button(
+            "Полностью очистить банковские данные",
+            disabled=(
+                clear_confirmation.strip()
+                != clear_phrase
+            ),
+            key="clear_bank_data_button",
+            use_container_width=True,
+        ):
+            clear_result = clear_bank_data()
+
+            st.session_state[
+                "last_import_message"
+            ] = (
+                "Банковские данные очищены. "
+                f"Удалено импортов: "
+                f"{clear_result.import_batches_deleted}; "
+                f"связей: "
+                f"{clear_result.links_deleted}; "
+                f"операций: "
+                f"{clear_result.transactions_deleted}."
             )
 
             st.rerun()
