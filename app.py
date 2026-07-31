@@ -14,6 +14,10 @@ from src.categories import (
     UNDEFINED_ACTION,
 )
 
+from src.classification_summary import (
+    build_unclassified_summary,
+)
+
 from src.bank_import import (
     BankStatementError,
     read_tbank_csv,
@@ -1682,6 +1686,55 @@ with classification_tab:
     classification_transactions = (
         get_transactions_dataframe()
     )
+
+    classification_summary = (
+        build_unclassified_summary(
+            classification_transactions
+        )
+    )
+
+    st.markdown(
+        "#### Неклассифицированные операции"
+    )
+
+    summary_columns = st.columns(4)
+
+    summary_columns[0].metric(
+        "Поступления",
+        format_rubles(
+            classification_summary.inflow_kopecks
+        ),
+    )
+
+    summary_columns[1].metric(
+        "Списания",
+        format_rubles(
+            classification_summary.outflow_kopecks
+        ),
+    )
+
+    summary_columns[2].metric(
+        "Чистая сумма",
+        format_rubles(
+            classification_summary.net_kopecks
+        ),
+    )
+
+    summary_columns[3].metric(
+        "Операций",
+        classification_summary.operation_count,
+    )
+
+    st.caption(
+        "Учитываются операции, для которых не завершена "
+        "классификация хотя бы в одном контуре: "
+        "P&L или Cash Flow."
+    )
+
+    if classification_summary.operation_count == 0:
+        st.success(
+            "Все операции классифицированы."
+        )
 
     if classification_transactions.empty:
         st.info(
