@@ -25,10 +25,13 @@ from src.transaction_repository import (
     save_transactions,
 )
 from src.reporting import (
+    COMPARISON_MODES,
     ReportResult,
     build_cash_flow_report,
+    build_category_comparison,
     build_pnl_report,
     filter_transactions_by_period,
+    get_comparison_period,
 )
 
 from src.rule_repository import (
@@ -333,42 +336,109 @@ def show_report_result(
     inflow_label: str,
     outflow_label: str,
     net_label: str,
+    current_label: str,
+    comparison_report: ReportResult | None = None,
+    comparison_label: str | None = None,
 ) -> None:
-    """Отображает метрики, график и детализацию отчёта."""
+    """Отображает финансовый отчёт и сравнение периодов."""
+
+    def money_delta(
+        current_value: int,
+        comparison_value: int,
+    ) -> str:
+        difference = (
+            current_value - comparison_value
+        )
+
+        prefix = "+" if difference > 0 else ""
+
+        return (
+            prefix
+            + format_rubles(difference)
+        )
 
     metric_columns = st.columns(4)
+
+    inflow_delta = None
+    outflow_delta = None
+    net_delta = None
+    count_delta = None
+
+    if comparison_report is not None:
+        inflow_delta = money_delta(
+            report.inflow_kopecks,
+            comparison_report.inflow_kopecks,
+        )
+
+        outflow_delta = money_delta(
+            report.outflow_kopecks,
+            comparison_report.outflow_kopecks,
+        )
+
+        net_delta = money_delta(
+            report.net_kopecks,
+            comparison_report.net_kopecks,
+        )
+
+        operation_difference = (
+            report.included_count
+            - comparison_report.included_count
+        )
+
+        count_delta = (
+            f"{operation_difference:+d}"
+        )
 
     metric_columns[0].metric(
         inflow_label,
         format_rubles(report.inflow_kopecks),
+        delta=inflow_delta,
     )
 
     metric_columns[1].metric(
         outflow_label,
         format_rubles(report.outflow_kopecks),
+        delta=outflow_delta,
     )
 
     metric_columns[2].metric(
         net_label,
         format_rubles(report.net_kopecks),
+        delta=net_delta,
     )
 
     metric_columns[3].metric(
         "Учтено операций",
         report.included_count,
+        delta=count_delta,
     )
 
     st.caption(
-        f"Исключено из отчёта: "
-        f"{report.excluded_count}. "
-        f"Не принято решение: "
+        f"{current_label}: "
+        f"исключено из отчёта — "
+        f"{report.excluded_count}; "
+        f"не принято решение — "
         f"{report.pending_count}."
     )
 
+    if (
+        comparison_report is not None
+        and comparison_label is not None
+    ):
+        st.caption(
+            f"{comparison_label}: "
+            f"учтено — "
+            f"{comparison_report.included_count}; "
+            f"исключено — "
+            f"{comparison_report.excluded_count}; "
+            f"не принято решение — "
+            f"{comparison_report.pending_count}."
+        )
+
     if report.pending_count:
         st.warning(
-            "Часть операций ещё не классифицирована "
-            "для этого отчёта и не входит в расчёт."
+            "Часть операций выбранного периода "
+            "ещё не классифицирована для этого отчёта."
         )
 
     if report.transactions.empty:
@@ -376,78 +446,234 @@ def show_report_result(
             "В выбранном периоде нет операций, "
             "включённых в этот отчёт."
         )
-        return
 
-    category_table = report.category_totals.copy()
-
-    category_table["Сумма, ₽"] = (
-        category_table["amount_kopecks"] / 100
-    )
-
-    category_table = category_table.rename(
-        columns={
-            "category": "Категория",
-        }
-    )
+        if comparison_report is None:
+            return
 
     st.subheader("Структура по категориям")
 
-    chart = px.bar(
-        category_table,
-        x="Категория",
-        y="Сумма, ₽",
-        text_auto=".2s",
-    )
-
-    chart.update_layout(
-        xaxis_title="",
-        yaxis_title="Сумма, ₽",
-    )
-
-    st.plotly_chart(
-        chart,
-        use_container_width=True,
-    )
-
-    st.dataframe(
-        category_table[
-            [
-                "Категория",
-                "Сумма, ₽",
-            ]
-        ],
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Сумма, ₽":
-                st.column_config.NumberColumn(
-                    "Сумма, ₽",
-                    format="%.2f",
-                ),
-        },
-    )
-
-    with st.expander(
-        "Показать операции отчёта",
-        expanded=False,
-    ):
-        details = prepare_report_details(
-            transactions=report.transactions,
-            category_column=category_column,
+    if comparison_report is None:
+        category_table = (
+            report.category_totals.copy()
         )
 
-        st.dataframe(
-            details,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Сумма, ₽":
-                    st.column_config.NumberColumn(
+        category_table["Сумма, ₽"] = (
+            category_table[
+                "amount_kopecks"
+            ] / 100
+        )
+
+        category_table = category_table.rename(
+            columns={
+                "category": "Категория",
+            }
+        )
+
+        if category_table.empty:
+            st.info(
+                "Нет данных для построения "
+                "структуры по категориям."
+            )
+        else:
+            chart = px.bar(
+                category_table,
+                x="Категория",
+                y="Сумма, ₽",
+                text_auto=".2s",
+            )
+
+            chart.update_layout(
+                xaxis_title="",
+                yaxis_title="Сумма, ₽",
+            )
+
+            st.plotly_chart(
+                chart,
+                use_container_width=True,
+            )
+
+            st.dataframe(
+                category_table[
+                    [
+                        "Категория",
                         "Сумма, ₽",
-                        format="%.2f",
-                    ),
-            },
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Сумма, ₽":
+                        st.column_config.NumberColumn(
+                            "Сумма, ₽",
+                            format="%.2f",
+                        ),
+                },
+            )
+
+    else:
+        comparison_table = (
+            build_category_comparison(
+                current_report=report,
+                comparison_report=comparison_report,
+            )
         )
+
+        comparison_table[
+            "Выбранный период, ₽"
+        ] = (
+            comparison_table[
+                "current_amount_kopecks"
+            ] / 100
+        )
+
+        comparison_table[
+            "Период сравнения, ₽"
+        ] = (
+            comparison_table[
+                "comparison_amount_kopecks"
+            ] / 100
+        )
+
+        comparison_table["Изменение, ₽"] = (
+            comparison_table[
+                "delta_kopecks"
+            ] / 100
+        )
+
+        comparison_table = (
+            comparison_table.rename(
+                columns={
+                    "category": "Категория",
+                    "change_percent":
+                        "Изменение, %",
+                }
+            )
+        )
+
+        if comparison_table.empty:
+            st.info(
+                "В обоих периодах нет данных "
+                "для сравнения категорий."
+            )
+        else:
+            chart_data = comparison_table[
+                [
+                    "Категория",
+                    "Выбранный период, ₽",
+                    "Период сравнения, ₽",
+                ]
+            ].melt(
+                id_vars="Категория",
+                var_name="Период",
+                value_name="Сумма, ₽",
+            )
+
+            comparison_chart = px.bar(
+                chart_data,
+                x="Категория",
+                y="Сумма, ₽",
+                color="Период",
+                barmode="group",
+            )
+
+            comparison_chart.update_layout(
+                xaxis_title="",
+                yaxis_title="Сумма, ₽",
+            )
+
+            st.plotly_chart(
+                comparison_chart,
+                use_container_width=True,
+            )
+
+            st.dataframe(
+                comparison_table[
+                    [
+                        "Категория",
+                        "Выбранный период, ₽",
+                        "Период сравнения, ₽",
+                        "Изменение, ₽",
+                        "Изменение, %",
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Выбранный период, ₽":
+                        st.column_config.NumberColumn(
+                            "Выбранный период, ₽",
+                            format="%.2f",
+                        ),
+                    "Период сравнения, ₽":
+                        st.column_config.NumberColumn(
+                            "Период сравнения, ₽",
+                            format="%.2f",
+                        ),
+                    "Изменение, ₽":
+                        st.column_config.NumberColumn(
+                            "Изменение, ₽",
+                            format="%.2f",
+                        ),
+                    "Изменение, %":
+                        st.column_config.NumberColumn(
+                            "Изменение, %",
+                            format="%.1f%%",
+                        ),
+                },
+            )
+
+    if not report.transactions.empty:
+        with st.expander(
+            "Операции выбранного периода",
+            expanded=False,
+        ):
+            details = prepare_report_details(
+                transactions=report.transactions,
+                category_column=category_column,
+            )
+
+            st.dataframe(
+                details,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Сумма, ₽":
+                        st.column_config.NumberColumn(
+                            "Сумма, ₽",
+                            format="%.2f",
+                        ),
+                },
+            )
+
+    if (
+        comparison_report is not None
+        and not comparison_report.transactions.empty
+    ):
+        with st.expander(
+            "Операции периода сравнения",
+            expanded=False,
+        ):
+            comparison_details = (
+                prepare_report_details(
+                    transactions=(
+                        comparison_report.transactions
+                    ),
+                    category_column=category_column,
+                )
+            )
+
+            st.dataframe(
+                comparison_details,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Сумма, ₽":
+                        st.column_config.NumberColumn(
+                            "Сумма, ₽",
+                            format="%.2f",
+                        ),
+                },
+            )
 
 
 def show_financial_report(
@@ -455,7 +681,7 @@ def show_financial_report(
     report_type: str,
     key_prefix: str,
 ) -> None:
-    """Показывает P&L или Cash Flow за выбранный период."""
+    """Показывает отчёт и сравнение выбранных периодов."""
 
     if transactions.empty:
         st.info(
@@ -486,6 +712,13 @@ def show_financial_report(
         key=f"{key_prefix}_period",
     )
 
+    comparison_mode = st.selectbox(
+        "Сравнить с",
+        options=list(COMPARISON_MODES),
+        format_func=COMPARISON_MODES.get,
+        key=f"{key_prefix}_comparison_mode",
+    )
+
     if (
         not isinstance(selected_period, tuple)
         or len(selected_period) != 2
@@ -505,48 +738,90 @@ def show_financial_report(
                 end_date=end_date,
             )
         )
+
+        comparison_dates = (
+            get_comparison_period(
+                start_date=start_date,
+                end_date=end_date,
+                mode=comparison_mode,
+            )
+        )
     except ValueError as exc:
         st.error(str(exc))
         return
 
-    st.caption(
-        f"Период: "
+    current_label = (
         f"{start_date.strftime('%d.%m.%Y')} — "
         f"{end_date.strftime('%d.%m.%Y')}"
     )
 
     if report_type == "pnl":
-        report = build_pnl_report(
-            period_transactions
+        report_builder = build_pnl_report
+        category_column = "pnl_category"
+        inflow_label = "Доходы"
+        outflow_label = "Расходы"
+        net_label = "Результат"
+
+    elif report_type == "cash_flow":
+        report_builder = build_cash_flow_report
+        category_column = "cf_category"
+        inflow_label = "Поступления"
+        outflow_label = "Платежи"
+        net_label = "Чистый денежный поток"
+
+    else:
+        raise ValueError(
+            f"Неизвестный тип отчёта: {report_type}"
         )
 
-        show_report_result(
-            report=report,
-            category_column="pnl_category",
-            inflow_label="Доходы",
-            outflow_label="Расходы",
-            net_label="Результат",
+    report = report_builder(
+        period_transactions
+    )
+
+    comparison_report = None
+    comparison_label = None
+
+    if comparison_dates is not None:
+        comparison_start, comparison_end = (
+            comparison_dates
         )
 
-        return
-
-    if report_type == "cash_flow":
-        report = build_cash_flow_report(
-            period_transactions
+        comparison_transactions = (
+            filter_transactions_by_period(
+                transactions=transactions,
+                start_date=comparison_start,
+                end_date=comparison_end,
+            )
         )
 
-        show_report_result(
-            report=report,
-            category_column="cf_category",
-            inflow_label="Поступления",
-            outflow_label="Платежи",
-            net_label="Чистый денежный поток",
+        comparison_report = report_builder(
+            comparison_transactions
         )
 
-        return
+        comparison_label = (
+            f"{comparison_start.strftime('%d.%m.%Y')} — "
+            f"{comparison_end.strftime('%d.%m.%Y')}"
+        )
 
-    raise ValueError(
-        f"Неизвестный тип отчёта: {report_type}"
+    if comparison_label is None:
+        st.caption(
+            f"Период: {current_label}"
+        )
+    else:
+        st.caption(
+            f"Выбранный период: {current_label}. "
+            f"Сравнение: {comparison_label}."
+        )
+
+    show_report_result(
+        report=report,
+        category_column=category_column,
+        inflow_label=inflow_label,
+        outflow_label=outflow_label,
+        net_label=net_label,
+        current_label=current_label,
+        comparison_report=comparison_report,
+        comparison_label=comparison_label,
     )
 
 st.title("Open MAS")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 
@@ -19,6 +19,11 @@ class ReportResult:
     excluded_count: int
     pending_count: int
 
+COMPARISON_MODES = {
+    "none": "Без сравнения",
+    "previous": "Предыдущий период",
+    "previous_year": "Тот же период год назад",
+}
 
 def filter_transactions_by_period(
     transactions: pd.DataFrame,
@@ -184,4 +189,133 @@ def build_cash_flow_report(
         transactions=transactions,
         include_column="include_in_cf",
         category_column="cf_category",
+    )
+
+def get_comparison_period(
+    start_date: date,
+    end_date: date,
+    mode: str,
+) -> tuple[date, date] | None:
+    """Определяет даты периода для сравнения."""
+
+    if start_date > end_date:
+        raise ValueError(
+            "Дата начала периода не может быть позже даты окончания."
+        )
+
+    if mode == "none":
+        return None
+
+    if mode == "previous":
+        period_length = end_date - start_date
+
+        comparison_end = (
+            start_date - timedelta(days=1)
+        )
+
+        comparison_start = (
+            comparison_end - period_length
+        )
+
+        return comparison_start, comparison_end
+
+    if mode == "previous_year":
+        comparison_start = (
+            pd.Timestamp(start_date)
+            - pd.DateOffset(years=1)
+        ).date()
+
+        comparison_end = (
+            pd.Timestamp(end_date)
+            - pd.DateOffset(years=1)
+        ).date()
+
+        return comparison_start, comparison_end
+
+    raise ValueError(
+        f"Неизвестный режим сравнения: {mode}"
+    )
+
+
+def build_category_comparison(
+    current_report: ReportResult,
+    comparison_report: ReportResult,
+) -> pd.DataFrame:
+    """Сравнивает категории двух финансовых отчётов."""
+
+    current = current_report.category_totals.rename(
+        columns={
+            "amount_kopecks":
+                "current_amount_kopecks",
+        }
+    )
+
+    comparison = (
+        comparison_report.category_totals.rename(
+            columns={
+                "amount_kopecks":
+                    "comparison_amount_kopecks",
+            }
+        )
+    )
+
+    result = current.merge(
+        comparison,
+        on="category",
+        how="outer",
+    )
+
+    result[
+        [
+            "current_amount_kopecks",
+            "comparison_amount_kopecks",
+        ]
+    ] = (
+        result[
+            [
+                "current_amount_kopecks",
+                "comparison_amount_kopecks",
+            ]
+        ]
+        .fillna(0)
+        .astype("int64")
+    )
+
+    result["delta_kopecks"] = (
+        result["current_amount_kopecks"]
+        - result["comparison_amount_kopecks"]
+    )
+
+    comparison_base = (
+        result["comparison_amount_kopecks"].abs()
+    )
+
+    result["change_percent"] = (
+        result["delta_kopecks"]
+        .div(
+            comparison_base.where(
+                comparison_base != 0
+            )
+        )
+        .mul(100)
+    )
+
+    result["sort_amount"] = (
+        result[
+            [
+                "current_amount_kopecks",
+                "comparison_amount_kopecks",
+            ]
+        ]
+        .abs()
+        .max(axis=1)
+    )
+
+    return (
+        result.sort_values(
+            by="sort_amount",
+            ascending=False,
+        )
+        .drop(columns="sort_amount")
+        .reset_index(drop=True)
     )
