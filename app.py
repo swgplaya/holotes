@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 
 from src.categories import (
     CF_CATEGORIES,
@@ -21,6 +22,12 @@ from src.transaction_repository import (
     get_transactions_dataframe,
     save_classifications,
     save_transactions,
+)
+from src.reporting import (
+    ReportResult,
+    build_cash_flow_report,
+    build_pnl_report,
+    filter_transactions_by_period,
 )
 
 
@@ -230,6 +237,281 @@ def show_metrics(transactions: pd.DataFrame) -> None:
         format_rubles(net_cash_flow_kopecks),
     )
 
+def prepare_report_details(
+    transactions: pd.DataFrame,
+    category_column: str,
+) -> pd.DataFrame:
+    """Подготавливает детализацию финансового отчёта."""
+
+    details = transactions.copy()
+
+    details["posted_at"] = pd.to_datetime(
+        details["posted_at"],
+        errors="coerce",
+    )
+
+    details["Дата"] = details[
+        "posted_at"
+    ].dt.strftime("%d.%m.%Y")
+
+    details["Сумма, ₽"] = (
+        details["signed_amount_kopecks"] / 100
+    )
+
+    details["Категория"] = (
+        details[category_column]
+        .fillna("")
+        .replace("", "Без категории")
+    )
+
+    details["Контрагент"] = (
+        details["counterparty_name"]
+        .fillna("")
+    )
+
+    details["Описание"] = (
+        details["description"]
+        .fillna("")
+    )
+
+    details["Назначение платежа"] = (
+        details["payment_purpose"]
+        .fillna("")
+    )
+
+    return details[
+        [
+            "Дата",
+            "Сумма, ₽",
+            "Категория",
+            "Контрагент",
+            "Описание",
+            "Назначение платежа",
+        ]
+    ]
+
+
+def show_report_result(
+    report: ReportResult,
+    category_column: str,
+    inflow_label: str,
+    outflow_label: str,
+    net_label: str,
+) -> None:
+    """Отображает метрики, график и детализацию отчёта."""
+
+    metric_columns = st.columns(4)
+
+    metric_columns[0].metric(
+        inflow_label,
+        format_rubles(report.inflow_kopecks),
+    )
+
+    metric_columns[1].metric(
+        outflow_label,
+        format_rubles(report.outflow_kopecks),
+    )
+
+    metric_columns[2].metric(
+        net_label,
+        format_rubles(report.net_kopecks),
+    )
+
+    metric_columns[3].metric(
+        "Учтено операций",
+        report.included_count,
+    )
+
+    st.caption(
+        f"Исключено из отчёта: "
+        f"{report.excluded_count}. "
+        f"Не принято решение: "
+        f"{report.pending_count}."
+    )
+
+    if report.pending_count:
+        st.warning(
+            "Часть операций ещё не классифицирована "
+            "для этого отчёта и не входит в расчёт."
+        )
+
+    if report.transactions.empty:
+        st.info(
+            "В выбранном периоде нет операций, "
+            "включённых в этот отчёт."
+        )
+        return
+
+    category_table = report.category_totals.copy()
+
+    category_table["Сумма, ₽"] = (
+        category_table["amount_kopecks"] / 100
+    )
+
+    category_table = category_table.rename(
+        columns={
+            "category": "Категория",
+        }
+    )
+
+    st.subheader("Структура по категориям")
+
+    chart = px.bar(
+        category_table,
+        x="Категория",
+        y="Сумма, ₽",
+        text_auto=".2s",
+    )
+
+    chart.update_layout(
+        xaxis_title="",
+        yaxis_title="Сумма, ₽",
+    )
+
+    st.plotly_chart(
+        chart,
+        use_container_width=True,
+    )
+
+    st.dataframe(
+        category_table[
+            [
+                "Категория",
+                "Сумма, ₽",
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Сумма, ₽":
+                st.column_config.NumberColumn(
+                    "Сумма, ₽",
+                    format="%.2f",
+                ),
+        },
+    )
+
+    with st.expander(
+        "Показать операции отчёта",
+        expanded=False,
+    ):
+        details = prepare_report_details(
+            transactions=report.transactions,
+            category_column=category_column,
+        )
+
+        st.dataframe(
+            details,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Сумма, ₽":
+                    st.column_config.NumberColumn(
+                        "Сумма, ₽",
+                        format="%.2f",
+                    ),
+            },
+        )
+
+
+def show_financial_report(
+    transactions: pd.DataFrame,
+    report_type: str,
+    key_prefix: str,
+) -> None:
+    """Показывает P&L или Cash Flow за выбранный период."""
+
+    if transactions.empty:
+        st.info(
+            "В базе пока нет операций."
+        )
+        return
+
+    posted_dates = pd.to_datetime(
+        transactions["posted_at"],
+        errors="coerce",
+    ).dropna()
+
+    if posted_dates.empty:
+        st.error(
+            "В базе не найдено корректных дат проведения."
+        )
+        return
+
+    min_date = posted_dates.min().date()
+    max_date = posted_dates.max().date()
+
+    selected_period = st.date_input(
+        "Период отчёта",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date,
+        format="DD.MM.YYYY",
+        key=f"{key_prefix}_period",
+    )
+
+    if (
+        not isinstance(selected_period, tuple)
+        or len(selected_period) != 2
+    ):
+        st.info(
+            "Выбери дату начала и окончания периода."
+        )
+        return
+
+    start_date, end_date = selected_period
+
+    try:
+        period_transactions = (
+            filter_transactions_by_period(
+                transactions=transactions,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
+    except ValueError as exc:
+        st.error(str(exc))
+        return
+
+    st.caption(
+        f"Период: "
+        f"{start_date.strftime('%d.%m.%Y')} — "
+        f"{end_date.strftime('%d.%m.%Y')}"
+    )
+
+    if report_type == "pnl":
+        report = build_pnl_report(
+            period_transactions
+        )
+
+        show_report_result(
+            report=report,
+            category_column="pnl_category",
+            inflow_label="Доходы",
+            outflow_label="Расходы",
+            net_label="Результат",
+        )
+
+        return
+
+    if report_type == "cash_flow":
+        report = build_cash_flow_report(
+            period_transactions
+        )
+
+        show_report_result(
+            report=report,
+            category_column="cf_category",
+            inflow_label="Поступления",
+            outflow_label="Платежи",
+            net_label="Чистый денежный поток",
+        )
+
+        return
+
+    raise ValueError(
+        f"Неизвестный тип отчёта: {report_type}"
+    )
 
 st.title("Open MAS")
 st.caption("Система управленческого финансового учёта")
@@ -242,10 +524,18 @@ last_import_message = st.session_state.pop(
 if last_import_message:
     st.success(last_import_message)
 
-operations_tab, classification_tab, import_tab = st.tabs(
+(
+    operations_tab,
+    classification_tab,
+    pnl_tab,
+    cash_flow_tab,
+    import_tab,
+) = st.tabs(
     [
         "Операции в базе",
         "Классификация",
+        "P&L",
+        "Cash Flow",
         "Импорт выписки",
     ]
 )
@@ -424,6 +714,41 @@ with classification_tab:
 
                     st.rerun()
 
+with pnl_tab:
+    st.subheader("P&L")
+
+    st.caption(
+        "На текущем этапе отчёт строится "
+        "по банковским операциям кассовым методом."
+    )
+
+    pnl_transactions = (
+        get_transactions_dataframe()
+    )
+
+    show_financial_report(
+        transactions=pnl_transactions,
+        report_type="pnl",
+        key_prefix="pnl",
+    )
+
+with cash_flow_tab:
+    st.subheader("Cash Flow")
+
+    st.caption(
+        "Отчёт показывает фактические движения "
+        "денежных средств по дате проведения."
+    )
+
+    cash_flow_transactions = (
+        get_transactions_dataframe()
+    )
+
+    show_financial_report(
+        transactions=cash_flow_transactions,
+        report_type="cash_flow",
+        key_prefix="cash_flow",
+    )
 
 with import_tab:
     st.subheader("Импорт банковской выписки")
