@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Integer,
     String,
@@ -160,7 +161,7 @@ class BankTransaction(Base):
         server_default=func.current_timestamp(),
         onupdate=func.current_timestamp(),
     )
-    
+
 class ClassificationRule(Base):
     """Правило автоматической классификации операций."""
 
@@ -230,6 +231,88 @@ class ClassificationRule(Base):
 
     cf_category: Mapped[str | None] = mapped_column(
         String(255),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+class PlannedCashFlow(Base):
+    """Запланированное поступление или списание."""
+
+    __tablename__ = "planned_cash_flows"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    # inflow — поступление, outflow — платёж
+    direction: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        index=True,
+    )
+
+    # Всегда положительное количество копеек.
+    amount_kopecks: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+    )
+
+    category: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    counterparty: Mapped[str | None] = mapped_column(
+        String(512),
+        nullable=True,
+    )
+
+    start_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+
+    # once, monthly или yearly
+    recurrence: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="once",
+    )
+
+    end_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        index=True,
+    )
+
+    comment: Mapped[str | None] = mapped_column(
+        Text,
         nullable=True,
     )
 

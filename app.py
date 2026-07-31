@@ -1,4 +1,5 @@
-from decimal import Decimal
+from datetime import date, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 import pandas as pd
 import streamlit as st
@@ -41,6 +42,16 @@ from src.rule_repository import (
     set_rule_active,
 )
 
+from src.payment_calendar import (
+    DIRECTION_LABELS,
+    RECURRENCE_LABELS,
+    build_cash_forecast,
+    create_planned_cash_flow,
+    delete_planned_cash_flow,
+    expand_planned_cash_flows,
+    get_planned_cash_flows_dataframe,
+    set_planned_cash_flow_active,
+)
 
 
 st.set_page_config(
@@ -65,6 +76,20 @@ def format_rubles(kopecks: int) -> str:
     )
 
     return f"{formatted} ₽"
+
+def rubles_to_kopecks(value: float) -> int:
+    """Безопасно преобразует рубли в копейки."""
+
+    amount = Decimal(str(value))
+
+    kopecks = (
+        amount * Decimal("100")
+    ).quantize(
+        Decimal("1"),
+        rounding=ROUND_HALF_UP,
+    )
+
+    return int(kopecks)
 
 def bool_to_action(value: object) -> str:
     """Преобразует значение из базы в подпись интерфейса."""
@@ -541,6 +566,7 @@ if last_import_message:
     rules_tab,
     pnl_tab,
     cash_flow_tab,
+    payment_calendar_tab,
     import_tab,
 ) = st.tabs(
     [
@@ -549,6 +575,7 @@ if last_import_message:
         "Правила",
         "P&L",
         "Cash Flow",
+        "Платёжный календарь",
         "Импорт выписки",
     ]
 )
@@ -560,6 +587,14 @@ classification_message = st.session_state.pop(
 
 if classification_message:
     st.success(classification_message)
+
+calendar_message = st.session_state.pop(
+    "calendar_message",
+    None,
+)
+
+if calendar_message:
+    st.success(calendar_message)
 
 rule_message = st.session_state.pop(
     "rule_message",
@@ -935,8 +970,9 @@ with rules_tab:
 
         with action_column:
             if st.button(
-                "Сохранить активность",
-                use_container_width=True,
+                    "Сохранить активность",
+                    use_container_width=True,
+                    key=f"save_rule_activity_{selected_rule_id}",
             ):
                 set_rule_active(
                     rule_id=selected_rule_id,
@@ -950,9 +986,10 @@ with rules_tab:
 
         with delete_column:
             if st.button(
-                "Удалить правило",
-                type="secondary",
-                use_container_width=True,
+                    "Удалить правило",
+                    type="secondary",
+                    use_container_width=True,
+                    key=f"delete_rule_{selected_rule_id}",
             ):
                 delete_rule(selected_rule_id)
 
@@ -996,6 +1033,502 @@ with cash_flow_tab:
         report_type="cash_flow",
         key_prefix="cash_flow",
     )
+
+with payment_calendar_tab:
+    st.subheader("Платёжный календарь")
+
+    st.caption(
+        "Добавляй будущие платежи и поступления. "
+        "Система рассчитает прогноз остатка "
+        "и предупредит о кассовом разрыве."
+    )
+
+    with st.expander(
+        "Добавить плановую операцию",
+        expanded=True,
+    ):
+        with st.form(
+            "planned_cash_flow_form",
+            clear_on_submit=True,
+        ):
+            plan_name = st.text_input(
+                "Название",
+                placeholder=(
+                    "Например: аренда офиса "
+                    "или поступление от клиента"
+                ),
+            )
+
+            direction = st.selectbox(
+                "Тип операции",
+                options=list(DIRECTION_LABELS),
+                format_func=DIRECTION_LABELS.get,
+            )
+
+            amount_rubles = st.number_input(
+                "Сумма, ₽",
+                min_value=0.01,
+                value=1_000.00,
+                step=100.00,
+                format="%.2f",
+            )
+
+            category = st.selectbox(
+                "Категория Cash Flow",
+                options=list(CF_CATEGORIES),
+            )
+
+            counterparty = st.text_input(
+                "Контрагент",
+            )
+
+            start_date = st.date_input(
+                "Дата первой операции",
+                value=date.today(),
+                format="DD.MM.YYYY",
+            )
+
+            recurrence = st.selectbox(
+                "Повторение",
+                options=list(RECURRENCE_LABELS),
+                format_func=RECURRENCE_LABELS.get,
+            )
+
+            use_end_date = st.checkbox(
+                "Ограничить повторение датой окончания",
+                value=False,
+            )
+
+            selected_end_date = st.date_input(
+                "Дата окончания повторения",
+                value=(
+                    date.today()
+                    + timedelta(days=365)
+                ),
+                format="DD.MM.YYYY",
+            )
+
+            is_active = st.checkbox(
+                "Операция активна",
+                value=True,
+            )
+
+            comment = st.text_area(
+                "Комментарий",
+                max_chars=500,
+            )
+
+            create_plan_submitted = (
+                st.form_submit_button(
+                    "Добавить в календарь",
+                    type="primary",
+                    use_container_width=True,
+                )
+            )
+
+            if create_plan_submitted:
+                plan_end_date = (
+                    selected_end_date
+                    if use_end_date
+                    else None
+                )
+
+                try:
+                    new_plan_id = create_planned_cash_flow(
+                        name=plan_name,
+                        direction=direction,
+                        amount_kopecks=(
+                            rubles_to_kopecks(
+                                amount_rubles
+                            )
+                        ),
+                        category=category,
+                        counterparty=counterparty,
+                        start_date=start_date,
+                        recurrence=recurrence,
+                        end_date=plan_end_date,
+                        is_active=is_active,
+                        comment=comment,
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state[
+                        "calendar_message"
+                    ] = (
+                        f"Плановая операция "
+                        f"#{new_plan_id} добавлена."
+                    )
+                    st.rerun()
+
+    plans = get_planned_cash_flows_dataframe()
+
+    st.subheader("Плановые операции")
+
+    if plans.empty:
+        st.info(
+            "Платёжный календарь пока пуст."
+        )
+    else:
+        visible_plans = plans.copy()
+
+        visible_plans["Тип"] = (
+            visible_plans["direction"]
+            .map(DIRECTION_LABELS)
+        )
+
+        visible_plans["Сумма, ₽"] = (
+            visible_plans["amount_kopecks"] / 100
+        )
+
+        visible_plans["Начало"] = pd.to_datetime(
+            visible_plans["start_date"]
+        ).dt.strftime("%d.%m.%Y")
+
+        visible_plans["Окончание"] = (
+            pd.to_datetime(
+                visible_plans["end_date"],
+                errors="coerce",
+            )
+            .dt.strftime("%d.%m.%Y")
+            .fillna("")
+        )
+
+        visible_plans["Повторение"] = (
+            visible_plans["recurrence"]
+            .map(RECURRENCE_LABELS)
+        )
+
+        visible_plans["Активно"] = (
+            visible_plans["is_active"]
+        )
+
+        visible_plans = visible_plans.rename(
+            columns={
+                "id": "ID",
+                "name": "Название",
+                "category": "Категория",
+                "counterparty": "Контрагент",
+                "comment": "Комментарий",
+            }
+        )
+
+        st.dataframe(
+            visible_plans[
+                [
+                    "ID",
+                    "Название",
+                    "Тип",
+                    "Сумма, ₽",
+                    "Категория",
+                    "Контрагент",
+                    "Начало",
+                    "Повторение",
+                    "Окончание",
+                    "Активно",
+                    "Комментарий",
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Сумма, ₽":
+                    st.column_config.NumberColumn(
+                        "Сумма, ₽",
+                        format="%.2f",
+                    ),
+            },
+        )
+
+        plan_options = {
+            (
+                f"{int(row['id'])} — "
+                f"{row['name']}"
+            ): int(row["id"])
+            for _, row in plans.iterrows()
+        }
+
+        selected_plan_label = st.selectbox(
+            "Выберите операцию для управления",
+            options=list(plan_options),
+        )
+
+        selected_plan_id = plan_options[
+            selected_plan_label
+        ]
+
+        selected_plan = plans.loc[
+            plans["id"] == selected_plan_id
+        ].iloc[0]
+
+        selected_plan_active = st.checkbox(
+            "Операция активна",
+            value=bool(
+                selected_plan["is_active"]
+            ),
+            key=(
+                f"selected_plan_active_"
+                f"{selected_plan_id}"
+            ),
+        )
+
+        active_column, delete_column = st.columns(2)
+
+        with active_column:
+            if st.button(
+                    "Сохранить активность",
+                    use_container_width=True,
+                    key=f"save_plan_activity_{selected_plan_id}",
+            ):
+                set_planned_cash_flow_active(
+                    plan_id=selected_plan_id,
+                    is_active=selected_plan_active,
+                )
+
+                st.session_state[
+                    "calendar_message"
+                ] = (
+                    "Состояние плановой "
+                    "операции обновлено."
+                )
+                st.rerun()
+
+        with delete_column:
+            if st.button(
+                    "Удалить плановую операцию",
+                    use_container_width=True,
+                    key=f"delete_plan_{selected_plan_id}",
+            ):
+                delete_planned_cash_flow(
+                    selected_plan_id
+                )
+
+                st.session_state[
+                    "calendar_message"
+                ] = (
+                    "Плановая операция удалена."
+                )
+                st.rerun()
+
+    st.divider()
+    st.subheader("Прогноз остатка")
+
+    forecast_start = st.date_input(
+        "Начало прогноза",
+        value=date.today(),
+        format="DD.MM.YYYY",
+        key="forecast_start",
+    )
+
+    forecast_horizon = st.selectbox(
+        "Горизонт прогноза",
+        options=[30, 60, 90, 180, 365],
+        index=2,
+        format_func=lambda days: f"{days} дней",
+    )
+
+    opening_balance_rubles = st.number_input(
+        "Остаток денежных средств на начало, ₽",
+        value=0.00,
+        step=1_000.00,
+        format="%.2f",
+    )
+
+    forecast_end = (
+        forecast_start
+        + timedelta(days=forecast_horizon - 1)
+    )
+
+    occurrences = expand_planned_cash_flows(
+        plans=plans,
+        period_start=forecast_start,
+        period_end=forecast_end,
+    )
+
+    forecast = build_cash_forecast(
+        occurrences=occurrences,
+        period_start=forecast_start,
+        period_end=forecast_end,
+        opening_balance_kopecks=(
+            rubles_to_kopecks(
+                opening_balance_rubles
+            )
+        ),
+    )
+
+    total_inflow = int(
+        occurrences.loc[
+            occurrences[
+                "signed_amount_kopecks"
+            ] > 0,
+            "signed_amount_kopecks",
+        ].sum()
+    )
+
+    total_outflow = abs(
+        int(
+            occurrences.loc[
+                occurrences[
+                    "signed_amount_kopecks"
+                ] < 0,
+                "signed_amount_kopecks",
+            ].sum()
+        )
+    )
+
+    ending_balance = int(
+        forecast[
+            "closing_balance_kopecks"
+        ].iloc[-1]
+    )
+
+    minimum_balance = int(
+        forecast[
+            "closing_balance_kopecks"
+        ].min()
+    )
+
+    forecast_metrics = st.columns(4)
+
+    forecast_metrics[0].metric(
+        "Плановые поступления",
+        format_rubles(total_inflow),
+    )
+
+    forecast_metrics[1].metric(
+        "Плановые платежи",
+        format_rubles(total_outflow),
+    )
+
+    forecast_metrics[2].metric(
+        "Остаток на конец",
+        format_rubles(ending_balance),
+    )
+
+    forecast_metrics[3].metric(
+        "Минимальный остаток",
+        format_rubles(minimum_balance),
+    )
+
+    cash_gap_rows = forecast.loc[
+        forecast["closing_balance_kopecks"] < 0
+    ]
+
+    if cash_gap_rows.empty:
+        st.success(
+            "На выбранном горизонте "
+            "кассовый разрыв не прогнозируется."
+        )
+    else:
+        first_cash_gap = (
+            cash_gap_rows.iloc[0]["date"]
+        )
+
+        cash_gap_amount = abs(
+            int(
+                cash_gap_rows[
+                    "closing_balance_kopecks"
+                ].min()
+            )
+        )
+
+        st.error(
+            "Прогнозируется кассовый разрыв. "
+            f"Первая дата: "
+            f"{first_cash_gap.strftime('%d.%m.%Y')}. "
+            f"Максимальный дефицит: "
+            f"{format_rubles(cash_gap_amount)}."
+        )
+
+    chart_data = forecast.copy()
+
+    chart_data["Дата"] = pd.to_datetime(
+        chart_data["date"]
+    )
+
+    chart_data["Остаток, ₽"] = (
+        chart_data[
+            "closing_balance_kopecks"
+        ] / 100
+    )
+
+    balance_chart = px.line(
+        chart_data,
+        x="Дата",
+        y="Остаток, ₽",
+    )
+
+    balance_chart.add_hline(y=0)
+
+    balance_chart.update_layout(
+        xaxis_title="",
+        yaxis_title="Остаток, ₽",
+    )
+
+    st.plotly_chart(
+        balance_chart,
+        use_container_width=True,
+    )
+
+    with st.expander(
+        "События платёжного календаря",
+        expanded=False,
+    ):
+        if occurrences.empty:
+            st.info(
+                "На выбранном горизонте "
+                "нет плановых операций."
+            )
+        else:
+            visible_occurrences = (
+                occurrences.copy()
+            )
+
+            visible_occurrences["Дата"] = (
+                pd.to_datetime(
+                    visible_occurrences["date"]
+                ).dt.strftime("%d.%m.%Y")
+            )
+
+            visible_occurrences["Сумма, ₽"] = (
+                visible_occurrences[
+                    "signed_amount_kopecks"
+                ] / 100
+            )
+
+            visible_occurrences = (
+                visible_occurrences.rename(
+                    columns={
+                        "name": "Название",
+                        "category": "Категория",
+                        "counterparty":
+                            "Контрагент",
+                        "comment": "Комментарий",
+                    }
+                )
+            )
+
+            st.dataframe(
+                visible_occurrences[
+                    [
+                        "Дата",
+                        "Название",
+                        "Сумма, ₽",
+                        "Категория",
+                        "Контрагент",
+                        "Комментарий",
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Сумма, ₽":
+                        st.column_config.NumberColumn(
+                            "Сумма, ₽",
+                            format="%.2f",
+                        ),
+                },
+            )
 
 with import_tab:
     st.subheader("Импорт банковской выписки")
