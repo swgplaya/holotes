@@ -56,6 +56,21 @@ from src.payment_calendar import (
     set_planned_cash_flow_active,
 )
 
+from src.unit_economics import (
+    COST_TYPE_LABELS,
+    PRICING_METHOD_LABELS,
+    build_unit_economics_summary,
+    create_unit_economics_cost_item,
+    create_unit_economics_product,
+    delete_unit_economics_cost_item,
+    delete_unit_economics_product,
+    get_unit_economics_cost_items_dataframe,
+    get_unit_economics_products_dataframe,
+    set_unit_economics_cost_item_active,
+    set_unit_economics_product_active,
+    update_unit_economics_pricing,
+)
+
 
 st.set_page_config(
     page_title="Open MAS",
@@ -93,6 +108,21 @@ def rubles_to_kopecks(value: float) -> int:
     )
 
     return int(kopecks)
+
+def percent_to_basis_points(
+    value: float,
+) -> int:
+    """Преобразует проценты в базисные пункты."""
+
+    basis_points = (
+        Decimal(str(value))
+        * Decimal("100")
+    ).quantize(
+        Decimal("1"),
+        rounding=ROUND_HALF_UP,
+    )
+
+    return int(basis_points)
 
 def bool_to_action(value: object) -> str:
     """Преобразует значение из базы в подпись интерфейса."""
@@ -841,6 +871,7 @@ if last_import_message:
     rules_tab,
     pnl_tab,
     cash_flow_tab,
+    unit_economics_tab,
     payment_calendar_tab,
     import_tab,
 ) = st.tabs(
@@ -850,6 +881,7 @@ if last_import_message:
         "Правила",
         "P&L",
         "Cash Flow",
+        "Unit Economics",
         "Платёжный календарь",
         "Импорт выписки",
     ]
@@ -862,6 +894,14 @@ classification_message = st.session_state.pop(
 
 if classification_message:
     st.success(classification_message)
+
+unit_economics_message = st.session_state.pop(
+    "unit_economics_message",
+    None,
+)
+
+if unit_economics_message:
+    st.success(unit_economics_message)
 
 calendar_message = st.session_state.pop(
     "calendar_message",
@@ -1308,6 +1348,943 @@ with cash_flow_tab:
         report_type="cash_flow",
         key_prefix="cash_flow",
     )
+
+with unit_economics_tab:
+    st.subheader("Unit Economics")
+
+    st.caption(
+        "Затраты «на единицу» умножаются на плановое "
+        "количество. Затраты «за период» вычитаются "
+        "из общей маржи продукта."
+    )
+
+    with st.expander(
+            "Добавить продукт",
+            expanded=True,
+    ):
+        with st.form(
+                "create_unit_economics_product_form",
+                clear_on_submit=True,
+        ):
+            product_name = st.text_input(
+                "Название продукта",
+                placeholder="Например: футболка Core",
+            )
+
+            planned_units = st.number_input(
+                "Плановое количество",
+                min_value=1,
+                value=100,
+                step=1,
+            )
+
+            product_is_active = st.checkbox(
+                "Продукт активен",
+                value=True,
+            )
+
+            product_comment = st.text_area(
+                "Комментарий к продукту",
+                max_chars=500,
+            )
+
+            product_submitted = st.form_submit_button(
+                "Добавить продукт",
+                type="primary",
+                use_container_width=True,
+            )
+
+            if product_submitted:
+                try:
+                    product_id = (
+                        create_unit_economics_product(
+                            name=product_name,
+                            planned_units=int(
+                                planned_units
+                            ),
+                            is_active=product_is_active,
+                            comment=product_comment,
+                        )
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state[
+                        "unit_economics_message"
+                    ] = (
+                        f"Продукт #{product_id} добавлен."
+                    )
+
+                    st.rerun()
+
+    products = (
+        get_unit_economics_products_dataframe()
+    )
+
+    cost_items = (
+        get_unit_economics_cost_items_dataframe()
+    )
+
+    if products.empty:
+        st.info(
+            "Добавь первый продукт для расчёта "
+            "Unit Economics."
+        )
+    else:
+        product_options = {
+            (
+                f"{int(row['id'])} — "
+                f"{row['name']}"
+            ): int(row["id"])
+            for _, row in products.iterrows()
+        }
+
+        selected_product_label = st.selectbox(
+            "Выберите продукт",
+            options=list(product_options),
+            key="unit_economics_selected_product",
+        )
+
+        selected_product_id = product_options[
+            selected_product_label
+        ]
+
+        selected_product = products.loc[
+            products["id"] == selected_product_id
+        ].iloc[0]
+
+        st.subheader(
+            f"Затраты: {selected_product['name']}"
+        )
+
+        with st.form(
+                f"create_cost_item_form_"
+                f"{selected_product_id}",
+                clear_on_submit=True,
+        ):
+            cost_name = st.text_input(
+                "Название статьи затрат",
+                placeholder=(
+                    "Например: ткань, упаковка, "
+                    "эквайринг или налог"
+                ),
+            )
+
+            calculation_type = st.selectbox(
+                "Тип затрат",
+                options=list(COST_TYPE_LABELS),
+                format_func=COST_TYPE_LABELS.get,
+            )
+
+            cost_amount_rubles: float | None
+            percentage_value: float | None
+
+            if calculation_type in {
+                "fixed_per_unit",
+                "fixed_period",
+            }:
+                cost_amount_rubles = st.number_input(
+                    "Сумма, ₽",
+                    min_value=0.00,
+                    value=100.00,
+                    step=10.00,
+                    format="%.2f",
+                )
+
+                percentage_value = None
+
+            else:
+                percentage_value = st.number_input(
+                    "Процент, %",
+                    min_value=0.00,
+                    max_value=99.99,
+                    value=2.50,
+                    step=0.10,
+                    format="%.2f",
+                )
+
+                cost_amount_rubles = None
+
+            cost_is_active = st.checkbox(
+                "Строка затрат активна",
+                value=True,
+            )
+
+            cost_comment = st.text_area(
+                "Комментарий к затратам",
+                max_chars=500,
+            )
+
+            cost_submitted = st.form_submit_button(
+                "Добавить строку затрат",
+                type="primary",
+                use_container_width=True,
+            )
+
+            if cost_submitted:
+                try:
+                    cost_item_id = (
+                        create_unit_economics_cost_item(
+                            product_id=selected_product_id,
+                            name=cost_name,
+                            calculation_type=calculation_type,
+                            amount_kopecks=(
+                                rubles_to_kopecks(
+                                    cost_amount_rubles
+                                )
+                                if cost_amount_rubles
+                                   is not None
+                                else None
+                            ),
+                            percentage_bp=(
+                                percent_to_basis_points(
+                                    percentage_value
+                                )
+                                if percentage_value
+                                   is not None
+                                else None
+                            ),
+                            is_active=cost_is_active,
+                            comment=cost_comment,
+                        )
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state[
+                        "unit_economics_message"
+                    ] = (
+                        f"Строка затрат "
+                        f"#{cost_item_id} добавлена."
+                    )
+
+                    st.rerun()
+
+        selected_cost_items = cost_items.loc[
+            cost_items["product_id"]
+            == selected_product_id
+        ].copy()
+
+        if selected_cost_items.empty:
+            st.info(
+                "У этого продукта пока нет "
+                "строк затрат."
+            )
+        else:
+            visible_cost_items = selected_cost_items.copy()
+
+            visible_cost_items["Тип"] = (
+                visible_cost_items[
+                    "calculation_type"
+                ].map(COST_TYPE_LABELS)
+            )
+
+            visible_cost_items["Сумма, ₽"] = (
+                    pd.to_numeric(
+                        visible_cost_items["amount_kopecks"],
+                        errors="coerce",
+                    ) / 100
+            )
+
+            visible_cost_items["Процент, %"] = (
+                    pd.to_numeric(
+                        visible_cost_items["percentage_bp"],
+                        errors="coerce",
+                    ) / 100
+            )
+
+            visible_cost_items = visible_cost_items.rename(
+                columns={
+                    "id": "ID",
+                    "name": "Статья затрат",
+                    "is_active": "Активна",
+                    "comment": "Комментарий",
+                }
+            )
+
+            st.dataframe(
+                visible_cost_items[
+                    [
+                        "ID",
+                        "Статья затрат",
+                        "Тип",
+                        "Сумма, ₽",
+                        "Процент, %",
+                        "Активна",
+                        "Комментарий",
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Сумма, ₽": st.column_config.NumberColumn(
+                        "Сумма, ₽",
+                        format="%.2f",
+                    ),
+                    "Процент, %": st.column_config.NumberColumn(
+                        "Процент, %",
+                        format="%.2f%%",
+                    ),
+                },
+            )
+
+            cost_item_options = {
+                (
+                    f"{int(row['id'])} — "
+                    f"{row['name']}"
+                ): int(row["id"])
+                for _, row
+                in selected_cost_items.iterrows()
+            }
+
+            selected_cost_item_label = (
+                st.selectbox(
+                    "Выберите строку затрат "
+                    "для управления",
+                    options=list(cost_item_options),
+                    key=(
+                        "selected_unit_cost_item_"
+                        f"{selected_product_id}"
+                    ),
+                )
+            )
+
+            selected_cost_item_id = (
+                cost_item_options[
+                    selected_cost_item_label
+                ]
+            )
+
+            selected_cost_item = (
+                selected_cost_items.loc[
+                    selected_cost_items["id"]
+                    == selected_cost_item_id
+                ].iloc[0]
+            )
+
+            selected_cost_item_active = (
+                st.checkbox(
+                    "Строка затрат активна",
+                    value=bool(
+                        selected_cost_item[
+                            "is_active"
+                        ]
+                    ),
+                    key=(
+                        "unit_cost_active_"
+                        f"{selected_cost_item_id}"
+                    ),
+                )
+            )
+
+            cost_active_column, cost_delete_column = (
+                st.columns(2)
+            )
+
+            with cost_active_column:
+                if st.button(
+                    "Сохранить активность статьи",
+                    use_container_width=True,
+                    key=(
+                        "save_unit_cost_activity_"
+                        f"{selected_cost_item_id}"
+                    ),
+                ):
+                    set_unit_economics_cost_item_active(
+                        cost_item_id=(
+                            selected_cost_item_id
+                        ),
+                        is_active=(
+                            selected_cost_item_active
+                        ),
+                    )
+
+                    st.session_state[
+                        "unit_economics_message"
+                    ] = (
+                        "Состояние статьи затрат "
+                        "обновлено."
+                    )
+                    st.rerun()
+
+            with cost_delete_column:
+                if st.button(
+                    "Удалить статью затрат",
+                    use_container_width=True,
+                    key=(
+                        "delete_unit_cost_"
+                        f"{selected_cost_item_id}"
+                    ),
+                ):
+                    delete_unit_economics_cost_item(
+                        selected_cost_item_id
+                    )
+
+                    st.session_state[
+                        "unit_economics_message"
+                    ] = (
+                        "Статья затрат удалена."
+                    )
+                    st.rerun()
+
+        st.subheader("Ценообразование")
+
+        pricing_options = [
+            "manual",
+            "markup",
+            "target_margin",
+        ]
+
+        stored_method = str(
+            selected_product["pricing_method"]
+        )
+
+        default_pricing_index = (
+            pricing_options.index(stored_method)
+            if stored_method in pricing_options
+            else 2
+        )
+
+        pricing_method = st.selectbox(
+            "Способ формирования цены",
+            options=pricing_options,
+            index=default_pricing_index,
+            format_func=PRICING_METHOD_LABELS.get,
+            key=f"pricing_method_{selected_product_id}",
+        )
+
+        manual_price_rubles = None
+        pricing_percent = None
+
+        if pricing_method == "manual":
+            stored_manual_price = (
+                selected_product[
+                    "manual_price_kopecks"
+                ]
+            )
+
+            manual_price_rubles = st.number_input(
+                "Цена продажи, ₽",
+                min_value=0.01,
+                value=(
+                    float(stored_manual_price) / 100
+                    if not pd.isna(stored_manual_price)
+                    else 1_000.00
+                ),
+                step=100.00,
+                format="%.2f",
+                key=f"manual_price_{selected_product_id}",
+            )
+
+        else:
+            stored_pricing_value = (
+                selected_product["pricing_value_bp"]
+            )
+
+            pricing_percent = st.number_input(
+                (
+                    "Наценка, %"
+                    if pricing_method == "markup"
+                    else "Целевая маржинальность, %"
+                ),
+                min_value=0.00,
+                max_value=99.99,
+                value=(
+                    float(stored_pricing_value) / 100
+                    if not pd.isna(stored_pricing_value)
+                    else 35.00
+                ),
+                step=1.00,
+                format="%.2f",
+                key=f"pricing_percent_{selected_product_id}",
+            )
+
+        stored_rounding_step = int(
+            selected_product["rounding_step_kopecks"]
+        )
+
+        rounding_step_rubles = st.number_input(
+            "Округлять цену вверх до, ₽",
+            min_value=1.00,
+            value=float(stored_rounding_step) / 100,
+            step=10.00,
+            format="%.2f",
+            key=f"rounding_step_{selected_product_id}",
+        )
+
+        if st.button(
+                "Сохранить настройки цены",
+                type="primary",
+                use_container_width=True,
+                key=f"save_pricing_{selected_product_id}",
+        ):
+            try:
+                update_unit_economics_pricing(
+                    product_id=selected_product_id,
+                    pricing_method=pricing_method,
+                    pricing_value_bp=(
+                        percent_to_basis_points(
+                            pricing_percent
+                        )
+                        if pricing_percent is not None
+                        else None
+                    ),
+                    manual_price_kopecks=(
+                        rubles_to_kopecks(
+                            manual_price_rubles
+                        )
+                        if manual_price_rubles is not None
+                        else None
+                    ),
+                    rounding_step_kopecks=(
+                        rubles_to_kopecks(
+                            rounding_step_rubles
+                        )
+                    ),
+                )
+            except ValueError as exc:
+                st.error(str(exc))
+            else:
+                st.session_state[
+                    "unit_economics_message"
+                ] = "Настройки ценообразования сохранены."
+
+                st.rerun()
+
+        st.divider()
+        st.subheader("Расчёт")
+
+        summary = build_unit_economics_summary(
+            products=products,
+            cost_items=cost_items,
+        )
+
+        selected_summary = summary.loc[
+            summary["product_id"] == selected_product_id
+            ]
+
+        if selected_summary.empty:
+            st.warning(
+                "Продукт выключен и не участвует в расчёте."
+            )
+        else:
+            result = selected_summary.iloc[0]
+
+            # Эти показатели доступны даже до формирования цены.
+            base_metrics = st.columns(4)
+
+            base_metrics[0].metric(
+                "Затраты на единицу",
+                format_rubles(
+                    int(result["fixed_per_unit_kopecks"])
+                ),
+            )
+
+            base_metrics[1].metric(
+                "Затраты периода на единицу",
+                format_rubles(
+                    int(
+                        result[
+                            "allocated_period_per_unit_kopecks"
+                        ]
+                    )
+                ),
+            )
+
+            base_metrics[2].metric(
+                "Базовая себестоимость",
+                format_rubles(
+                    int(
+                        result[
+                            "base_cost_per_unit_kopecks"
+                        ]
+                    )
+                ),
+            )
+
+            base_metrics[3].metric(
+                "Процентные расходы",
+                (
+                    f"{float(result['percentage_cost_rate']):.2f}%"
+                ),
+            )
+
+            pricing_error = result["pricing_error"]
+
+            if (
+                    pricing_error is not None
+                    and not pd.isna(pricing_error)
+                    and str(pricing_error).strip()
+            ):
+                st.warning(str(pricing_error))
+
+                st.info(
+                    "Добавь статьи затрат и настрой способ "
+                    "формирования цены в блоке «Ценообразование»."
+                )
+
+            else:
+                selling_price = int(
+                    result["selling_price_kopecks"]
+                )
+
+                percentage_cost_per_unit = int(
+                    result[
+                        "percentage_cost_per_unit_kopecks"
+                    ]
+                )
+
+                total_cost_per_unit = int(
+                    result["total_cost_per_unit_kopecks"]
+                )
+
+                profit_per_unit = int(
+                    result["profit_per_unit_kopecks"]
+                )
+
+                price_metrics = st.columns(4)
+
+                price_metrics[0].metric(
+                    "Цена продажи",
+                    format_rubles(selling_price),
+                )
+
+                price_metrics[1].metric(
+                    "Процентные расходы на единицу",
+                    format_rubles(
+                        percentage_cost_per_unit
+                    ),
+                )
+
+                price_metrics[2].metric(
+                    "Полная себестоимость",
+                    format_rubles(total_cost_per_unit),
+                )
+
+                price_metrics[3].metric(
+                    "Прибыль на единицу",
+                    format_rubles(profit_per_unit),
+                )
+
+                margin_percent = result["margin_percent"]
+
+                if (
+                        margin_percent is None
+                        or pd.isna(margin_percent)
+                ):
+                    margin_text = "не рассчитывается"
+                else:
+                    margin_text = (
+                        f"{float(margin_percent):.1f}%"
+                    )
+
+                break_even_units = result[
+                    "break_even_units"
+                ]
+
+                if (
+                        break_even_units is None
+                        or pd.isna(break_even_units)
+                ):
+                    break_even_text = (
+                        "не рассчитывается"
+                    )
+                else:
+                    break_even_text = (
+                        f"{int(break_even_units)} шт."
+                    )
+
+                st.write(
+                    f"**План продаж:** "
+                    f"{int(result['planned_units'])} шт."
+                )
+
+                st.write(
+                    f"**Выручка:** "
+                    f"{format_rubles(int(result['revenue_kopecks']))}"
+                )
+
+                st.write(
+                    f"**Полные затраты на тираж:** "
+                    f"{format_rubles(int(result['total_cost_kopecks']))}"
+                )
+
+                st.write(
+                    f"**Результат на тираж:** "
+                    f"{format_rubles(int(result['operating_result_kopecks']))}"
+                )
+
+                st.write(
+                    f"**Фактическая маржинальность:** "
+                    f"{margin_text}"
+                )
+
+                st.write(
+                    f"**Точка безубыточности:** "
+                    f"{break_even_text}"
+                )
+
+                chart_data = pd.DataFrame(
+                    {
+                        "Показатель": [
+                            "Цена продажи",
+                            "Базовая себестоимость",
+                            "Процентные расходы",
+                            "Прибыль",
+                        ],
+                        "Сумма, ₽": [
+                            selling_price / 100,
+                            int(
+                                result[
+                                    "base_cost_per_unit_kopecks"
+                                ]
+                            ) / 100,
+                            percentage_cost_per_unit / 100,
+                            profit_per_unit / 100,
+                        ],
+                    }
+                )
+
+                unit_chart = px.bar(
+                    chart_data,
+                    x="Показатель",
+                    y="Сумма, ₽",
+                    text_auto=".2s",
+                )
+
+                unit_chart.update_layout(
+                    xaxis_title="",
+                    yaxis_title="Сумма, ₽",
+                )
+
+                st.plotly_chart(
+                    unit_chart,
+                    use_container_width=True,
+                )
+
+        st.divider()
+        st.subheader("Управление продуктом")
+
+        selected_product_active = st.checkbox(
+            "Продукт активен",
+            value=bool(
+                selected_product["is_active"]
+            ),
+            key=(
+                "unit_product_active_"
+                f"{selected_product_id}"
+            ),
+        )
+
+        product_active_column, product_delete_column = (
+            st.columns(2)
+        )
+
+        with product_active_column:
+            if st.button(
+                "Сохранить активность продукта",
+                use_container_width=True,
+                key=(
+                    "save_unit_product_activity_"
+                    f"{selected_product_id}"
+                ),
+            ):
+                set_unit_economics_product_active(
+                    product_id=selected_product_id,
+                    is_active=selected_product_active,
+                )
+
+                st.session_state[
+                    "unit_economics_message"
+                ] = (
+                    "Состояние продукта обновлено."
+                )
+                st.rerun()
+
+        with product_delete_column:
+            if st.button(
+                "Удалить продукт",
+                use_container_width=True,
+                key=(
+                    "delete_unit_product_"
+                    f"{selected_product_id}"
+                ),
+            ):
+                delete_unit_economics_product(
+                    selected_product_id
+                )
+
+                st.session_state[
+                    "unit_economics_message"
+                ] = (
+                    "Продукт и его строки "
+                    "затрат удалены."
+                )
+                st.rerun()
+
+        st.divider()
+        st.subheader("Сводка по продуктам")
+
+        if summary.empty:
+            st.info(
+                "Нет активных продуктов для сводного расчёта."
+            )
+        else:
+            visible_summary = summary.copy()
+
+            visible_summary["Способ цены"] = (
+                visible_summary["pricing_method"]
+                .map(PRICING_METHOD_LABELS)
+                .fillna(
+                    visible_summary["pricing_method"]
+                )
+            )
+
+            money_columns = {
+                "fixed_per_unit_kopecks":
+                    "Фиксированные затраты на единицу, ₽",
+                "allocated_period_per_unit_kopecks":
+                    "Затраты периода на единицу, ₽",
+                "base_cost_per_unit_kopecks":
+                    "Базовая себестоимость, ₽",
+                "selling_price_kopecks":
+                    "Цена продажи, ₽",
+                "percentage_cost_per_unit_kopecks":
+                    "Процентные расходы на единицу, ₽",
+                "total_cost_per_unit_kopecks":
+                    "Полная себестоимость, ₽",
+                "profit_per_unit_kopecks":
+                    "Прибыль на единицу, ₽",
+                "revenue_kopecks":
+                    "Выручка, ₽",
+                "operating_result_kopecks":
+                    "Результат на тираж, ₽",
+            }
+
+            for source_column, visible_column in (
+                    money_columns.items()
+            ):
+                visible_summary[visible_column] = (
+                        pd.to_numeric(
+                            visible_summary[source_column],
+                            errors="coerce",
+                        ) / 100
+                )
+
+            visible_summary["Маржинальность, %"] = (
+                pd.to_numeric(
+                    visible_summary["margin_percent"],
+                    errors="coerce",
+                )
+            )
+
+            visible_summary[
+                "Процентные расходы, %"
+            ] = pd.to_numeric(
+                visible_summary["percentage_cost_rate"],
+                errors="coerce",
+            )
+
+            visible_summary[
+                "Точка безубыточности, шт."
+            ] = pd.to_numeric(
+                visible_summary["break_even_units"],
+                errors="coerce",
+            )
+
+            visible_summary["Статус расчёта"] = (
+                visible_summary["pricing_error"]
+                .fillna("Расчёт выполнен")
+                .replace("", "Расчёт выполнен")
+            )
+
+            visible_summary = visible_summary.rename(
+                columns={
+                    "product_name": "Продукт",
+                    "planned_units": "План, шт.",
+                }
+            )
+
+            st.dataframe(
+                visible_summary[
+                    [
+                        "Продукт",
+                        "План, шт.",
+                        "Способ цены",
+                        "Фиксированные затраты на единицу, ₽",
+                        "Затраты периода на единицу, ₽",
+                        "Базовая себестоимость, ₽",
+                        "Процентные расходы, %",
+                        "Цена продажи, ₽",
+                        "Полная себестоимость, ₽",
+                        "Прибыль на единицу, ₽",
+                        "Маржинальность, %",
+                        "Выручка, ₽",
+                        "Результат на тираж, ₽",
+                        "Точка безубыточности, шт.",
+                        "Статус расчёта",
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Фиксированные затраты на единицу, ₽":
+                        st.column_config.NumberColumn(
+                            "Фиксированные затраты на единицу, ₽",
+                            format="%.2f",
+                        ),
+                    "Затраты периода на единицу, ₽":
+                        st.column_config.NumberColumn(
+                            "Затраты периода на единицу, ₽",
+                            format="%.2f",
+                        ),
+                    "Базовая себестоимость, ₽":
+                        st.column_config.NumberColumn(
+                            "Базовая себестоимость, ₽",
+                            format="%.2f",
+                        ),
+                    "Процентные расходы, %":
+                        st.column_config.NumberColumn(
+                            "Процентные расходы, %",
+                            format="%.2f%%",
+                        ),
+                    "Цена продажи, ₽":
+                        st.column_config.NumberColumn(
+                            "Цена продажи, ₽",
+                            format="%.2f",
+                        ),
+                    "Полная себестоимость, ₽":
+                        st.column_config.NumberColumn(
+                            "Полная себестоимость, ₽",
+                            format="%.2f",
+                        ),
+                    "Прибыль на единицу, ₽":
+                        st.column_config.NumberColumn(
+                            "Прибыль на единицу, ₽",
+                            format="%.2f",
+                        ),
+                    "Маржинальность, %":
+                        st.column_config.NumberColumn(
+                            "Маржинальность, %",
+                            format="%.1f%%",
+                        ),
+                    "Выручка, ₽":
+                        st.column_config.NumberColumn(
+                            "Выручка, ₽",
+                            format="%.2f",
+                        ),
+                    "Результат на тираж, ₽":
+                        st.column_config.NumberColumn(
+                            "Результат на тираж, ₽",
+                            format="%.2f",
+                        ),
+                    "Точка безубыточности, шт.":
+                        st.column_config.NumberColumn(
+                            "Точка безубыточности, шт.",
+                            format="%d",
+                        ),
+                },
+            )
 
 with payment_calendar_tab:
     st.subheader("Платёжный календарь")

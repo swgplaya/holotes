@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -301,6 +302,153 @@ class PlannedCashFlow(Base):
 
     end_date: Mapped[date | None] = mapped_column(
         Date,
+        nullable=True,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        index=True,
+    )
+
+    comment: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+class UnitEconomicsProduct(Base):
+    """Продукт для расчёта себестоимости и цены."""
+
+    __tablename__ = "unit_economics_products"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    planned_units: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+    )
+
+    # not_set, manual, markup, target_margin
+    pricing_method: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="not_set",
+    )
+
+    # Наценка или целевая маржинальность
+    # в базисных пунктах: 2500 = 25,00%.
+    pricing_value_bp: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    manual_price_kopecks: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+    )
+
+    # Шаг округления расчётной цены.
+    # 10 000 копеек = 100 рублей.
+    rounding_step_kopecks: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        default=10_000,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        index=True,
+    )
+
+    comment: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+
+class UnitEconomicsCostItem(Base):
+    """Строка затрат продукта."""
+
+    __tablename__ = "unit_economics_cost_items"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "unit_economics_products.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    # fixed_per_unit
+    # fixed_period
+    # percent_of_price
+    # percent_of_revenue
+    calculation_type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+    )
+
+    # Для фиксированных рублёвых затрат.
+    amount_kopecks: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+    )
+
+    # Для процентных затрат.
+    # 250 = 2,50%.
+    percentage_bp: Mapped[int | None] = mapped_column(
+        Integer,
         nullable=True,
     )
 
