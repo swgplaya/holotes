@@ -30,6 +30,17 @@ from src.reporting import (
     filter_transactions_by_period,
 )
 
+from src.rule_repository import (
+    DIRECTION_FILTERS,
+    MATCH_FIELDS,
+    MATCH_TYPES,
+    apply_classification_rules,
+    create_rule,
+    delete_rule,
+    get_rules_dataframe,
+    set_rule_active,
+)
+
 
 
 st.set_page_config(
@@ -527,6 +538,7 @@ if last_import_message:
 (
     operations_tab,
     classification_tab,
+    rules_tab,
     pnl_tab,
     cash_flow_tab,
     import_tab,
@@ -534,6 +546,7 @@ if last_import_message:
     [
         "Операции в базе",
         "Классификация",
+        "Правила",
         "P&L",
         "Cash Flow",
         "Импорт выписки",
@@ -548,6 +561,13 @@ classification_message = st.session_state.pop(
 if classification_message:
     st.success(classification_message)
 
+rule_message = st.session_state.pop(
+    "rule_message",
+    None,
+)
+
+if rule_message:
+    st.success(rule_message)
 
 with operations_tab:
     stored_transactions = get_transactions_dataframe()
@@ -713,6 +733,233 @@ with classification_tab:
                     )
 
                     st.rerun()
+
+with rules_tab:
+    st.subheader("Правила автоматической классификации")
+
+    st.caption(
+        "Правила применяются по убыванию приоритета. "
+        "Для каждой операции срабатывает только первое совпадение. "
+        "Ручные решения не перезаписываются."
+    )
+
+    if st.button(
+        "Применить активные правила",
+        type="primary",
+        use_container_width=True,
+    ):
+        apply_result = apply_classification_rules()
+
+        st.session_state["rule_message"] = (
+            f"Проверено операций: "
+            f"{apply_result.checked}. "
+            f"Классифицировано: "
+            f"{apply_result.matched}. "
+            f"Без совпадений: "
+            f"{apply_result.unmatched}."
+        )
+
+        st.rerun()
+
+    with st.expander(
+        "Создать новое правило",
+        expanded=True,
+    ):
+        with st.form("create_rule_form"):
+            rule_name = st.text_input(
+                "Название правила",
+                placeholder="Например: банковские комиссии",
+            )
+
+            priority = st.number_input(
+                "Приоритет",
+                min_value=0,
+                max_value=10_000,
+                value=100,
+                step=10,
+                help=(
+                    "Чем больше число, тем раньше "
+                    "проверяется правило."
+                ),
+            )
+
+            is_active = st.checkbox(
+                "Правило активно",
+                value=True,
+            )
+
+            direction_filter = st.selectbox(
+                "Направление операции",
+                options=list(DIRECTION_FILTERS),
+                format_func=DIRECTION_FILTERS.get,
+            )
+
+            match_field = st.selectbox(
+                "Где искать",
+                options=list(MATCH_FIELDS),
+                format_func=MATCH_FIELDS.get,
+            )
+
+            match_type = st.selectbox(
+                "Условие",
+                options=list(MATCH_TYPES),
+                format_func=MATCH_TYPES.get,
+            )
+
+            match_value = st.text_input(
+                "Искомое значение",
+                placeholder="Например: обслуживание счета",
+            )
+
+            pnl_column, cf_column = st.columns(2)
+
+            with pnl_column:
+                st.markdown("**P&L**")
+
+                pnl_action = st.selectbox(
+                    "Решение P&L",
+                    options=list(REPORT_ACTIONS),
+                    key="rule_pnl_action",
+                )
+
+                pnl_category = st.selectbox(
+                    "Категория P&L",
+                    options=list(PNL_CATEGORIES),
+                    key="rule_pnl_category",
+                )
+
+            with cf_column:
+                st.markdown("**Cash Flow**")
+
+                cf_action = st.selectbox(
+                    "Решение Cash Flow",
+                    options=list(REPORT_ACTIONS),
+                    key="rule_cf_action",
+                )
+
+                cf_category = st.selectbox(
+                    "Категория Cash Flow",
+                    options=list(CF_CATEGORIES),
+                    key="rule_cf_category",
+                )
+
+            create_rule_submitted = st.form_submit_button(
+                "Создать правило",
+                type="primary",
+                use_container_width=True,
+            )
+
+            if create_rule_submitted:
+                try:
+                    new_rule_id = create_rule(
+                        name=rule_name,
+                        priority=int(priority),
+                        is_active=is_active,
+                        direction_filter=direction_filter,
+                        match_field=match_field,
+                        match_type=match_type,
+                        match_value=match_value,
+                        pnl_action=pnl_action,
+                        pnl_category=pnl_category,
+                        cf_action=cf_action,
+                        cf_category=cf_category,
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state["rule_message"] = (
+                        f"Правило #{new_rule_id} создано."
+                    )
+                    st.rerun()
+
+    rules = get_rules_dataframe()
+
+    st.subheader("Сохранённые правила")
+
+    if rules.empty:
+        st.info(
+            "Правила пока не созданы."
+        )
+    else:
+        visible_rules = rules.rename(
+            columns={
+                "id": "ID",
+                "name": "Название",
+                "priority": "Приоритет",
+                "is_active": "Активно",
+                "direction_filter": "Направление",
+                "match_field": "Поле",
+                "match_type": "Условие",
+                "match_value": "Значение",
+                "pnl_action": "Решение P&L",
+                "pnl_category": "Категория P&L",
+                "cf_action": "Решение CF",
+                "cf_category": "Категория CF",
+            }
+        )
+
+        st.dataframe(
+            visible_rules,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        rule_options = {
+            f"{int(row['id'])} — {row['name']}":
+                int(row["id"])
+            for _, row in rules.iterrows()
+        }
+
+        selected_rule_label = st.selectbox(
+            "Выберите правило для управления",
+            options=list(rule_options),
+        )
+
+        selected_rule_id = rule_options[
+            selected_rule_label
+        ]
+
+        selected_rule = rules.loc[
+            rules["id"] == selected_rule_id
+        ].iloc[0]
+
+        selected_rule_active = st.checkbox(
+            "Правило активно",
+            value=bool(
+                selected_rule["is_active"]
+            ),
+            key=f"selected_rule_active_{selected_rule_id}",
+        )
+
+        action_column, delete_column = st.columns(2)
+
+        with action_column:
+            if st.button(
+                "Сохранить активность",
+                use_container_width=True,
+            ):
+                set_rule_active(
+                    rule_id=selected_rule_id,
+                    is_active=selected_rule_active,
+                )
+
+                st.session_state["rule_message"] = (
+                    "Состояние правила обновлено."
+                )
+                st.rerun()
+
+        with delete_column:
+            if st.button(
+                "Удалить правило",
+                type="secondary",
+                use_container_width=True,
+            ):
+                delete_rule(selected_rule_id)
+
+                st.session_state["rule_message"] = (
+                    "Правило удалено."
+                )
+                st.rerun()
 
 with pnl_tab:
     st.subheader("P&L")

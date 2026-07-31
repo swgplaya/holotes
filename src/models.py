@@ -160,3 +160,88 @@ class BankTransaction(Base):
         server_default=func.current_timestamp(),
         onupdate=func.current_timestamp(),
     )
+    
+class ClassificationRule(Base):
+    """Правило автоматической классификации операций."""
+
+    __tablename__ = "classification_rules"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    priority: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=100,
+        index=True,
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        index=True,
+    )
+
+    direction_filter: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="any",
+    )
+
+    match_field: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+    )
+
+    match_type: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="contains",
+    )
+
+    match_value: Mapped[str] = mapped_column(
+        String(512),
+        nullable=False,
+    )
+
+    include_in_pnl: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+    )
+
+    pnl_category: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    include_in_cf: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+    )
+
+    cf_category: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
