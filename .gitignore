@@ -47,3 +47,15 @@ private/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local and demo data
+.env
+data/
+imports/
+demo_data/
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+*.xls
+*.xlsx
