@@ -25,6 +25,10 @@ from src.bank_import import (
     read_tbank_csv,
 )
 from src.database import init_db
+from src.rule_config import (
+    export_rule_config_json,
+    parse_rule_config_json,
+)
 from src.transaction_repository import (
     clear_bank_data,
     delete_import_batch,
@@ -54,6 +58,7 @@ from src.rule_repository import (
     create_rule,
     delete_rule,
     get_rules_dataframe,
+    import_rule_records,
     set_rule_active,
 )
 
@@ -2534,6 +2539,240 @@ with rules_tab:
                     st.session_state["rule_message"] = (
                         f"Правило #{new_rule_id} создано."
                     )
+                    st.rerun()
+    st.divider()
+    st.subheader("Перенос конфигурации правил")
+
+    st.caption(
+        "Правила можно сохранить в JSON и перенести "
+        "в другую установку Open MAS. "
+        "Локальные ID и даты базы не экспортируются."
+    )
+
+    export_json = export_rule_config_json()
+
+    export_column, export_info_column = (
+        st.columns([1, 2])
+    )
+
+    with export_column:
+        st.download_button(
+            "Скачать правила в JSON",
+            data=export_json,
+            file_name=(
+                "open_mas_rules_"
+                f"{date.today().isoformat()}.json"
+            ),
+            mime="application/json",
+            use_container_width=True,
+            key="download_rule_config",
+        )
+
+    with export_info_column:
+        st.info(
+            "Экспорт содержит текущие правила, "
+            "их приоритеты, условия, категории "
+            "и состояние активности."
+        )
+
+    uploaded_rule_config = st.file_uploader(
+        "Загрузить конфигурацию правил",
+        type=["json"],
+        help=(
+            "Сначала файл будет проверен. "
+            "База не изменится до подтверждения импорта."
+        ),
+        key="rule_config_uploader",
+    )
+
+    if uploaded_rule_config is not None:
+        try:
+            parsed_rule_config = (
+                parse_rule_config_json(
+                    uploaded_rule_config.getvalue()
+                )
+            )
+        except (TypeError, ValueError) as exc:
+            st.error(str(exc))
+        else:
+            rule_preview = (
+                parsed_rule_config.preview
+            )
+
+            st.markdown(
+                "#### Результат проверки файла"
+            )
+
+            preview_metrics = st.columns(4)
+
+            preview_metrics[0].metric(
+                "Получено",
+                rule_preview.received,
+            )
+
+            preview_metrics[1].metric(
+                "Уникальных корректных",
+                rule_preview.valid_unique,
+            )
+
+            preview_metrics[2].metric(
+                "Дублей внутри файла",
+                rule_preview.duplicates_in_file,
+            )
+
+            preview_metrics[3].metric(
+                "Уже есть в базе",
+                rule_preview.duplicates_in_database,
+            )
+
+            st.caption(
+                "Версия формата: "
+                f"{parsed_rule_config.schema_version}. "
+                "Файл экспортирован: "
+                f"{parsed_rule_config.exported_at}."
+            )
+
+            if rule_preview.errors:
+                st.error(
+                    "Конфигурация содержит ошибки. "
+                    "Импорт заблокирован."
+                )
+
+                for error_message in (
+                    rule_preview.errors
+                ):
+                    st.error(error_message)
+
+            if (
+                rule_preview.duplicates_in_file
+                > 0
+            ):
+                st.warning(
+                    "Повторяющиеся правила внутри файла "
+                    "будут импортированы только один раз."
+                )
+
+            if (
+                rule_preview.duplicates_in_database
+                > 0
+            ):
+                st.info(
+                    "В режиме добавления правила, "
+                    "которые уже полностью совпадают "
+                    "с существующими, будут пропущены."
+                )
+
+            with st.expander(
+                "Просмотреть содержимое JSON",
+                expanded=False,
+            ):
+                st.json(
+                    {
+                        "schema_version":
+                            parsed_rule_config.schema_version,
+                        "exported_at":
+                            parsed_rule_config.exported_at,
+                        "rules": list(
+                            parsed_rule_config.records
+                        ),
+                    }
+                )
+
+            st.markdown("#### Режим импорта")
+
+            import_mode_label = st.radio(
+                "Выберите действие",
+                options=[
+                    "Добавить отсутствующие правила",
+                    "Заменить все текущие правила",
+                ],
+                horizontal=True,
+                key="rule_import_mode",
+            )
+
+            if (
+                import_mode_label
+                == "Добавить отсутствующие правила"
+            ):
+                import_mode = "merge"
+
+                st.caption(
+                    "Текущие правила сохранятся. "
+                    "Полностью совпадающие правила "
+                    "будут пропущены."
+                )
+
+                replace_confirmation_valid = True
+
+            else:
+                import_mode = "replace"
+
+                st.warning(
+                    "Все текущие правила будут удалены "
+                    "и заменены правилами из файла. "
+                    "Операция выполняется одной транзакцией."
+                )
+
+                replace_phrase = (
+                    "ЗАМЕНИТЬ ВСЕ ПРАВИЛА"
+                )
+
+                replace_confirmation = st.text_input(
+                    "Для замены введите:",
+                    placeholder=replace_phrase,
+                    key="replace_rules_confirmation",
+                )
+
+                replace_confirmation_valid = (
+                    replace_confirmation.strip()
+                    == replace_phrase
+                )
+
+            import_disabled = (
+                bool(rule_preview.errors)
+                or rule_preview.valid_unique == 0
+                or not replace_confirmation_valid
+            )
+
+            import_button_label = (
+                "Добавить правила"
+                if import_mode == "merge"
+                else "Заменить все правила"
+            )
+
+            if st.button(
+                import_button_label,
+                type="primary",
+                use_container_width=True,
+                disabled=import_disabled,
+                key="import_rule_config_button",
+            ):
+                try:
+                    rule_import_result = (
+                        import_rule_records(
+                            list(
+                                parsed_rule_config.records
+                            ),
+                            mode=import_mode,
+                        )
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state[
+                        "rule_message"
+                    ] = (
+                        "Импорт правил завершён. "
+                        f"Получено: "
+                        f"{rule_import_result.received}. "
+                        f"Добавлено: "
+                        f"{rule_import_result.inserted}. "
+                        f"Пропущено дублей: "
+                        f"{rule_import_result.skipped_duplicates}. "
+                        f"Удалено прежних правил: "
+                        f"{rule_import_result.deleted_existing}."
+                    )
+
                     st.rerun()
 
     rules = get_rules_dataframe()

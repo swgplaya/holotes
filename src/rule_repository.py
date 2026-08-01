@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from src.categories import (
     EXCLUDE_ACTION,
@@ -48,6 +48,27 @@ class ApplyRulesResult:
     matched: int
     unmatched: int
 
+@dataclass(frozen=True)
+class RuleImportPreview:
+    """Результат предварительной проверки правил."""
+
+    received: int
+    valid_unique: int
+    duplicates_in_file: int
+    duplicates_in_database: int
+    errors: tuple[str, ...]
+    normalized_rules: tuple[dict[str, Any], ...]
+
+
+@dataclass(frozen=True)
+class RuleImportResult:
+    """Результат пакетного импорта правил."""
+
+    mode: str
+    received: int
+    inserted: int
+    skipped_duplicates: int
+    deleted_existing: int
 
 def _normalize(value: Any) -> str:
     """Нормализует текст для нечувствительного поиска."""
@@ -196,8 +217,7 @@ def _rule_matches(
         f"Неизвестное условие правила: {rule.match_type}"
     )
 
-
-def create_rule(
+def _prepare_rule_values(
     *,
     name: str,
     priority: int,
@@ -207,14 +227,16 @@ def create_rule(
     match_type: str,
     match_value: str,
     pnl_action: str,
-    pnl_category: str,
+    pnl_category: str | None,
     cf_action: str,
-    cf_category: str,
-) -> int:
-    """Создаёт правило автоматической классификации."""
+    cf_category: str | None,
+) -> dict[str, Any]:
+    """Проверяет и нормализует данные одного правила."""
 
     clean_name = _optional_text(name)
-    clean_match_value = _optional_text(match_value)
+    clean_match_value = _optional_text(
+        match_value
+    )
 
     if clean_name is None:
         raise ValueError(
@@ -241,11 +263,21 @@ def create_rule(
             "Выбрано неизвестное условие поиска."
         )
 
-    include_in_pnl = _action_to_bool(pnl_action)
-    include_in_cf = _action_to_bool(cf_action)
+    include_in_pnl = _action_to_bool(
+        pnl_action
+    )
 
-    clean_pnl_category = _optional_text(pnl_category)
-    clean_cf_category = _optional_text(cf_category)
+    include_in_cf = _action_to_bool(
+        cf_action
+    )
+
+    clean_pnl_category = _optional_text(
+        pnl_category
+    )
+
+    clean_cf_category = _optional_text(
+        cf_category
+    )
 
     if (
         include_in_pnl is None
@@ -278,26 +310,80 @@ def create_rule(
     if include_in_cf is not True:
         clean_cf_category = None
 
-    rule = ClassificationRule(
-        name=clean_name,
-        priority=int(priority),
-        is_active=bool(is_active),
+    return {
+        "name": clean_name,
+        "priority": int(priority),
+        "is_active": bool(is_active),
+        "direction_filter": direction_filter,
+        "match_field": match_field,
+        "match_type": match_type,
+        "match_value": clean_match_value,
+        "include_in_pnl": include_in_pnl,
+        "pnl_category": clean_pnl_category,
+        "include_in_cf": include_in_cf,
+        "cf_category": clean_cf_category,
+    }
+
+def create_rule(
+    *,
+    name: str,
+    priority: int,
+    is_active: bool,
+    direction_filter: str,
+    match_field: str,
+    match_type: str,
+    match_value: str,
+    pnl_action: str,
+    pnl_category: str,
+    cf_action: str,
+    cf_category: str,
+) -> int:
+    """Создаёт правило автоматической классификации."""
+
+    clean_name = _optional_text(name)
+    clean_match_value = _optional_text(match_value)
+
+    if clean_name is None:
+        raise ValueError(
+            "Укажи название правила."
+        )
+    def create_rule(
+    *,
+    name: str,
+    priority: int,
+    is_active: bool,
+    direction_filter: str,
+    match_field: str,
+    match_type: str,
+    match_value: str,
+    pnl_action: str,
+    pnl_category: str,
+    cf_action: str,
+    cf_category: str,
+) -> int: """Создаёт правило автоматической классификации."""
+
+    values = _prepare_rule_values(
+        name=name,
+        priority=priority,
+        is_active=is_active,
         direction_filter=direction_filter,
         match_field=match_field,
         match_type=match_type,
-        match_value=clean_match_value,
-        include_in_pnl=include_in_pnl,
-        pnl_category=clean_pnl_category,
-        include_in_cf=include_in_cf,
-        cf_category=clean_cf_category,
+        match_value=match_value,
+        pnl_action=pnl_action,
+        pnl_category=pnl_category,
+        cf_action=cf_action,
+        cf_category=cf_category,
     )
+
+    rule = ClassificationRule(**values)
 
     with SessionLocal() as session:
         session.add(rule)
         session.commit()
         session.refresh(rule)
 
-        return rule.id
+        return int(rule.id)
 
 
 def get_rules_dataframe() -> pd.DataFrame:
@@ -358,6 +444,415 @@ def get_rules_dataframe() -> pd.DataFrame:
 
     return pd.DataFrame(rows, columns=columns)
 
+RULE_CONFIG_FIELDS = {
+    "name",
+    "priority",
+    "is_active",
+    "direction_filter",
+    "match_field",
+    "match_type",
+    "match_value",
+    "pnl_action",
+    "pnl_category",
+    "cf_action",
+    "cf_category",
+}
+
+
+def _rule_to_config_record(
+    rule: ClassificationRule,
+) -> dict[str, Any]:
+    """Преобразует модель БД в переносимую конфигурацию."""
+
+    return {
+        "name": rule.name,
+        "priority": rule.priority,
+        "is_active": rule.is_active,
+        "direction_filter": rule.direction_filter,
+        "match_field": rule.match_field,
+        "match_type": rule.match_type,
+        "match_value": rule.match_value,
+        "pnl_action": _bool_to_action(
+            rule.include_in_pnl
+        ),
+        "pnl_category": rule.pnl_category or "",
+        "cf_action": _bool_to_action(
+            rule.include_in_cf
+        ),
+        "cf_category": rule.cf_category or "",
+    }
+
+
+def _model_to_rule_values(
+    rule: ClassificationRule,
+) -> dict[str, Any]:
+    """Преобразует модель БД во внутренние значения."""
+
+    return {
+        "name": rule.name,
+        "priority": rule.priority,
+        "is_active": rule.is_active,
+        "direction_filter": rule.direction_filter,
+        "match_field": rule.match_field,
+        "match_type": rule.match_type,
+        "match_value": rule.match_value,
+        "include_in_pnl": rule.include_in_pnl,
+        "pnl_category": rule.pnl_category,
+        "include_in_cf": rule.include_in_cf,
+        "cf_category": rule.cf_category,
+    }
+
+
+def _rule_fingerprint(
+    values: dict[str, Any],
+) -> tuple[Any, ...]:
+    """
+    Возвращает содержательный идентификатор правила.
+
+    ID и даты БД в сравнении не участвуют.
+    """
+
+    return (
+        _normalize(values["name"]),
+        int(values["priority"]),
+        bool(values["is_active"]),
+        str(values["direction_filter"]),
+        str(values["match_field"]),
+        str(values["match_type"]),
+        _normalize(values["match_value"]),
+        values["include_in_pnl"],
+        _normalize(values["pnl_category"]),
+        values["include_in_cf"],
+        _normalize(values["cf_category"]),
+    )
+
+
+def _validate_rule_record(
+    record: object,
+    position: int,
+) -> dict[str, Any]:
+    """Проверяет одно правило из внешней конфигурации."""
+
+    prefix = f"Правило {position}: "
+
+    if not isinstance(record, dict):
+        raise ValueError(
+            prefix
+            + "ожидался JSON-объект."
+        )
+
+    record_fields = set(record)
+
+    missing_fields = (
+        RULE_CONFIG_FIELDS
+        - record_fields
+    )
+
+    if missing_fields:
+        raise ValueError(
+            prefix
+            + "отсутствуют поля: "
+            + ", ".join(
+                sorted(missing_fields)
+            )
+            + "."
+        )
+
+    unknown_fields = (
+        record_fields
+        - RULE_CONFIG_FIELDS
+    )
+
+    if unknown_fields:
+        raise ValueError(
+            prefix
+            + "неизвестные поля: "
+            + ", ".join(
+                sorted(unknown_fields)
+            )
+            + "."
+        )
+
+    text_fields = (
+        "name",
+        "direction_filter",
+        "match_field",
+        "match_type",
+        "match_value",
+        "pnl_action",
+        "cf_action",
+    )
+
+    for field_name in text_fields:
+        if not isinstance(
+            record[field_name],
+            str,
+        ):
+            raise ValueError(
+                prefix
+                + f"поле {field_name!r} "
+                + "должно быть строкой."
+            )
+
+    for category_field in (
+        "pnl_category",
+        "cf_category",
+    ):
+        category_value = record[
+            category_field
+        ]
+
+        if (
+            category_value is not None
+            and not isinstance(
+                category_value,
+                str,
+            )
+        ):
+            raise ValueError(
+                prefix
+                + f"поле {category_field!r} "
+                + "должно быть строкой или null."
+            )
+
+    priority = record["priority"]
+
+    if (
+        isinstance(priority, bool)
+        or not isinstance(priority, int)
+    ):
+        raise ValueError(
+            prefix
+            + "поле 'priority' должно быть целым числом."
+        )
+
+    is_active = record["is_active"]
+
+    if not isinstance(is_active, bool):
+        raise ValueError(
+            prefix
+            + "поле 'is_active' должно быть "
+            + "логическим значением."
+        )
+
+    try:
+        return _prepare_rule_values(
+            name=record["name"],
+            priority=priority,
+            is_active=is_active,
+            direction_filter=record[
+                "direction_filter"
+            ],
+            match_field=record["match_field"],
+            match_type=record["match_type"],
+            match_value=record["match_value"],
+            pnl_action=record["pnl_action"],
+            pnl_category=record["pnl_category"],
+            cf_action=record["cf_action"],
+            cf_category=record["cf_category"],
+        )
+    except ValueError as exc:
+        raise ValueError(
+            prefix + str(exc)
+        ) from exc
+
+
+def get_rule_config_records() -> list[dict[str, Any]]:
+    """Возвращает правила в переносимом формате."""
+
+    statement = (
+        select(ClassificationRule)
+        .order_by(
+            ClassificationRule.priority.desc(),
+            ClassificationRule.id.asc(),
+        )
+    )
+
+    with SessionLocal() as session:
+        rules = session.scalars(
+            statement
+        ).all()
+
+        return [
+            _rule_to_config_record(rule)
+            for rule in rules
+        ]
+
+
+def preview_rule_records(
+    records: object,
+) -> RuleImportPreview:
+    """Проверяет правила без изменения базы."""
+
+    if not isinstance(records, list):
+        raise ValueError(
+            "Поле rules должно содержать JSON-массив."
+        )
+
+    errors: list[str] = []
+
+    normalized_rules: list[
+        dict[str, Any]
+    ] = []
+
+    file_fingerprints: set[
+        tuple[Any, ...]
+    ] = set()
+
+    duplicates_in_file = 0
+
+    for position, record in enumerate(
+        records,
+        start=1,
+    ):
+        try:
+            values = _validate_rule_record(
+                record,
+                position,
+            )
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+
+        fingerprint = _rule_fingerprint(
+            values
+        )
+
+        if fingerprint in file_fingerprints:
+            duplicates_in_file += 1
+            continue
+
+        file_fingerprints.add(
+            fingerprint
+        )
+
+        normalized_rules.append(
+            values
+        )
+
+    with SessionLocal() as session:
+        existing_rules = session.scalars(
+            select(ClassificationRule)
+        ).all()
+
+        existing_fingerprints = {
+            _rule_fingerprint(
+                _model_to_rule_values(rule)
+            )
+            for rule in existing_rules
+        }
+
+    duplicates_in_database = sum(
+        1
+        for values in normalized_rules
+        if _rule_fingerprint(values)
+        in existing_fingerprints
+    )
+
+    return RuleImportPreview(
+        received=len(records),
+        valid_unique=len(normalized_rules),
+        duplicates_in_file=duplicates_in_file,
+        duplicates_in_database=(
+            duplicates_in_database
+        ),
+        errors=tuple(errors),
+        normalized_rules=tuple(
+            normalized_rules
+        ),
+    )
+
+
+def import_rule_records(
+    records: object,
+    *,
+    mode: str,
+) -> RuleImportResult:
+    """
+    Импортирует правила атомарно.
+
+    merge — добавляет только отсутствующие правила.
+    replace — удаляет текущие правила и загружает новые.
+    """
+
+    if mode not in {
+        "merge",
+        "replace",
+    }:
+        raise ValueError(
+            "Неизвестный режим импорта правил."
+        )
+
+    preview = preview_rule_records(
+        records
+    )
+
+    if preview.errors:
+        raise ValueError(
+            "\n".join(preview.errors)
+        )
+
+    with SessionLocal() as session:
+        existing_rules = session.scalars(
+            select(ClassificationRule)
+        ).all()
+
+        deleted_existing = 0
+
+        if mode == "replace":
+            deleted_existing = len(
+                existing_rules
+            )
+
+            session.execute(
+                delete(ClassificationRule)
+            )
+
+            existing_fingerprints: set[
+                tuple[Any, ...]
+            ] = set()
+        else:
+            existing_fingerprints = {
+                _rule_fingerprint(
+                    _model_to_rule_values(rule)
+                )
+                for rule in existing_rules
+            }
+
+        inserted = 0
+        skipped_existing = 0
+
+        for values in preview.normalized_rules:
+            fingerprint = _rule_fingerprint(
+                values
+            )
+
+            if fingerprint in existing_fingerprints:
+                skipped_existing += 1
+                continue
+
+            session.add(
+                ClassificationRule(**values)
+            )
+
+            existing_fingerprints.add(
+                fingerprint
+            )
+
+            inserted += 1
+
+        session.commit()
+
+    return RuleImportResult(
+        mode=mode,
+        received=preview.received,
+        inserted=inserted,
+        skipped_duplicates=(
+            preview.duplicates_in_file
+            + skipped_existing
+        ),
+        deleted_existing=deleted_existing,
+    )
 
 def set_rule_active(
     rule_id: int,
