@@ -32,6 +32,36 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tabs.payment_calendar":
             "Платёжный календарь",
         "tabs.import": "Импорт выписки",
+        "operations.empty_state": (
+            "В базе пока нет операций. "
+            "Загрузите первую выписку во вкладке импорта."
+        ),
+        "operations.saved_title":
+            "Сохранённые операции",
+        "operations.technical_info":
+            "Техническая информация",
+        "operations.sqlite_records":
+            "Записей в SQLite:",
+        "operations.metrics.count": "Операций",
+        "operations.metrics.inflow": "Поступления",
+        "operations.metrics.outflow": "Списания",
+        "operations.metrics.net": "Чистое движение",
+        "operations.columns.date": "Дата",
+        "operations.columns.amount": "Сумма, ₽",
+        "operations.columns.direction":
+            "Дебет/кредит",
+        "operations.columns.bank_category":
+            "Категория банка",
+        "operations.columns.status": "Статус",
+        "operations.columns.counterparty":
+            "Контрагент",
+        "operations.columns.tax_id": "ИНН",
+        "operations.columns.description":
+            "Описание",
+        "operations.columns.payment_purpose":
+            "Назначение платежа",
+        "operations.columns.classification":
+            "Классификация",
     },
     "en": {
         "language.selector": "Interface language",
@@ -50,6 +80,37 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tabs.unit_economics": "Unit Economics",
         "tabs.payment_calendar": "Payment calendar",
         "tabs.import": "Import statement",
+        "operations.empty_state": (
+            "There are no transactions in the database yet. "
+            "Upload your first bank statement "
+            "in the import tab."
+        ),
+        "operations.saved_title":
+            "Saved transactions",
+        "operations.technical_info":
+            "Technical information",
+        "operations.sqlite_records":
+            "SQLite records:",
+        "operations.metrics.count": "Transactions",
+        "operations.metrics.inflow": "Inflows",
+        "operations.metrics.outflow": "Outflows",
+        "operations.metrics.net": "Net movement",
+        "operations.columns.date": "Date",
+        "operations.columns.amount": "Amount, ₽",
+        "operations.columns.direction":
+            "Debit/Credit",
+        "operations.columns.bank_category":
+            "Bank category",
+        "operations.columns.status": "Status",
+        "operations.columns.counterparty":
+            "Counterparty",
+        "operations.columns.tax_id": "Tax ID",
+        "operations.columns.description":
+            "Description",
+        "operations.columns.payment_purpose":
+            "Payment purpose",
+        "operations.columns.classification":
+            "Classification",
     },
     "zh-CN": {
         "language.selector": "界面语言",
@@ -67,6 +128,34 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tabs.unit_economics": "单位经济模型",
         "tabs.payment_calendar": "付款日历",
         "tabs.import": "导入银行流水",
+        "operations.empty_state": (
+            "数据库中暂无交易。"
+            "请在导入银行流水选项卡中上传第一份银行流水。"
+        ),
+        "operations.saved_title": "已保存的交易",
+        "operations.technical_info": "技术信息",
+        "operations.sqlite_records":
+            "SQLite 记录数：",
+        "operations.metrics.count": "交易笔数",
+        "operations.metrics.inflow": "资金流入",
+        "operations.metrics.outflow": "资金流出",
+        "operations.metrics.net": "净现金变动",
+        "operations.columns.date": "日期",
+        "operations.columns.amount": "金额，₽",
+        "operations.columns.direction":
+            "借方/贷方",
+        "operations.columns.bank_category":
+            "银行类别",
+        "operations.columns.status": "状态",
+        "operations.columns.counterparty":
+            "交易对方",
+        "operations.columns.tax_id":
+            "纳税人识别号",
+        "operations.columns.description": "描述",
+        "operations.columns.payment_purpose":
+            "付款用途",
+        "operations.columns.classification":
+            "分类状态",
     },
 }
 
