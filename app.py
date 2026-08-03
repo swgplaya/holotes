@@ -3,10 +3,17 @@ from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 from pathlib import Path
+from html import escape
 
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+
+from src.i18n import (
+    DEFAULT_LANGUAGE,
+    SUPPORTED_LANGUAGES,
+    translate,
+)
 
 from src.categories import (
     CF_CATEGORIES,
@@ -104,6 +111,23 @@ st.html(
 
 init_db()
 
+LANGUAGE_STATE_KEY = "ui_language"
+
+
+def t(
+    key: str,
+    **values: object,
+) -> str:
+    """Возвращает перевод для текущего языка."""
+
+    return translate(
+        key=key,
+        language=st.session_state.get(
+            LANGUAGE_STATE_KEY,
+            DEFAULT_LANGUAGE,
+        ),
+        **values,
+    )
 
 def format_rubles(kopecks: int) -> str:
     """Форматирует копейки в российский денежный формат."""
@@ -1692,12 +1716,46 @@ def show_financial_report(
         comparison_label=comparison_label,
     )
 
+if LANGUAGE_STATE_KEY not in st.session_state:
+    st.session_state[
+        LANGUAGE_STATE_KEY
+    ] = DEFAULT_LANGUAGE
+
+
+_, language_column = st.columns(
+    [5, 1],
+    vertical_alignment="center",
+)
+
+with language_column:
+    st.selectbox(
+        t("language.selector"),
+        options=list(SUPPORTED_LANGUAGES),
+        format_func=SUPPORTED_LANGUAGES.get,
+        key=LANGUAGE_STATE_KEY,
+        label_visibility="collapsed",
+    )
+
+
+hero_eyebrow = escape(
+    t("app.eyebrow")
+)
+
+hero_description = escape(
+    t("app.description")
+)
+
+hero_badge = escape(
+    t("app.badge")
+)
+
+
 st.html(
-    """
+    f"""
     <section class="openmas-hero">
         <div class="openmas-hero__content">
             <div class="openmas-hero__eyebrow">
-                Управленческий финансовый учёт
+                {hero_eyebrow}
             </div>
 
             <h1 class="openmas-hero__title">
@@ -1705,18 +1763,17 @@ st.html(
             </h1>
 
             <p class="openmas-hero__description">
-                Локальная система для управления банковскими
-                операциями, финансовой отчётностью, правилами
-                классификации и денежными потоками бизнеса.
+                {hero_description}
             </p>
         </div>
 
         <div class="openmas-hero__badge">
-            Local-first · MVP
+            {hero_badge}
         </div>
     </section>
     """
 )
+
 
 last_import_message = st.session_state.pop(
     "last_import_message",
@@ -1737,14 +1794,14 @@ if last_import_message:
     import_tab,
 ) = st.tabs(
     [
-        "Операции в базе",
-        "Классификация",
-        "Правила",
-        "P&L",
-        "Cash Flow",
-        "Unit Economics",
-        "Платёжный календарь",
-        "Импорт выписки",
+        t("tabs.operations"),
+        t("tabs.classification"),
+        t("tabs.rules"),
+        t("tabs.pnl"),
+        t("tabs.cash_flow"),
+        t("tabs.unit_economics"),
+        t("tabs.payment_calendar"),
+        t("tabs.import"),
     ]
 )
 
