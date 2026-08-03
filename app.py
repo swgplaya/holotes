@@ -2,6 +2,7 @@ import hashlib
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -93,6 +94,12 @@ st.set_page_config(
     page_title="Open MAS",
     page_icon="📊",
     layout="wide",
+)
+
+APP_ROOT = Path(__file__).resolve().parent
+
+st.html(
+    APP_ROOT / "assets" / "styles.css"
 )
 
 init_db()
@@ -1485,50 +1492,57 @@ def show_financial_report(
         ]
     )
 
-    start_column, end_column, comparison_column = (
-        st.columns(
-            [1, 1, 1.25]
-        )
-    )
+    with st.container(
+            border=True,
+            key=f"{key_prefix}_period_panel",
+    ):
+        st.markdown("#### Период отчёта")
 
-    with start_column:
-        start_date = st.date_input(
-            "Начало периода",
-            min_value=min_date,
-            max_value=max_date,
-            format="DD.MM.YYYY",
-            key=start_widget_key,
-            on_change=_sync_report_start_date,
-            args=(start_widget_key,),
+        start_column, end_column, comparison_column = (
+            st.columns(
+                [1, 1, 1.25],
+                gap="medium",
+            )
         )
 
-    with end_column:
-        end_date = st.date_input(
-            "Конец периода",
-            min_value=min_date,
-            max_value=max_date,
-            format="DD.MM.YYYY",
-            key=end_widget_key,
-            on_change=_sync_report_end_date,
-            args=(end_widget_key,),
-        )
+        with start_column:
+            start_date = st.date_input(
+                "Начало периода",
+                min_value=min_date,
+                max_value=max_date,
+                format="DD.MM.YYYY",
+                key=start_widget_key,
+                on_change=_sync_report_start_date,
+                args=(start_widget_key,),
+            )
 
-    with comparison_column:
-        comparison_mode = st.selectbox(
-            "Сравнить с",
-            options=list(COMPARISON_MODES),
-            format_func=COMPARISON_MODES.get,
-            key=comparison_widget_key,
-            on_change=(
-                _sync_report_comparison_mode
-            ),
-            args=(comparison_widget_key,),
-        )
+        with end_column:
+            end_date = st.date_input(
+                "Конец периода",
+                min_value=min_date,
+                max_value=max_date,
+                format="DD.MM.YYYY",
+                key=end_widget_key,
+                on_change=_sync_report_end_date,
+                args=(end_widget_key,),
+            )
 
-    st.caption(
-        "Период и режим сравнения общие "
-        "для P&L и Cash Flow."
-    )
+        with comparison_column:
+            comparison_mode = st.selectbox(
+                "Сравнить с",
+                options=list(COMPARISON_MODES),
+                format_func=COMPARISON_MODES.get,
+                key=comparison_widget_key,
+                on_change=(
+                    _sync_report_comparison_mode
+                ),
+                args=(comparison_widget_key,),
+            )
+
+        st.caption(
+            "Настройки периода синхронизированы "
+            "между P&L и Cash Flow."
+        )
 
     try:
         period_transactions = (
@@ -1625,8 +1639,31 @@ def show_financial_report(
         comparison_label=comparison_label,
     )
 
-st.title("Open MAS")
-st.caption("Система управленческого финансового учёта")
+st.html(
+    """
+    <section class="openmas-hero">
+        <div class="openmas-hero__content">
+            <div class="openmas-hero__eyebrow">
+                Управленческий финансовый учёт
+            </div>
+
+            <h1 class="openmas-hero__title">
+                Open MAS
+            </h1>
+
+            <p class="openmas-hero__description">
+                Локальная система для управления банковскими
+                операциями, финансовой отчётностью, правилами
+                классификации и денежными потоками бизнеса.
+            </p>
+        </div>
+
+        <div class="openmas-hero__badge">
+            Local-first · MVP
+        </div>
+    </section>
+    """
+)
 
 last_import_message = st.session_state.pop(
     "last_import_message",
