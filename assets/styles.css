@@ -375,3 +375,13 @@ hr {
     font-weight: 680;
     letter-spacing: -0.01em;
 }
+
+/* Financial charts */
+
+[data-testid="stPlotlyChart"] {
+    min-height: 420px;
+}
+
+[data-testid="stPlotlyChart"] > div {
+    border-radius: inherit;
+}

@@ -806,6 +806,62 @@ def show_pnl_kpis(
         "отчёт по методу начисления."
     )
 
+def style_report_chart(
+    chart,
+    *,
+    show_legend: bool = False,
+) -> None:
+    """Применяет единый стиль к финансовым графикам."""
+
+    layout_options = {
+        "height": 420,
+        "margin": {
+            "l": 16,
+            "r": 16,
+            "t": 32,
+            "b": 16,
+        },
+        "bargap": 0.22,
+        "hovermode": (
+            "x unified"
+            if show_legend
+            else "closest"
+        ),
+        "showlegend": show_legend,
+    }
+
+    if show_legend:
+        layout_options["legend"] = {
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "left",
+            "x": 0,
+            "title_text": "",
+        }
+
+    chart.update_layout(
+        **layout_options
+    )
+
+    chart.update_xaxes(
+        title_text="",
+        showgrid=False,
+        automargin=True,
+        tickangle=-15,
+    )
+
+    chart.update_yaxes(
+        title_text="Сумма, ₽",
+        automargin=True,
+        gridcolor="rgba(128, 128, 128, 0.18)",
+        zerolinecolor="rgba(128, 128, 128, 0.30)",
+    )
+
+    chart.update_traces(
+        marker_line_width=0,
+    )
+
 def show_report_result(
     report: ReportResult,
     report_type: str,
@@ -965,10 +1021,7 @@ def show_report_result(
                 text_auto=".2s",
             )
 
-            chart.update_layout(
-                xaxis_title="",
-                yaxis_title="Сумма, ₽",
-            )
+            style_report_chart(chart)
 
             st.plotly_chart(
                 chart,
@@ -1059,9 +1112,9 @@ def show_report_result(
                 barmode="group",
             )
 
-            comparison_chart.update_layout(
-                xaxis_title="",
-                yaxis_title="Сумма, ₽",
+            style_report_chart(
+                comparison_chart,
+                show_legend=True,
             )
 
             st.plotly_chart(
