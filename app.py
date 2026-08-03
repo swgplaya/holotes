@@ -424,48 +424,70 @@ def prepare_report_details(
 
     details = transactions.copy()
 
+    date_label = t(
+        "operations.columns.date"
+    )
+    amount_label = t(
+        "reports.columns.amount"
+    )
+    category_label = t(
+        "reports.columns.category"
+    )
+    counterparty_label = t(
+        "operations.columns.counterparty"
+    )
+    description_label = t(
+        "operations.columns.description"
+    )
+    payment_purpose_label = t(
+        "operations.columns.payment_purpose"
+    )
+
     details["posted_at"] = pd.to_datetime(
         details["posted_at"],
         errors="coerce",
     )
 
-    details["Дата"] = details[
+    details[date_label] = details[
         "posted_at"
     ].dt.strftime("%d.%m.%Y")
 
-    details["Сумма, ₽"] = (
+    details[amount_label] = (
         details["signed_amount_kopecks"] / 100
     )
 
-    details["Категория"] = (
+    details[category_label] = (
         details[category_column]
         .fillna("")
-        .replace("", "Без категории")
+        .replace(
+            "",
+            t("reports.columns.no_category"),
+        )
     )
 
-    details["Контрагент"] = (
+    details[counterparty_label] = (
         details["counterparty_name"]
         .fillna("")
     )
 
-    details["Описание"] = (
+    details[description_label] = (
         details["description"]
         .fillna("")
     )
 
-    details["Назначение платежа"] = (
+    details[payment_purpose_label] = (
         details["payment_purpose"]
         .fillna("")
     )
 
     return details[
         [
-            "Дата",
-            "Сумма, ₽",
-            "Категория",
-            "Контрагент",
-            "Описание",
-            "Назначение платежа",
+            date_label,
+            amount_label,
+            category_label,
+            counterparty_label,
+            description_label,
+            payment_purpose_label,
         ]
     ]
 
@@ -528,8 +550,10 @@ def _percentage_point_delta(
         - float(comparison_value)
     )
 
-    return f"{difference:+.1f} п.п."
-
+    return t(
+        "reports.percentage_point_delta",
+        value=difference,
+    )
 
 def _rubles_delta(
     current_value: float | None,
@@ -731,12 +755,14 @@ def show_pnl_kpis(
         else None
     )
 
-    st.subheader("KPI P&L")
+    st.subheader(
+        t("reports.pnl.kpi_title")
+    )
 
     first_row = st.columns(4)
 
     first_row[0].metric(
-        "Рентабельность продаж",
+        t("reports.pnl.kpi.profitability"),
         _format_optional_percent(
             current["profitability"]
         ),
@@ -751,7 +777,7 @@ def show_pnl_kpis(
     )
 
     first_row[1].metric(
-        "Доля расходов в доходах",
+        t("reports.pnl.kpi.expense_share"),
         _format_optional_percent(
             current["expense_share"]
         ),
@@ -767,7 +793,7 @@ def show_pnl_kpis(
     )
 
     first_row[2].metric(
-        "Покрытие расходов",
+        t("reports.pnl.kpi.expense_coverage"),
         _format_optional_percent(
             current["expense_coverage"]
         ),
@@ -784,7 +810,7 @@ def show_pnl_kpis(
     )
 
     first_row[3].metric(
-        "Обработано операций",
+        t("reports.pnl.kpi.classification_rate"),
         _format_optional_percent(
             current["classification_rate"]
         ),
@@ -805,7 +831,7 @@ def show_pnl_kpis(
     second_row = st.columns(4)
 
     second_row[0].metric(
-        "Среднее поступление",
+        t("reports.pnl.kpi.average_income"),
         _format_optional_rubles(
             current["average_income"]
         ),
@@ -820,7 +846,7 @@ def show_pnl_kpis(
     )
 
     second_row[1].metric(
-        "Среднее списание",
+        t("reports.pnl.kpi.average_expense"),
         _format_optional_rubles(
             current["average_expense"]
         ),
@@ -836,7 +862,7 @@ def show_pnl_kpis(
     )
 
     second_row[2].metric(
-        "Доходных операций",
+        t("reports.pnl.kpi.income_count"),
         int(current["income_count"]),
         delta=(
             _count_delta(
@@ -849,7 +875,7 @@ def show_pnl_kpis(
     )
 
     second_row[3].metric(
-        "Расходных операций",
+        t("reports.pnl.kpi.expense_count"),
         int(current["expense_count"]),
         delta=(
             _count_delta(
@@ -863,10 +889,7 @@ def show_pnl_kpis(
     )
 
     st.caption(
-        "KPI рассчитаны по включённым банковским "
-        "операциям. Это управленческий P&L "
-        "по кассовому методу, а не бухгалтерский "
-        "отчёт по методу начисления."
+        t("reports.pnl.kpi_caption")
     )
 
 def style_report_chart(
@@ -915,7 +938,9 @@ def style_report_chart(
     )
 
     chart.update_yaxes(
-        title_text="Сумма, ₽",
+        title_text=t(
+            "reports.columns.amount"
+        ),
         automargin=True,
         gridcolor="rgba(128, 128, 128, 0.18)",
         zerolinecolor="rgba(128, 128, 128, 0.30)",
@@ -1004,17 +1029,18 @@ def show_report_result(
     )
 
     metric_columns[3].metric(
-        "Учтено операций",
+        t("reports.metrics.included"),
         report.included_count,
         delta=count_delta,
     )
 
     st.caption(
-        f"{current_label}: "
-        f"исключено из отчёта — "
-        f"{report.excluded_count}; "
-        f"не принято решение — "
-        f"{report.pending_count}."
+        t(
+            "reports.current_summary",
+            label=current_label,
+            excluded=report.excluded_count,
+            pending=report.pending_count,
+        )
     )
 
     if (
@@ -1022,19 +1048,24 @@ def show_report_result(
         and comparison_label is not None
     ):
         st.caption(
-            f"{comparison_label}: "
-            f"учтено — "
-            f"{comparison_report.included_count}; "
-            f"исключено — "
-            f"{comparison_report.excluded_count}; "
-            f"не принято решение — "
-            f"{comparison_report.pending_count}."
+            t(
+                "reports.comparison_summary",
+                label=comparison_label,
+                included=(
+                    comparison_report.included_count
+                ),
+                excluded=(
+                    comparison_report.excluded_count
+                ),
+                pending=(
+                    comparison_report.pending_count
+                ),
+            )
         )
 
     if report.pending_count:
         st.warning(
-            "Часть операций выбранного периода "
-            "ещё не классифицирована для этого отчёта."
+            t("reports.pending_warning")
         )
 
     if report_type == "pnl":
@@ -1045,21 +1076,44 @@ def show_report_result(
 
     if report.transactions.empty:
         st.info(
-            "В выбранном периоде нет операций, "
-            "включённых в этот отчёт."
+            t("reports.empty_period")
         )
 
         if comparison_report is None:
             return
 
-    st.subheader("Структура по категориям")
+    st.subheader(
+        t("reports.category_structure")
+    )
+
+    category_label = t(
+        "reports.columns.category"
+    )
+    amount_label = t(
+        "reports.columns.amount"
+    )
+    current_amount_label = t(
+        "reports.columns.current_amount"
+    )
+    comparison_amount_label = t(
+        "reports.columns.comparison_amount"
+    )
+    delta_amount_label = t(
+        "reports.columns.delta_amount"
+    )
+    delta_percent_label = t(
+        "reports.columns.delta_percent"
+    )
+    period_label = t(
+        "reports.columns.period"
+    )
 
     if comparison_report is None:
         category_table = (
             report.category_totals.copy()
         )
 
-        category_table["Сумма, ₽"] = (
+        category_table[amount_label] = (
             category_table[
                 "amount_kopecks"
             ] / 100
@@ -1067,20 +1121,19 @@ def show_report_result(
 
         category_table = category_table.rename(
             columns={
-                "category": "Категория",
+                "category": category_label,
             }
         )
 
         if category_table.empty:
             st.info(
-                "Нет данных для построения "
-                "структуры по категориям."
+                t("reports.no_category_data")
             )
         else:
             chart = px.bar(
                 category_table,
-                x="Категория",
-                y="Сумма, ₽",
+                x=category_label,
+                y=amount_label,
                 text_auto=".2s",
             )
 
@@ -1094,16 +1147,16 @@ def show_report_result(
             st.dataframe(
                 category_table[
                     [
-                        "Категория",
-                        "Сумма, ₽",
+                        category_label,
+                        amount_label,
                     ]
                 ],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Сумма, ₽":
+                    amount_label:
                         st.column_config.NumberColumn(
-                            "Сумма, ₽",
+                            amount_label,
                             format="%.2f",
                         ),
                 },
@@ -1118,7 +1171,7 @@ def show_report_result(
         )
 
         comparison_table[
-            "Выбранный период, ₽"
+            current_amount_label
         ] = (
             comparison_table[
                 "current_amount_kopecks"
@@ -1126,14 +1179,14 @@ def show_report_result(
         )
 
         comparison_table[
-            "Период сравнения, ₽"
+            comparison_amount_label
         ] = (
             comparison_table[
                 "comparison_amount_kopecks"
             ] / 100
         )
 
-        comparison_table["Изменение, ₽"] = (
+        comparison_table[delta_amount_label] = (
             comparison_table[
                 "delta_kopecks"
             ] / 100
@@ -1142,36 +1195,35 @@ def show_report_result(
         comparison_table = (
             comparison_table.rename(
                 columns={
-                    "category": "Категория",
+                    "category": category_label,
                     "change_percent":
-                        "Изменение, %",
+                        delta_percent_label,
                 }
             )
         )
 
         if comparison_table.empty:
             st.info(
-                "В обоих периодах нет данных "
-                "для сравнения категорий."
+                t("reports.no_comparison_data")
             )
         else:
             chart_data = comparison_table[
                 [
-                    "Категория",
-                    "Выбранный период, ₽",
-                    "Период сравнения, ₽",
+                    category_label,
+                    current_amount_label,
+                    comparison_amount_label,
                 ]
             ].melt(
-                id_vars="Категория",
-                var_name="Период",
-                value_name="Сумма, ₽",
+                id_vars=category_label,
+                var_name=period_label,
+                value_name=amount_label,
             )
 
             comparison_chart = px.bar(
                 chart_data,
-                x="Категория",
-                y="Сумма, ₽",
-                color="Период",
+                x=category_label,
+                y=amount_label,
+                color=period_label,
                 barmode="group",
             )
 
@@ -1188,34 +1240,34 @@ def show_report_result(
             st.dataframe(
                 comparison_table[
                     [
-                        "Категория",
-                        "Выбранный период, ₽",
-                        "Период сравнения, ₽",
-                        "Изменение, ₽",
-                        "Изменение, %",
+                        category_label,
+                        current_amount_label,
+                        comparison_amount_label,
+                        delta_amount_label,
+                        delta_percent_label,
                     ]
                 ],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Выбранный период, ₽":
+                    current_amount_label:
                         st.column_config.NumberColumn(
-                            "Выбранный период, ₽",
+                            current_amount_label,
                             format="%.2f",
                         ),
-                    "Период сравнения, ₽":
+                    comparison_amount_label:
                         st.column_config.NumberColumn(
-                            "Период сравнения, ₽",
+                            comparison_amount_label,
                             format="%.2f",
                         ),
-                    "Изменение, ₽":
+                    delta_amount_label:
                         st.column_config.NumberColumn(
-                            "Изменение, ₽",
+                            delta_amount_label,
                             format="%.2f",
                         ),
-                    "Изменение, %":
+                    delta_percent_label:
                         st.column_config.NumberColumn(
-                            "Изменение, %",
+                            delta_percent_label,
                             format="%.1f%%",
                         ),
                 },
@@ -1223,7 +1275,7 @@ def show_report_result(
 
     if not report.transactions.empty:
         with st.expander(
-            "Операции выбранного периода",
+            t("reports.current_operations"),
             expanded=False,
         ):
             details = prepare_report_details(
@@ -1236,9 +1288,9 @@ def show_report_result(
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Сумма, ₽":
+                    amount_label:
                         st.column_config.NumberColumn(
-                            "Сумма, ₽",
+                            amount_label,
                             format="%.2f",
                         ),
                 },
@@ -1249,7 +1301,7 @@ def show_report_result(
         and not comparison_report.transactions.empty
     ):
         with st.expander(
-            "Операции периода сравнения",
+            t("reports.comparison_operations"),
             expanded=False,
         ):
             comparison_details = (
@@ -1266,9 +1318,9 @@ def show_report_result(
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Сумма, ₽":
+                    amount_label:
                         st.column_config.NumberColumn(
-                            "Сумма, ₽",
+                            amount_label,
                             format="%.2f",
                         ),
                 },
@@ -1562,7 +1614,7 @@ def show_financial_report(
 
     if transactions.empty:
         st.info(
-            "В базе пока нет операций."
+            t("reports.empty_database")
         )
         return
 
@@ -1573,7 +1625,7 @@ def show_financial_report(
 
     if posted_dates.empty:
         st.error(
-            "В базе не найдено корректных дат проведения."
+            t("reports.invalid_dates")
         )
         return
 
@@ -1609,10 +1661,12 @@ def show_financial_report(
     )
 
     with st.container(
-            border=True,
-            key=f"{key_prefix}_period_panel",
+        border=True,
+        key=f"{key_prefix}_period_panel",
     ):
-        st.markdown("#### Период отчёта")
+        st.markdown(
+            f"#### {t('reports.period.title')}"
+        )
 
         start_column, end_column, comparison_column = (
             st.columns(
@@ -1623,7 +1677,7 @@ def show_financial_report(
 
         with start_column:
             start_date = st.date_input(
-                "Начало периода",
+                t("reports.period.start"),
                 min_value=min_date,
                 max_value=max_date,
                 format="DD.MM.YYYY",
@@ -1634,7 +1688,7 @@ def show_financial_report(
 
         with end_column:
             end_date = st.date_input(
-                "Конец периода",
+                t("reports.period.end"),
                 min_value=min_date,
                 max_value=max_date,
                 format="DD.MM.YYYY",
@@ -1645,9 +1699,11 @@ def show_financial_report(
 
         with comparison_column:
             comparison_mode = st.selectbox(
-                "Сравнить с",
+                t("reports.period.compare"),
                 options=list(COMPARISON_MODES),
-                format_func=COMPARISON_MODES.get,
+                format_func=lambda mode: t(
+                    f"reports.comparison.{mode}"
+                ),
                 key=comparison_widget_key,
                 on_change=(
                     _sync_report_comparison_mode
@@ -1656,8 +1712,7 @@ def show_financial_report(
             )
 
         st.caption(
-            "Настройки периода синхронизированы "
-            "между P&L и Cash Flow."
+            t("reports.period.synced")
         )
 
     try:
@@ -1688,20 +1743,35 @@ def show_financial_report(
     if report_type == "pnl":
         report_builder = build_pnl_report
         category_column = "pnl_category"
-        inflow_label = "Доходы"
-        outflow_label = "Расходы"
-        net_label = "Результат"
+        inflow_label = t(
+            "reports.pnl.inflow"
+        )
+        outflow_label = t(
+            "reports.pnl.outflow"
+        )
+        net_label = t(
+            "reports.pnl.net"
+        )
 
     elif report_type == "cash_flow":
         report_builder = build_cash_flow_report
         category_column = "cf_category"
-        inflow_label = "Поступления"
-        outflow_label = "Платежи"
-        net_label = "Чистый денежный поток"
+        inflow_label = t(
+            "reports.cash_flow.inflow"
+        )
+        outflow_label = t(
+            "reports.cash_flow.outflow"
+        )
+        net_label = t(
+            "reports.cash_flow.net"
+        )
 
     else:
         raise ValueError(
-            f"Неизвестный тип отчёта: {report_type}"
+            t(
+                "reports.unknown_type",
+                report_type=report_type,
+            )
         )
 
     report = report_builder(
@@ -1735,12 +1805,18 @@ def show_financial_report(
 
     if comparison_label is None:
         st.caption(
-            f"Период: {current_label}"
+            t(
+                "reports.period.current",
+                current=current_label,
+            )
         )
     else:
         st.caption(
-            f"Выбранный период: {current_label}. "
-            f"Сравнение: {comparison_label}."
+            t(
+                "reports.period.with_comparison",
+                current=current_label,
+                comparison=comparison_label,
+            )
         )
 
     show_report_result(
@@ -3076,11 +3152,12 @@ with rules_tab:
                 st.rerun()
 
 with pnl_tab:
-    st.subheader("P&L")
+    st.subheader(
+        t("reports.pnl.title")
+    )
 
     st.caption(
-        "На текущем этапе отчёт строится "
-        "по банковским операциям кассовым методом."
+        t("reports.pnl.caption")
     )
 
     pnl_transactions = (
@@ -3094,11 +3171,12 @@ with pnl_tab:
     )
 
 with cash_flow_tab:
-    st.subheader("Cash Flow")
+    st.subheader(
+        t("reports.cash_flow.title")
+    )
 
     st.caption(
-        "Отчёт показывает фактические движения "
-        "денежных средств по дате проведения."
+        t("reports.cash_flow.caption")
     )
 
     cash_flow_transactions = (

@@ -62,6 +62,119 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Назначение платежа",
         "operations.columns.classification":
             "Классификация",
+        "reports.empty_database":
+            "В базе пока нет операций.",
+        "reports.invalid_dates":
+            "В базе не найдено корректных дат проведения.",
+        "reports.unknown_type":
+            "Неизвестный тип отчёта: {report_type}",
+        "reports.period.title": "Период отчёта",
+        "reports.period.start": "Начало периода",
+        "reports.period.end": "Конец периода",
+        "reports.period.compare": "Сравнить с",
+        "reports.period.synced": (
+            "Настройки периода синхронизированы "
+            "между P&L и Cash Flow."
+        ),
+        "reports.period.current":
+            "Период: {current}",
+        "reports.period.with_comparison": (
+            "Выбранный период: {current}. "
+            "Сравнение: {comparison}."
+        ),
+        "reports.comparison.none": "Без сравнения",
+        "reports.comparison.previous":
+            "Предыдущий период",
+        "reports.comparison.previous_year":
+            "Тот же период год назад",
+        "reports.metrics.included":
+            "Учтено операций",
+        "reports.current_summary": (
+            "{label}: исключено из отчёта — "
+            "{excluded}; не принято решение — {pending}."
+        ),
+        "reports.comparison_summary": (
+            "{label}: учтено — {included}; "
+            "исключено — {excluded}; "
+            "не принято решение — {pending}."
+        ),
+        "reports.pending_warning": (
+            "Часть операций выбранного периода "
+            "ещё не классифицирована для этого отчёта."
+        ),
+        "reports.empty_period": (
+            "В выбранном периоде нет операций, "
+            "включённых в этот отчёт."
+        ),
+        "reports.category_structure":
+            "Структура по категориям",
+        "reports.no_category_data": (
+            "Нет данных для построения "
+            "структуры по категориям."
+        ),
+        "reports.no_comparison_data": (
+            "В обоих периодах нет данных "
+            "для сравнения категорий."
+        ),
+        "reports.current_operations":
+            "Операции выбранного периода",
+        "reports.comparison_operations":
+            "Операции периода сравнения",
+        "reports.columns.category": "Категория",
+        "reports.columns.amount": "Сумма, ₽",
+        "reports.columns.no_category":
+            "Без категории",
+        "reports.columns.current_amount":
+            "Выбранный период, ₽",
+        "reports.columns.comparison_amount":
+            "Период сравнения, ₽",
+        "reports.columns.delta_amount":
+            "Изменение, ₽",
+        "reports.columns.delta_percent":
+            "Изменение, %",
+        "reports.columns.period": "Период",
+        "reports.percentage_point_delta":
+            "{value:+.1f} п.п.",
+        "reports.pnl.title": "P&L",
+        "reports.pnl.caption": (
+            "На текущем этапе отчёт строится "
+            "по банковским операциям кассовым методом."
+        ),
+        "reports.pnl.inflow": "Доходы",
+        "reports.pnl.outflow": "Расходы",
+        "reports.pnl.net": "Результат",
+        "reports.pnl.kpi_title": "KPI P&L",
+        "reports.pnl.kpi.profitability":
+            "Рентабельность продаж",
+        "reports.pnl.kpi.expense_share":
+            "Доля расходов в доходах",
+        "reports.pnl.kpi.expense_coverage":
+            "Покрытие расходов",
+        "reports.pnl.kpi.classification_rate":
+            "Обработано операций",
+        "reports.pnl.kpi.average_income":
+            "Среднее поступление",
+        "reports.pnl.kpi.average_expense":
+            "Среднее списание",
+        "reports.pnl.kpi.income_count":
+            "Доходных операций",
+        "reports.pnl.kpi.expense_count":
+            "Расходных операций",
+        "reports.pnl.kpi_caption": (
+            "KPI рассчитаны по включённым банковским "
+            "операциям. Это управленческий P&L "
+            "по кассовому методу, а не бухгалтерский "
+            "отчёт по методу начисления."
+        ),
+        "reports.cash_flow.title": "Cash Flow",
+        "reports.cash_flow.caption": (
+            "Отчёт показывает фактические движения "
+            "денежных средств по дате проведения."
+        ),
+        "reports.cash_flow.inflow": "Поступления",
+        "reports.cash_flow.outflow": "Платежи",
+        "reports.cash_flow.net":
+            "Чистый денежный поток",
     },
     "en": {
         "language.selector": "Interface language",
@@ -111,6 +224,117 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Payment purpose",
         "operations.columns.classification":
             "Classification",
+        "reports.empty_database":
+            "There are no transactions in the database yet.",
+        "reports.invalid_dates":
+            "No valid transaction dates were found.",
+        "reports.unknown_type":
+            "Unknown report type: {report_type}",
+        "reports.period.title": "Report period",
+        "reports.period.start": "Start date",
+        "reports.period.end": "End date",
+        "reports.period.compare": "Compare with",
+        "reports.period.synced": (
+            "Period settings are synchronized "
+            "between P&L and Cash Flow."
+        ),
+        "reports.period.current":
+            "Period: {current}",
+        "reports.period.with_comparison": (
+            "Selected period: {current}. "
+            "Comparison: {comparison}."
+        ),
+        "reports.comparison.none": "No comparison",
+        "reports.comparison.previous":
+            "Previous period",
+        "reports.comparison.previous_year":
+            "Same period last year",
+        "reports.metrics.included":
+            "Included transactions",
+        "reports.current_summary": (
+            "{label}: excluded — {excluded}; "
+            "pending decision — {pending}."
+        ),
+        "reports.comparison_summary": (
+            "{label}: included — {included}; "
+            "excluded — {excluded}; "
+            "pending decision — {pending}."
+        ),
+        "reports.pending_warning": (
+            "Some transactions in the selected period "
+            "have not yet been classified for this report."
+        ),
+        "reports.empty_period": (
+            "There are no transactions included "
+            "in this report for the selected period."
+        ),
+        "reports.category_structure":
+            "Category structure",
+        "reports.no_category_data": (
+            "There is no data available "
+            "for the category structure."
+        ),
+        "reports.no_comparison_data": (
+            "Neither period contains data "
+            "for category comparison."
+        ),
+        "reports.current_operations":
+            "Selected-period transactions",
+        "reports.comparison_operations":
+            "Comparison-period transactions",
+        "reports.columns.category": "Category",
+        "reports.columns.amount": "Amount, ₽",
+        "reports.columns.no_category":
+            "Uncategorized",
+        "reports.columns.current_amount":
+            "Selected period, ₽",
+        "reports.columns.comparison_amount":
+            "Comparison period, ₽",
+        "reports.columns.delta_amount":
+            "Change, ₽",
+        "reports.columns.delta_percent":
+            "Change, %",
+        "reports.columns.period": "Period",
+        "reports.percentage_point_delta":
+            "{value:+.1f} pp",
+        "reports.pnl.title": "P&L",
+        "reports.pnl.caption": (
+            "At the current stage, the report is built "
+            "from bank transactions on a cash basis."
+        ),
+        "reports.pnl.inflow": "Income",
+        "reports.pnl.outflow": "Expenses",
+        "reports.pnl.net": "Result",
+        "reports.pnl.kpi_title": "P&L KPIs",
+        "reports.pnl.kpi.profitability":
+            "Profit margin",
+        "reports.pnl.kpi.expense_share":
+            "Expenses as a share of income",
+        "reports.pnl.kpi.expense_coverage":
+            "Expense coverage",
+        "reports.pnl.kpi.classification_rate":
+            "Transactions processed",
+        "reports.pnl.kpi.average_income":
+            "Average inflow",
+        "reports.pnl.kpi.average_expense":
+            "Average outflow",
+        "reports.pnl.kpi.income_count":
+            "Income transactions",
+        "reports.pnl.kpi.expense_count":
+            "Expense transactions",
+        "reports.pnl.kpi_caption": (
+            "KPIs are calculated from included bank "
+            "transactions. This is a cash-basis management "
+            "P&L, not an accrual-basis accounting statement."
+        ),
+        "reports.cash_flow.title": "Cash Flow",
+        "reports.cash_flow.caption": (
+            "The report shows actual cash movements "
+            "by transaction date."
+        ),
+        "reports.cash_flow.inflow": "Inflows",
+        "reports.cash_flow.outflow": "Payments",
+        "reports.cash_flow.net": "Net cash flow",
     },
     "zh-CN": {
         "language.selector": "界面语言",
@@ -156,6 +380,106 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "付款用途",
         "operations.columns.classification":
             "分类状态",
+        "reports.empty_database":
+            "数据库中暂无交易。",
+        "reports.invalid_dates":
+            "数据库中未找到有效的交易日期。",
+        "reports.unknown_type":
+            "未知报表类型：{report_type}",
+        "reports.period.title": "报表期间",
+        "reports.period.start": "开始日期",
+        "reports.period.end": "结束日期",
+        "reports.period.compare": "对比",
+        "reports.period.synced": (
+            "期间设置已在损益表和现金流量表之间同步。"
+        ),
+        "reports.period.current":
+            "期间：{current}",
+        "reports.period.with_comparison": (
+            "所选期间：{current}。"
+            "对比期间：{comparison}。"
+        ),
+        "reports.comparison.none": "不对比",
+        "reports.comparison.previous": "上一期间",
+        "reports.comparison.previous_year":
+            "去年同期",
+        "reports.metrics.included": "纳入交易",
+        "reports.current_summary": (
+            "{label}：排除 {excluded} 笔；"
+            "待处理 {pending} 笔。"
+        ),
+        "reports.comparison_summary": (
+            "{label}：纳入 {included} 笔；"
+            "排除 {excluded} 笔；"
+            "待处理 {pending} 笔。"
+        ),
+        "reports.pending_warning": (
+            "所选期间的部分交易尚未完成该报表的分类。"
+        ),
+        "reports.empty_period": (
+            "所选期间内没有纳入该报表的交易。"
+        ),
+        "reports.category_structure": "按类别构成",
+        "reports.no_category_data": (
+            "没有可用于生成类别构成的数据。"
+        ),
+        "reports.no_comparison_data": (
+            "两个期间均无可用于类别对比的数据。"
+        ),
+        "reports.current_operations":
+            "所选期间的交易",
+        "reports.comparison_operations":
+            "对比期间的交易",
+        "reports.columns.category": "类别",
+        "reports.columns.amount": "金额，₽",
+        "reports.columns.no_category": "未分类",
+        "reports.columns.current_amount":
+            "所选期间，₽",
+        "reports.columns.comparison_amount":
+            "对比期间，₽",
+        "reports.columns.delta_amount":
+            "变化额，₽",
+        "reports.columns.delta_percent":
+            "变化，%",
+        "reports.columns.period": "期间",
+        "reports.percentage_point_delta":
+            "{value:+.1f} 个百分点",
+        "reports.pnl.title": "损益表",
+        "reports.pnl.caption": (
+            "当前阶段，报表按银行交易并采用收付实现制生成。"
+        ),
+        "reports.pnl.inflow": "收入",
+        "reports.pnl.outflow": "费用",
+        "reports.pnl.net": "结果",
+        "reports.pnl.kpi_title": "损益表 KPI",
+        "reports.pnl.kpi.profitability":
+            "销售利润率",
+        "reports.pnl.kpi.expense_share":
+            "费用占收入比",
+        "reports.pnl.kpi.expense_coverage":
+            "费用覆盖率",
+        "reports.pnl.kpi.classification_rate":
+            "已处理交易",
+        "reports.pnl.kpi.average_income":
+            "平均收入",
+        "reports.pnl.kpi.average_expense":
+            "平均支出",
+        "reports.pnl.kpi.income_count":
+            "收入交易笔数",
+        "reports.pnl.kpi.expense_count":
+            "支出交易笔数",
+        "reports.pnl.kpi_caption": (
+            "KPI 根据已纳入的银行交易计算。"
+            "这是采用收付实现制的管理损益表，"
+            "并非采用权责发生制的会计报表。"
+        ),
+        "reports.cash_flow.title": "现金流量表",
+        "reports.cash_flow.caption": (
+            "该报表按交易日期显示实际现金流动。"
+        ),
+        "reports.cash_flow.inflow": "现金流入",
+        "reports.cash_flow.outflow": "现金流出",
+        "reports.cash_flow.net": "净现金流",
     },
 }
 
