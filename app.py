@@ -183,6 +183,28 @@ def bool_to_action(value: object) -> str:
 
     return EXCLUDE_ACTION
 
+def format_report_action(
+    value: object,
+) -> str:
+    """Возвращает локализованную подпись решения."""
+
+    if value == INCLUDE_ACTION:
+        return t(
+            "classification.actions.include"
+        )
+
+    if value == EXCLUDE_ACTION:
+        return t(
+            "classification.actions.exclude"
+        )
+
+    if value == UNDEFINED_ACTION:
+        return t(
+            "classification.actions.undefined"
+        )
+
+    return str(value)
+
 def text_or_empty(value: object) -> str:
     """Преобразует пустое значение базы в пустую строку."""
 
@@ -214,54 +236,87 @@ def prepare_classification_editor(
 
     editor = transactions.copy()
 
+    date_label = t(
+        "classification.columns.date"
+    )
+    amount_label = t(
+        "classification.columns.amount"
+    )
+    counterparty_label = t(
+        "classification.columns.counterparty"
+    )
+    description_label = t(
+        "classification.columns.description"
+    )
+    payment_purpose_label = t(
+        "classification.columns.payment_purpose"
+    )
+    pnl_action_label = t(
+        "classification.columns.pnl_action"
+    )
+    pnl_category_label = t(
+        "classification.columns.pnl_category"
+    )
+    cf_action_label = t(
+        "classification.columns.cf_action"
+    )
+    cf_category_label = t(
+        "classification.columns.cf_category"
+    )
+    comment_label = t(
+        "classification.columns.comment"
+    )
+
     editor["posted_at"] = pd.to_datetime(
         editor["posted_at"]
     )
 
-    editor["Дата"] = editor[
+    editor[date_label] = editor[
         "posted_at"
     ].dt.strftime("%d.%m.%Y")
 
-    editor["Сумма, ₽"] = (
+    editor[amount_label] = (
         editor["signed_amount_kopecks"] / 100
     )
 
-    editor["Контрагент"] = (
+    editor[counterparty_label] = (
         editor["counterparty_name"]
         .fillna("")
     )
 
-    editor["Описание"] = (
+    editor[description_label] = (
         editor["description"]
         .fillna("")
     )
 
-    editor["Назначение платежа"] = (
+    editor[payment_purpose_label] = (
         editor["payment_purpose"]
         .fillna("")
     )
 
-    editor["Решение P&L"] = (
+    editor[pnl_action_label] = (
         editor["include_in_pnl"]
         .apply(bool_to_action)
+        .apply(format_report_action)
     )
 
-    editor["Категория P&L"] = (
+    editor[pnl_category_label] = (
         editor["pnl_category"]
         .fillna("")
     )
 
-    editor["Решение Cash Flow"] = (
+    editor[cf_action_label] = (
         editor["include_in_cf"]
         .apply(bool_to_action)
+        .apply(format_report_action)
     )
 
-    editor["Категория Cash Flow"] = (
+    editor[cf_category_label] = (
         editor["cf_category"]
         .fillna("")
     )
 
-    editor["Комментарий"] = (
+    editor[comment_label] = (
         editor["comment"]
         .fillna("")
     )
@@ -269,19 +324,18 @@ def prepare_classification_editor(
     return editor[
         [
             "id",
-            "Дата",
-            "Сумма, ₽",
-            "Контрагент",
-            "Описание",
-            "Назначение платежа",
-            "Решение P&L",
-            "Категория P&L",
-            "Решение Cash Flow",
-            "Категория Cash Flow",
-            "Комментарий",
+            date_label,
+            amount_label,
+            counterparty_label,
+            description_label,
+            payment_purpose_label,
+            pnl_action_label,
+            pnl_category_label,
+            cf_action_label,
+            cf_category_label,
+            comment_label,
         ]
     ]
-
 
 def prepare_visible_table(
     transactions: pd.DataFrame,
@@ -2002,7 +2056,9 @@ with operations_tab:
             st.code("data/finance.db")
 
 with classification_tab:
-    st.subheader("Классификация операций")
+    st.subheader(
+        t("classification.title")
+    )
 
     classification_transactions = (
         get_transactions_dataframe()
@@ -2015,55 +2071,54 @@ with classification_tab:
     )
 
     st.markdown(
-        "#### Неклассифицированные операции"
+        "#### "
+        + t("classification.pending_title")
     )
 
     summary_columns = st.columns(4)
 
     summary_columns[0].metric(
-        "Поступления",
+        t("classification.metrics.inflow"),
         format_rubles(
             classification_summary.inflow_kopecks
         ),
     )
 
     summary_columns[1].metric(
-        "Списания",
+        t("classification.metrics.outflow"),
         format_rubles(
             classification_summary.outflow_kopecks
         ),
     )
 
     summary_columns[2].metric(
-        "Чистая сумма",
+        t("classification.metrics.net"),
         format_rubles(
             classification_summary.net_kopecks
         ),
     )
 
     summary_columns[3].metric(
-        "Операций",
+        t("classification.metrics.count"),
         classification_summary.operation_count,
     )
 
     st.caption(
-        "Учитываются операции, для которых не завершена "
-        "классификация хотя бы в одном контуре: "
-        "P&L или Cash Flow."
+        t("classification.pending_caption")
     )
 
     if classification_summary.operation_count == 0:
         st.success(
-            "Все операции классифицированы."
+            t("classification.all_classified")
         )
 
     if classification_transactions.empty:
         st.info(
-            "В базе пока нет операций для классификации."
+            t("classification.empty_database")
         )
     else:
         only_pending = st.checkbox(
-            "Показывать только незавершённые",
+            t("classification.only_pending"),
             value=True,
         )
 
@@ -2078,13 +2133,11 @@ with classification_tab:
 
         if classification_transactions.empty:
             st.success(
-                "Все операции полностью классифицированы."
+                t("classification.filtered_empty")
             )
         else:
             st.caption(
-                "Для каждого отчёта выбери отдельное решение. "
-                "Операцию можно включить в Cash Flow, "
-                "но исключить из P&L, и наоборот."
+                t("classification.instructions")
             )
 
             selection_source = (
@@ -2095,25 +2148,49 @@ with classification_tab:
             )
 
             st.markdown(
-                "#### Выберите операцию"
+                "#### "
+                + t("classification.select_title")
             )
 
             st.caption(
-                "Нажмите на строку или на маркер слева. "
-                "Редактирование выбранной операции "
-                "откроется ниже."
+                t("classification.select_caption")
+            )
+
+            date_column = t(
+                "classification.columns.date"
+            )
+            amount_column = t(
+                "classification.columns.amount"
+            )
+            counterparty_column = t(
+                "classification.columns.counterparty"
+            )
+            description_column = t(
+                "classification.columns.description"
+            )
+            pnl_action_column = t(
+                "classification.columns.pnl_action"
+            )
+            pnl_category_column = t(
+                "classification.columns.pnl_category"
+            )
+            cf_action_column = t(
+                "classification.columns.cf_action"
+            )
+            cf_category_column = t(
+                "classification.columns.cf_category"
             )
 
             selection_columns = [
                 "id",
-                "Дата",
-                "Сумма, ₽",
-                "Контрагент",
-                "Описание",
-                "Решение P&L",
-                "Категория P&L",
-                "Решение Cash Flow",
-                "Категория Cash Flow",
+                date_column,
+                amount_column,
+                counterparty_column,
+                description_column,
+                pnl_action_column,
+                pnl_category_column,
+                cf_action_column,
+                cf_category_column,
             ]
 
             classification_ui_version = int(
@@ -2138,12 +2215,14 @@ with classification_tab:
                 column_config={
                     "id":
                         st.column_config.NumberColumn(
-                            "ID",
+                            t(
+                                "classification.columns.id"
+                            ),
                             format="%d",
                         ),
-                    "Сумма, ₽":
+                    amount_column:
                         st.column_config.NumberColumn(
-                            "Сумма, ₽",
+                            amount_column,
                             format="%.2f",
                         ),
                 },
@@ -2211,8 +2290,10 @@ with classification_tab:
 
             if selected_rows_in_database.empty:
                 st.error(
-                    "Выбранная операция не найдена. "
-                    "Обновите страницу."
+                    t(
+                        "classification.errors."
+                        "transaction_not_found"
+                    )
                 )
             else:
                 selected_transaction = (
@@ -2226,8 +2307,12 @@ with classification_tab:
                 )
 
                 st.divider()
+
                 st.markdown(
-                    "#### Классификация выбранной операции"
+                    "#### "
+                    + t(
+                        "classification.selected_title"
+                    )
                 )
 
                 operation_header_columns = (
@@ -2251,12 +2336,16 @@ with classification_tab:
                     )
 
                 operation_header_columns[0].metric(
-                    "Дата",
+                    t(
+                        "classification.details.date"
+                    ),
                     posted_at_text,
                 )
 
                 operation_header_columns[1].metric(
-                    "Сумма",
+                    t(
+                        "classification.details.amount"
+                    ),
                     format_rubles(
                         int(
                             selected_transaction[
@@ -2267,10 +2356,14 @@ with classification_tab:
                 )
 
                 operation_header_columns[2].metric(
-                    "Операция",
-                    (
-                        f"{selected_position + 1} "
-                        f"из {len(displayed_ids)}"
+                    t(
+                        "classification.details.position"
+                    ),
+                    t(
+                        "classification.details."
+                        "position_value",
+                        current=selected_position + 1,
+                        total=len(displayed_ids),
                     ),
                 )
 
@@ -2292,29 +2385,68 @@ with classification_tab:
                     ]
                 )
 
+                not_specified_text = t(
+                    "classification.details."
+                    "not_specified"
+                )
+
                 st.write(
-                    "**Контрагент:** "
+                    f"**{t(
+                        'classification.details.'
+                        'counterparty'
+                    )}:** "
                     + (
                             counterparty_text
-                            or "не указан"
+                            or not_specified_text
                     )
                 )
 
                 st.write(
-                    "**Описание:** "
+                    f"**{t(
+                        'classification.details.'
+                        'description'
+                    )}:** "
                     + (
                             description_text
-                            or "не указано"
+                            or not_specified_text
                     )
                 )
 
                 with st.expander(
-                        "Назначение платежа",
+                        t(
+                            "classification.details."
+                            "payment_purpose"
+                        ),
                         expanded=True,
                 ):
                     st.write(
                         purpose_text
-                        or "Не указано"
+                        or not_specified_text
+                    )
+                    counterparty_label = t(
+                        "classification.details."
+                        "counterparty"
+                    )
+
+                    description_label = t(
+                        "classification.details."
+                        "description"
+                    )
+
+                    st.write(
+                        f"**{counterparty_label}:** "
+                        + (
+                                counterparty_text
+                                or not_specified_text
+                        )
+                    )
+
+                    st.write(
+                        f"**{description_label}:** "
+                        + (
+                                description_text
+                                or not_specified_text
+                        )
                     )
 
                 current_pnl_action = (
@@ -2398,13 +2530,22 @@ with classification_tab:
                     )
 
                     with pnl_column:
-                        st.markdown("### P&L")
+                        st.markdown(
+                            "### "
+                            + t("reports.pnl.title")
+                        )
 
                         selected_pnl_action = (
                             st.selectbox(
-                                "Решение P&L",
+                                t(
+                                    "classification.columns."
+                                    "pnl_action"
+                                ),
                                 options=(
                                     pnl_action_options
+                                ),
+                                format_func=(
+                                    format_report_action
                                 ),
                                 index=option_index(
                                     pnl_action_options,
@@ -2420,7 +2561,10 @@ with classification_tab:
 
                         selected_pnl_category = (
                             st.selectbox(
-                                "Категория P&L",
+                                t(
+                                    "classification.columns."
+                                    "pnl_category"
+                                ),
                                 options=(
                                     pnl_category_options
                                 ),
@@ -2433,22 +2577,32 @@ with classification_tab:
                                     f"{selected_transaction_id}_"
                                     f"{classification_ui_version}"
                                 ),
-                                help=(
-                                    "Категория обязательна, "
-                                    "если операция включается "
-                                    "в P&L."
+                                help=t(
+                                    "classification.help."
+                                    "pnl_category"
                                 ),
                             )
                         )
 
                     with cf_column:
-                        st.markdown("### Cash Flow")
+                        st.markdown(
+                            "### "
+                            + t(
+                                "reports.cash_flow.title"
+                            )
+                        )
 
                         selected_cf_action = (
                             st.selectbox(
-                                "Решение Cash Flow",
+                                t(
+                                    "classification.columns."
+                                    "cf_action"
+                                ),
                                 options=(
                                     cf_action_options
+                                ),
+                                format_func=(
+                                    format_report_action
                                 ),
                                 index=option_index(
                                     cf_action_options,
@@ -2464,7 +2618,10 @@ with classification_tab:
 
                         selected_cf_category = (
                             st.selectbox(
-                                "Категория Cash Flow",
+                                t(
+                                    "classification.columns."
+                                    "cf_category"
+                                ),
                                 options=(
                                     cf_category_options
                                 ),
@@ -2477,16 +2634,18 @@ with classification_tab:
                                     f"{selected_transaction_id}_"
                                     f"{classification_ui_version}"
                                 ),
-                                help=(
-                                    "Категория обязательна, "
-                                    "если операция включается "
-                                    "в Cash Flow."
+                                help=t(
+                                    "classification.help."
+                                    "cf_category"
                                 ),
                             )
                         )
 
                     selected_comment = st.text_area(
-                        "Комментарий",
+                        t(
+                            "classification.columns."
+                            "comment"
+                        ),
                         value=current_comment,
                         max_chars=500,
                         key=(
@@ -2503,7 +2662,10 @@ with classification_tab:
                     with button_columns[0]:
                         save_current = (
                             st.form_submit_button(
-                                "Сохранить",
+                                t(
+                                    "classification.buttons."
+                                    "save"
+                                ),
                                 use_container_width=True,
                             )
                         )
@@ -2511,17 +2673,20 @@ with classification_tab:
                     with button_columns[1]:
                         save_and_next = (
                             st.form_submit_button(
-                                "Сохранить и перейти дальше",
-                                type="primary",
-                                use_container_width=True,
+                                t(
+                                    "classification.buttons."
+                                    "save_next"
+                                ),
                             )
                         )
 
                     with button_columns[2]:
                         exclude_from_both = (
                             st.form_submit_button(
-                                "Исключить из обоих",
-                                use_container_width=True,
+                                t(
+                                    "classification.buttons."
+                                    "exclude_both"
+                                ),
                             )
                         )
 
@@ -2579,7 +2744,10 @@ with classification_tab:
                             and not final_pnl_category
                     ):
                         validation_errors.append(
-                            "Выберите категорию P&L."
+                            t(
+                                "classification.errors."
+                                "pnl_category_required"
+                            )
                         )
 
                     if (
@@ -2588,8 +2756,10 @@ with classification_tab:
                             and not final_cf_category
                     ):
                         validation_errors.append(
-                            "Выберите категорию "
-                            "Cash Flow."
+                            t(
+                                "classification.errors."
+                                "cf_category_required"
+                            )
                         )
 
                     if validation_errors:
@@ -2663,27 +2833,31 @@ with classification_tab:
                                     + 1
                             )
 
-                            action_text = (
-                                "Операция исключена "
-                                "из обоих отчётов."
+                            action_key = (
+                                "classification.messages."
+                                "excluded_both"
                                 if exclude_from_both
                                 else (
-                                    "Классификация "
-                                    "сохранена."
+                                    "classification.messages."
+                                    "saved"
                                 )
                             )
 
                             st.session_state[
                                 "classification_message"
-                            ] = (
-                                f"{action_text} "
-                                f"Обновлено: "
-                                f"{save_result.updated}. "
-                                f"Полностью "
-                                f"классифицировано: "
-                                f"{save_result.classified}. "
-                                f"Частично: "
-                                f"{save_result.partial}."
+                            ] = t(
+                                "classification.messages."
+                                "summary",
+                                action=t(action_key),
+                                updated=(
+                                    save_result.updated
+                                ),
+                                classified=(
+                                    save_result.classified
+                                ),
+                                partial=(
+                                    save_result.partial
+                                ),
                             )
 
                             st.rerun()

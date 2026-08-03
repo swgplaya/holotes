@@ -62,6 +62,114 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Назначение платежа",
         "operations.columns.classification":
             "Классификация",
+        "classification.title":
+            "Классификация операций",
+        "classification.pending_title":
+            "Неклассифицированные операции",
+        "classification.metrics.inflow":
+            "Поступления",
+        "classification.metrics.outflow":
+            "Списания",
+        "classification.metrics.net":
+            "Чистая сумма",
+        "classification.metrics.count":
+            "Операций",
+        "classification.pending_caption": (
+            "Учитываются операции, для которых не завершена "
+            "классификация хотя бы в одном контуре: "
+            "P&L или Cash Flow."
+        ),
+        "classification.all_classified":
+            "Все операции классифицированы.",
+        "classification.empty_database":
+            "В базе пока нет операций для классификации.",
+        "classification.only_pending":
+            "Показывать только незавершённые",
+        "classification.filtered_empty":
+            "Все операции полностью классифицированы.",
+        "classification.instructions": (
+            "Для каждого отчёта выбери отдельное решение. "
+            "Операцию можно включить в Cash Flow, "
+            "но исключить из P&L, и наоборот."
+        ),
+        "classification.select_title":
+            "Выберите операцию",
+        "classification.select_caption": (
+            "Нажмите на строку или на маркер слева. "
+            "Редактирование выбранной операции "
+            "откроется ниже."
+        ),
+        "classification.columns.id": "ID",
+        "classification.columns.date": "Дата",
+        "classification.columns.amount": "Сумма, ₽",
+        "classification.columns.counterparty":
+            "Контрагент",
+        "classification.columns.description":
+            "Описание",
+        "classification.columns.payment_purpose":
+            "Назначение платежа",
+        "classification.columns.pnl_action":
+            "Решение P&L",
+        "classification.columns.pnl_category":
+            "Категория P&L",
+        "classification.columns.cf_action":
+            "Решение Cash Flow",
+        "classification.columns.cf_category":
+            "Категория Cash Flow",
+        "classification.columns.comment":
+            "Комментарий",
+        "classification.actions.include":
+            "Включить",
+        "classification.actions.exclude":
+            "Исключить",
+        "classification.actions.undefined":
+            "Не определено",
+        "classification.selected_title":
+            "Классификация выбранной операции",
+        "classification.details.date": "Дата",
+        "classification.details.amount": "Сумма",
+        "classification.details.position": "Операция",
+        "classification.details.position_value":
+            "{current} из {total}",
+        "classification.details.counterparty":
+            "Контрагент",
+        "classification.details.description":
+            "Описание",
+        "classification.details.payment_purpose":
+            "Назначение платежа",
+        "classification.details.not_specified":
+            "Не указано",
+        "classification.help.pnl_category": (
+            "Категория обязательна, "
+            "если операция включается в P&L."
+        ),
+        "classification.help.cf_category": (
+            "Категория обязательна, "
+            "если операция включается в Cash Flow."
+        ),
+        "classification.buttons.save":
+            "Сохранить",
+        "classification.buttons.save_next":
+            "Сохранить и перейти дальше",
+        "classification.buttons.exclude_both":
+            "Исключить из обоих",
+        "classification.errors.transaction_not_found": (
+            "Выбранная операция не найдена. "
+            "Обновите страницу."
+        ),
+        "classification.errors.pnl_category_required":
+            "Выберите категорию P&L.",
+        "classification.errors.cf_category_required":
+            "Выберите категорию Cash Flow.",
+        "classification.messages.excluded_both":
+            "Операция исключена из обоих отчётов.",
+        "classification.messages.saved":
+            "Классификация сохранена.",
+        "classification.messages.summary": (
+            "{action} Обновлено: {updated}. "
+            "Полностью классифицировано: {classified}. "
+            "Частично: {partial}."
+        ),
         "reports.empty_database":
             "В базе пока нет операций.",
         "reports.invalid_dates":
@@ -224,6 +332,115 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Payment purpose",
         "operations.columns.classification":
             "Classification",
+        "classification.title":
+            "Transaction classification",
+        "classification.pending_title":
+            "Unclassified transactions",
+        "classification.metrics.inflow":
+            "Inflows",
+        "classification.metrics.outflow":
+            "Outflows",
+        "classification.metrics.net":
+            "Net amount",
+        "classification.metrics.count":
+            "Transactions",
+        "classification.pending_caption": (
+            "Includes transactions whose classification "
+            "is incomplete in at least one reporting area: "
+            "P&L or Cash Flow."
+        ),
+        "classification.all_classified":
+            "All transactions are classified.",
+        "classification.empty_database":
+            "There are no transactions to classify yet.",
+        "classification.only_pending":
+            "Show incomplete only",
+        "classification.filtered_empty":
+            "All transactions are fully classified.",
+        "classification.instructions": (
+            "Choose a separate decision for each report. "
+            "A transaction may be included in Cash Flow "
+            "but excluded from P&L, and vice versa."
+        ),
+        "classification.select_title":
+            "Select a transaction",
+        "classification.select_caption": (
+            "Click a row or the marker on the left. "
+            "The selected transaction editor "
+            "will open below."
+        ),
+        "classification.columns.id": "ID",
+        "classification.columns.date": "Date",
+        "classification.columns.amount": "Amount, ₽",
+        "classification.columns.counterparty":
+            "Counterparty",
+        "classification.columns.description":
+            "Description",
+        "classification.columns.payment_purpose":
+            "Payment purpose",
+        "classification.columns.pnl_action":
+            "P&L decision",
+        "classification.columns.pnl_category":
+            "P&L category",
+        "classification.columns.cf_action":
+            "Cash Flow decision",
+        "classification.columns.cf_category":
+            "Cash Flow category",
+        "classification.columns.comment":
+            "Comment",
+        "classification.actions.include":
+            "Include",
+        "classification.actions.exclude":
+            "Exclude",
+        "classification.actions.undefined":
+            "Not decided",
+        "classification.selected_title":
+            "Selected transaction classification",
+        "classification.details.date": "Date",
+        "classification.details.amount": "Amount",
+        "classification.details.position":
+            "Transaction",
+        "classification.details.position_value":
+            "{current} of {total}",
+        "classification.details.counterparty":
+            "Counterparty",
+        "classification.details.description":
+            "Description",
+        "classification.details.payment_purpose":
+            "Payment purpose",
+        "classification.details.not_specified":
+            "Not specified",
+        "classification.help.pnl_category": (
+            "A category is required when the transaction "
+            "is included in P&L."
+        ),
+        "classification.help.cf_category": (
+            "A category is required when the transaction "
+            "is included in Cash Flow."
+        ),
+        "classification.buttons.save":
+            "Save",
+        "classification.buttons.save_next":
+            "Save and continue",
+        "classification.buttons.exclude_both":
+            "Exclude from both",
+        "classification.errors.transaction_not_found": (
+            "The selected transaction was not found. "
+            "Refresh the page."
+        ),
+        "classification.errors.pnl_category_required":
+            "Select a P&L category.",
+        "classification.errors.cf_category_required":
+            "Select a Cash Flow category.",
+        "classification.messages.excluded_both":
+            "The transaction was excluded from both reports.",
+        "classification.messages.saved":
+            "Classification saved.",
+        "classification.messages.summary": (
+            "{action} Updated: {updated}. "
+            "Fully classified: {classified}. "
+            "Partially classified: {partial}."
+        ),
         "reports.empty_database":
             "There are no transactions in the database yet.",
         "reports.invalid_dates":
@@ -380,6 +597,107 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "付款用途",
         "operations.columns.classification":
             "分类状态",
+        "classification.title": "交易分类",
+        "classification.pending_title":
+            "未完成分类的交易",
+        "classification.metrics.inflow":
+            "资金流入",
+        "classification.metrics.outflow":
+            "资金流出",
+        "classification.metrics.net":
+            "净额",
+        "classification.metrics.count":
+            "交易笔数",
+        "classification.pending_caption": (
+            "统计至少在一个报表维度中尚未完成分类的交易："
+            "损益表或现金流量表。"
+        ),
+        "classification.all_classified":
+            "所有交易均已分类。",
+        "classification.empty_database":
+            "数据库中暂无可分类的交易。",
+        "classification.only_pending":
+            "仅显示未完成分类的交易",
+        "classification.filtered_empty":
+            "所有交易均已完成分类。",
+        "classification.instructions": (
+            "请分别为每张报表选择处理方式。"
+            "交易可纳入现金流量表而排除在损益表之外，"
+            "反之亦然。"
+        ),
+        "classification.select_title":
+            "选择交易",
+        "classification.select_caption": (
+            "点击一行或左侧标记。"
+            "下方将打开所选交易的编辑区域。"
+        ),
+        "classification.columns.id": "ID",
+        "classification.columns.date": "日期",
+        "classification.columns.amount": "金额，₽",
+        "classification.columns.counterparty":
+            "交易对方",
+        "classification.columns.description":
+            "描述",
+        "classification.columns.payment_purpose":
+            "付款用途",
+        "classification.columns.pnl_action":
+            "损益表处理方式",
+        "classification.columns.pnl_category":
+            "损益表类别",
+        "classification.columns.cf_action":
+            "现金流处理方式",
+        "classification.columns.cf_category":
+            "现金流类别",
+        "classification.columns.comment":
+            "备注",
+        "classification.actions.include":
+            "纳入",
+        "classification.actions.exclude":
+            "排除",
+        "classification.actions.undefined":
+            "未决定",
+        "classification.selected_title":
+            "所选交易分类",
+        "classification.details.date": "日期",
+        "classification.details.amount": "金额",
+        "classification.details.position": "交易",
+        "classification.details.position_value":
+            "{current} / {total}",
+        "classification.details.counterparty":
+            "交易对方",
+        "classification.details.description":
+            "描述",
+        "classification.details.payment_purpose":
+            "付款用途",
+        "classification.details.not_specified":
+            "未填写",
+        "classification.help.pnl_category": (
+            "交易纳入损益表时必须选择类别。"
+        ),
+        "classification.help.cf_category": (
+            "交易纳入现金流量表时必须选择类别。"
+        ),
+        "classification.buttons.save": "保存",
+        "classification.buttons.save_next":
+            "保存并继续",
+        "classification.buttons.exclude_both":
+            "从两张报表中排除",
+        "classification.errors.transaction_not_found": (
+            "未找到所选交易，请刷新页面。"
+        ),
+        "classification.errors.pnl_category_required":
+            "请选择损益表类别。",
+        "classification.errors.cf_category_required":
+            "请选择现金流量表类别。",
+        "classification.messages.excluded_both":
+            "该交易已从两张报表中排除。",
+        "classification.messages.saved":
+            "分类已保存。",
+        "classification.messages.summary": (
+            "{action} 已更新：{updated}。"
+            "完全分类：{classified}。"
+            "部分分类：{partial}。"
+        ),
         "reports.empty_database":
             "数据库中暂无交易。",
         "reports.invalid_dates":
