@@ -196,7 +196,9 @@ open-mas/
 
 The project is under active development.
 
-Issues, bug reports, improvement proposals, and pull requests are welcome. Do not include confidential or real financial data in issues, tests, or pull requests.
+Issues, bug reports, improvement proposals, and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes.
+
+Do not include confidential or real financial data in issues, tests, screenshots, or pull requests.
 
 ## License
 

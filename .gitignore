@@ -1,61 +1,55 @@
-# Python
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Test coverage
+.coverage
+.coverage.*
+htmlcov/
 
 # Virtual environments
 .venv/
 venv/
 env/
 
-# IDE
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# IDEs and editors
 .idea/
 .vscode/
 
-# Secrets
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
 .streamlit/secrets.toml
 
-# Databases and private data
-*.db
-*.sqlite
-*.sqlite3
-
-data/*
-!data/.gitkeep
-
-imports/*
-!imports/.gitkeep
-
-backups/
-logs/
-private/
-
-# Bank statements and exports
-*.csv
-*.xlsx
-*.xls
-
-# Allow only deliberately prepared demo files
-!demo_data/*.csv
-!demo_data/*.xlsx
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Local and demo data
-.env
+# Local application data
 data/
 imports/
 demo_data/
+
+# Databases
 *.db
 *.sqlite
 *.sqlite3
+
+# Bank statements and spreadsheet exports
 *.csv
 *.xls
 *.xlsx
+
+# Logs
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
