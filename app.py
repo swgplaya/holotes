@@ -205,6 +205,137 @@ def format_report_action(
 
     return str(value)
 
+RULE_DIRECTION_TRANSLATION_KEYS = {
+    "any": "rules.options.direction.any",
+    "income": "rules.options.direction.income",
+    "expense": "rules.options.direction.expense",
+}
+
+
+RULE_FIELD_TRANSLATION_KEYS = {
+    "all_text":
+        "rules.options.field.all_text",
+    "counterparty_name":
+        "rules.options.field.counterparty_name",
+    "counterparty_inn":
+        "rules.options.field.counterparty_inn",
+    "bank_category":
+        "rules.options.field.bank_category",
+    "description":
+        "rules.options.field.description",
+    "payment_purpose":
+        "rules.options.field.payment_purpose",
+    "mcc":
+        "rules.options.field.mcc",
+    "tax_code":
+        "rules.options.field.tax_code",
+}
+
+
+RULE_MATCH_TRANSLATION_KEYS = {
+    "contains":
+        "rules.options.match.contains",
+    "equals":
+        "rules.options.match.equals",
+    "starts_with":
+        "rules.options.match.starts_with",
+}
+
+
+def format_rule_option(
+    value: object,
+    *,
+    translation_keys: dict[str, str],
+    fallback_labels: dict[str, str],
+) -> str:
+    """Возвращает локализованную подпись параметра правила."""
+
+    value_text = str(value).strip()
+    option_key = value_text
+
+    if option_key not in fallback_labels:
+        reverse_labels = {
+            label: key
+            for key, label in fallback_labels.items()
+        }
+
+        option_key = reverse_labels.get(
+            value_text,
+            value_text,
+        )
+
+    translation_key = translation_keys.get(
+        option_key
+    )
+
+    if translation_key is not None:
+        return t(translation_key)
+
+    return fallback_labels.get(
+        option_key,
+        value_text,
+    )
+
+
+def format_rule_direction(
+    value: object,
+) -> str:
+    """Форматирует направление правила."""
+
+    return format_rule_option(
+        value,
+        translation_keys=(
+            RULE_DIRECTION_TRANSLATION_KEYS
+        ),
+        fallback_labels=DIRECTION_FILTERS,
+    )
+
+
+def format_rule_field(
+    value: object,
+) -> str:
+    """Форматирует поле поиска правила."""
+
+    return format_rule_option(
+        value,
+        translation_keys=(
+            RULE_FIELD_TRANSLATION_KEYS
+        ),
+        fallback_labels=MATCH_FIELDS,
+    )
+
+
+def format_rule_match_type(
+    value: object,
+) -> str:
+    """Форматирует условие правила."""
+
+    return format_rule_option(
+        value,
+        translation_keys=(
+            RULE_MATCH_TRANSLATION_KEYS
+        ),
+        fallback_labels=MATCH_TYPES,
+    )
+
+def format_rule_active_status(
+    value: object,
+) -> str:
+    """Возвращает локализованный статус активности."""
+
+    if (
+        value is not None
+        and not pd.isna(value)
+        and bool(value)
+    ):
+        return t(
+            "rules.saved.values.active"
+        )
+
+    return t(
+        "rules.saved.values.inactive"
+    )
+
 def text_or_empty(value: object) -> str:
     """Преобразует пустое значение базы в пустую строку."""
 
@@ -2863,149 +2994,277 @@ with classification_tab:
                             st.rerun()
 
 with rules_tab:
-    st.subheader("Правила автоматической классификации")
+    st.subheader(
+        t("rules.title")
+    )
 
     st.caption(
-        "Правила применяются по убыванию приоритета. "
-        "Для каждой операции срабатывает только первое совпадение. "
-        "Ручные решения не перезаписываются."
+        t("rules.caption")
     )
 
     if st.button(
-        "Применить активные правила",
+        t("rules.apply_button"),
         type="primary",
         use_container_width=True,
     ):
-        apply_result = apply_classification_rules()
+        apply_result = (
+            apply_classification_rules()
+        )
 
-        st.session_state["rule_message"] = (
-            f"Проверено операций: "
-            f"{apply_result.checked}. "
-            f"Классифицировано: "
-            f"{apply_result.matched}. "
-            f"Без совпадений: "
-            f"{apply_result.unmatched}."
+        st.session_state["rule_message"] = t(
+            "rules.messages.applied",
+            checked=apply_result.checked,
+            matched=apply_result.matched,
+            unmatched=apply_result.unmatched,
         )
 
         st.rerun()
 
     with st.expander(
-        "Создать новое правило",
+        t("rules.create_title"),
         expanded=True,
     ):
         with st.form("create_rule_form"):
             rule_name = st.text_input(
-                "Название правила",
-                placeholder="Например: банковские комиссии",
+                t("rules.fields.name"),
+                placeholder=t(
+                    "rules.placeholders.name"
+                ),
             )
 
             priority = st.number_input(
-                "Приоритет",
+                t("rules.fields.priority"),
                 min_value=0,
                 max_value=10_000,
                 value=100,
                 step=10,
-                help=(
-                    "Чем больше число, тем раньше "
-                    "проверяется правило."
+                help=t(
+                    "rules.help.priority"
                 ),
             )
 
             is_active = st.checkbox(
-                "Правило активно",
+                t("rules.fields.active"),
                 value=True,
             )
 
             direction_filter = st.selectbox(
-                "Направление операции",
-                options=list(DIRECTION_FILTERS),
-                format_func=DIRECTION_FILTERS.get,
+                t("rules.fields.direction"),
+                options=list(
+                    DIRECTION_FILTERS
+                ),
+                format_func=(
+                    format_rule_direction
+                ),
             )
 
             match_field = st.selectbox(
-                "Где искать",
-                options=list(MATCH_FIELDS),
-                format_func=MATCH_FIELDS.get,
+                t("rules.fields.match_field"),
+                options=list(
+                    MATCH_FIELDS
+                ),
+                format_func=(
+                    format_rule_field
+                ),
             )
 
             match_type = st.selectbox(
-                "Условие",
-                options=list(MATCH_TYPES),
-                format_func=MATCH_TYPES.get,
+                t("rules.fields.match_type"),
+                options=list(
+                    MATCH_TYPES
+                ),
+                format_func=(
+                    format_rule_match_type
+                ),
             )
 
             match_value = st.text_input(
-                "Искомое значение",
-                placeholder="Например: обслуживание счета",
+                t("rules.fields.match_value"),
+                placeholder=t(
+                    "rules.placeholders."
+                    "match_value"
+                ),
             )
 
-            pnl_column, cf_column = st.columns(2)
+            pnl_column, cf_column = (
+                st.columns(2)
+            )
 
             with pnl_column:
-                st.markdown("**P&L**")
+                st.markdown(
+                    "**"
+                    + t("reports.pnl.title")
+                    + "**"
+                )
 
                 pnl_action = st.selectbox(
-                    "Решение P&L",
-                    options=list(REPORT_ACTIONS),
+                    t(
+                        "classification.columns."
+                        "pnl_action"
+                    ),
+                    options=list(
+                        REPORT_ACTIONS
+                    ),
+                    format_func=(
+                        format_report_action
+                    ),
                     key="rule_pnl_action",
                 )
 
                 pnl_category = st.selectbox(
-                    "Категория P&L",
-                    options=list(PNL_CATEGORIES),
+                    t(
+                        "classification.columns."
+                        "pnl_category"
+                    ),
+                    options=list(
+                        PNL_CATEGORIES
+                    ),
                     key="rule_pnl_category",
                 )
 
             with cf_column:
-                st.markdown("**Cash Flow**")
+                st.markdown(
+                    "**"
+                    + t(
+                        "reports.cash_flow.title"
+                    )
+                    + "**"
+                )
 
                 cf_action = st.selectbox(
-                    "Решение Cash Flow",
-                    options=list(REPORT_ACTIONS),
+                    t(
+                        "classification.columns."
+                        "cf_action"
+                    ),
+                    options=list(
+                        REPORT_ACTIONS
+                    ),
+                    format_func=(
+                        format_report_action
+                    ),
                     key="rule_cf_action",
                 )
 
                 cf_category = st.selectbox(
-                    "Категория Cash Flow",
-                    options=list(CF_CATEGORIES),
+                    t(
+                        "classification.columns."
+                        "cf_category"
+                    ),
+                    options=list(
+                        CF_CATEGORIES
+                    ),
                     key="rule_cf_category",
                 )
 
-            create_rule_submitted = st.form_submit_button(
-                "Создать правило",
-                type="primary",
-                use_container_width=True,
+            create_rule_submitted = (
+                st.form_submit_button(
+                    t("rules.create_button"),
+                    type="primary",
+                    use_container_width=True,
+                )
             )
 
             if create_rule_submitted:
-                try:
-                    new_rule_id = create_rule(
-                        name=rule_name,
-                        priority=int(priority),
-                        is_active=is_active,
-                        direction_filter=direction_filter,
-                        match_field=match_field,
-                        match_type=match_type,
-                        match_value=match_value,
-                        pnl_action=pnl_action,
-                        pnl_category=pnl_category,
-                        cf_action=cf_action,
-                        cf_category=cf_category,
+                validation_errors: list[str] = []
+
+                if not rule_name.strip():
+                    validation_errors.append(
+                        t(
+                            "rules.errors."
+                            "name_required"
+                        )
                     )
-                except ValueError as exc:
-                    st.error(str(exc))
+
+                if not match_value.strip():
+                    validation_errors.append(
+                        t(
+                            "rules.errors."
+                            "match_value_required"
+                        )
+                    )
+
+                if (
+                    pnl_action
+                    == UNDEFINED_ACTION
+                    and cf_action
+                    == UNDEFINED_ACTION
+                ):
+                    validation_errors.append(
+                        t(
+                            "rules.errors."
+                            "decision_required"
+                        )
+                    )
+
+                if (
+                    pnl_action
+                    == INCLUDE_ACTION
+                    and not pnl_category
+                ):
+                    validation_errors.append(
+                        t(
+                            "rules.errors."
+                            "pnl_category_required"
+                        )
+                    )
+
+                if (
+                    cf_action
+                    == INCLUDE_ACTION
+                    and not cf_category
+                ):
+                    validation_errors.append(
+                        t(
+                            "rules.errors."
+                            "cf_category_required"
+                        )
+                    )
+
+                if validation_errors:
+                    for error_message in (
+                        validation_errors
+                    ):
+                        st.error(error_message)
+
                 else:
-                    st.session_state["rule_message"] = (
-                        f"Правило #{new_rule_id} создано."
-                    )
-                    st.rerun()
+                    try:
+                        new_rule_id = create_rule(
+                            name=rule_name,
+                            priority=int(priority),
+                            is_active=is_active,
+                            direction_filter=(
+                                direction_filter
+                            ),
+                            match_field=match_field,
+                            match_type=match_type,
+                            match_value=match_value,
+                            pnl_action=pnl_action,
+                            pnl_category=pnl_category,
+                            cf_action=cf_action,
+                            cf_category=cf_category,
+                        )
+
+                    except ValueError as exc:
+                        st.error(str(exc))
+
+                    else:
+                        st.session_state[
+                            "rule_message"
+                        ] = t(
+                            "rules.messages.created",
+                            rule_id=new_rule_id,
+                        )
+
+                        st.rerun()
+
     st.divider()
-    st.subheader("Перенос конфигурации правил")
+
+    st.subheader(
+        t("rules.transfer.title")
+    )
 
     st.caption(
-        "Правила можно сохранить в JSON и перенести "
-        "в другую установку Open MAS. "
-        "Локальные ID и даты базы не экспортируются."
+        t("rules.transfer.caption")
     )
 
     export_json = export_rule_config_json()
@@ -3016,7 +3275,7 @@ with rules_tab:
 
     with export_column:
         st.download_button(
-            "Скачать правила в JSON",
+            t("rules.transfer.download"),
             data=export_json,
             file_name=(
                 "open_mas_rules_"
@@ -3029,17 +3288,14 @@ with rules_tab:
 
     with export_info_column:
         st.info(
-            "Экспорт содержит текущие правила, "
-            "их приоритеты, условия, категории "
-            "и состояние активности."
+            t("rules.transfer.export_info")
         )
 
     uploaded_rule_config = st.file_uploader(
-        "Загрузить конфигурацию правил",
+        t("rules.transfer.upload"),
         type=["json"],
-        help=(
-            "Сначала файл будет проверен. "
-            "База не изменится до подтверждения импорта."
+        help=t(
+            "rules.transfer.upload_help"
         ),
         key="rule_config_uploader",
     )
@@ -3051,79 +3307,109 @@ with rules_tab:
                     uploaded_rule_config.getvalue()
                 )
             )
+
         except (TypeError, ValueError) as exc:
             st.error(str(exc))
+
         else:
             rule_preview = (
                 parsed_rule_config.preview
             )
 
             st.markdown(
-                "#### Результат проверки файла"
+                "#### "
+                + t(
+                    "rules.transfer.preview_title"
+                )
             )
 
             preview_metrics = st.columns(4)
 
             preview_metrics[0].metric(
-                "Получено",
+                t(
+                    "rules.transfer.metrics."
+                    "received"
+                ),
                 rule_preview.received,
             )
 
             preview_metrics[1].metric(
-                "Уникальных корректных",
+                t(
+                    "rules.transfer.metrics."
+                    "valid"
+                ),
                 rule_preview.valid_unique,
             )
 
             preview_metrics[2].metric(
-                "Дублей внутри файла",
+                t(
+                    "rules.transfer.metrics."
+                    "file_duplicates"
+                ),
                 rule_preview.duplicates_in_file,
             )
 
             preview_metrics[3].metric(
-                "Уже есть в базе",
+                t(
+                    "rules.transfer.metrics."
+                    "database_duplicates"
+                ),
                 rule_preview.duplicates_in_database,
             )
 
             st.caption(
-                "Версия формата: "
-                f"{parsed_rule_config.schema_version}. "
-                "Файл экспортирован: "
-                f"{parsed_rule_config.exported_at}."
+                t(
+                    "rules.transfer."
+                    "preview_caption",
+                    schema_version=(
+                        parsed_rule_config.schema_version
+                    ),
+                    exported_at=(
+                        parsed_rule_config.exported_at
+                    ),
+                )
             )
 
             if rule_preview.errors:
                 st.error(
-                    "Конфигурация содержит ошибки. "
-                    "Импорт заблокирован."
+                    t(
+                        "rules.transfer.errors."
+                        "blocked"
+                    )
                 )
 
                 for error_message in (
-                    rule_preview.errors
+                        rule_preview.errors
                 ):
                     st.error(error_message)
 
             if (
-                rule_preview.duplicates_in_file
-                > 0
+                    rule_preview.duplicates_in_file
+                    > 0
             ):
                 st.warning(
-                    "Повторяющиеся правила внутри файла "
-                    "будут импортированы только один раз."
+                    t(
+                        "rules.transfer.warnings."
+                        "file_duplicates"
+                    )
                 )
 
             if (
-                rule_preview.duplicates_in_database
-                > 0
+                    rule_preview.duplicates_in_database
+                    > 0
             ):
                 st.info(
-                    "В режиме добавления правила, "
-                    "которые уже полностью совпадают "
-                    "с существующими, будут пропущены."
+                    t(
+                        "rules.transfer.info."
+                        "database_duplicates"
+                    )
                 )
 
             with st.expander(
-                "Просмотреть содержимое JSON",
-                expanded=False,
+                    t(
+                        "rules.transfer.json_title"
+                    ),
+                    expanded=False,
             ):
                 st.json(
                     {
@@ -3137,74 +3423,101 @@ with rules_tab:
                     }
                 )
 
-            st.markdown("#### Режим импорта")
+            st.markdown(
+                "#### "
+                + t(
+                    "rules.transfer.import_title"
+                )
+            )
 
-            import_mode_label = st.radio(
-                "Выберите действие",
-                options=[
-                    "Добавить отсутствующие правила",
-                    "Заменить все текущие правила",
-                ],
+            import_mode_options = {
+                "merge": t(
+                    "rules.transfer.import.merge"
+                ),
+                "replace": t(
+                    "rules.transfer.import.replace"
+                ),
+            }
+
+            import_mode = st.radio(
+                t(
+                    "rules.transfer.import_action"
+                ),
+                options=list(
+                    import_mode_options
+                ),
+                format_func=(
+                    import_mode_options.get
+                ),
                 horizontal=True,
                 key="rule_import_mode",
             )
 
-            if (
-                import_mode_label
-                == "Добавить отсутствующие правила"
-            ):
-                import_mode = "merge"
-
+            if import_mode == "merge":
                 st.caption(
-                    "Текущие правила сохранятся. "
-                    "Полностью совпадающие правила "
-                    "будут пропущены."
+                    t(
+                        "rules.transfer.import."
+                        "merge_caption"
+                    )
                 )
 
                 replace_confirmation_valid = True
 
             else:
-                import_mode = "replace"
-
                 st.warning(
-                    "Все текущие правила будут удалены "
-                    "и заменены правилами из файла. "
-                    "Операция выполняется одной транзакцией."
+                    t(
+                        "rules.transfer.import."
+                        "replace_warning"
+                    )
                 )
 
-                replace_phrase = (
-                    "ЗАМЕНИТЬ ВСЕ ПРАВИЛА"
+                replace_phrase = t(
+                    "rules.transfer.import."
+                    "replace_phrase"
                 )
 
-                replace_confirmation = st.text_input(
-                    "Для замены введите:",
-                    placeholder=replace_phrase,
-                    key="replace_rules_confirmation",
+                replace_confirmation = (
+                    st.text_input(
+                        t(
+                            "rules.transfer.import."
+                            "confirmation"
+                        ),
+                        placeholder=replace_phrase,
+                        key=(
+                            "replace_rules_confirmation"
+                        ),
+                    )
                 )
 
                 replace_confirmation_valid = (
-                    replace_confirmation.strip()
-                    == replace_phrase
+                        replace_confirmation.strip()
+                        == replace_phrase
                 )
 
             import_disabled = (
-                bool(rule_preview.errors)
-                or rule_preview.valid_unique == 0
-                or not replace_confirmation_valid
+                    bool(rule_preview.errors)
+                    or rule_preview.valid_unique == 0
+                    or not replace_confirmation_valid
             )
 
             import_button_label = (
-                "Добавить правила"
+                t(
+                    "rules.transfer.import."
+                    "merge_button"
+                )
                 if import_mode == "merge"
-                else "Заменить все правила"
+                else t(
+                    "rules.transfer.import."
+                    "replace_button"
+                )
             )
 
             if st.button(
-                import_button_label,
-                type="primary",
-                use_container_width=True,
-                disabled=import_disabled,
-                key="import_rule_config_button",
+                    import_button_label,
+                    type="primary",
+                    use_container_width=True,
+                    disabled=import_disabled,
+                    key="import_rule_config_button",
             ):
                 try:
                     rule_import_result = (
@@ -3215,115 +3528,261 @@ with rules_tab:
                             mode=import_mode,
                         )
                     )
+
                 except ValueError as exc:
                     st.error(str(exc))
+
                 else:
                     st.session_state[
                         "rule_message"
-                    ] = (
-                        "Импорт правил завершён. "
-                        f"Получено: "
-                        f"{rule_import_result.received}. "
-                        f"Добавлено: "
-                        f"{rule_import_result.inserted}. "
-                        f"Пропущено дублей: "
-                        f"{rule_import_result.skipped_duplicates}. "
-                        f"Удалено прежних правил: "
-                        f"{rule_import_result.deleted_existing}."
+                    ] = t(
+                        "rules.transfer.messages."
+                        "completed",
+                        received=(
+                            rule_import_result.received
+                        ),
+                        inserted=(
+                            rule_import_result.inserted
+                        ),
+                        skipped=(
+                            rule_import_result
+                            .skipped_duplicates
+                        ),
+                        deleted=(
+                            rule_import_result
+                            .deleted_existing
+                        ),
                     )
 
                     st.rerun()
 
-    rules = get_rules_dataframe()
+        rules = get_rules_dataframe()
 
-    st.subheader("Сохранённые правила")
-
-    if rules.empty:
-        st.info(
-            "Правила пока не созданы."
+        st.subheader(
+            t("rules.saved.title")
         )
-    else:
-        visible_rules = rules.rename(
-            columns={
-                "id": "ID",
-                "name": "Название",
-                "priority": "Приоритет",
-                "is_active": "Активно",
-                "direction_filter": "Направление",
-                "match_field": "Поле",
-                "match_type": "Условие",
-                "match_value": "Значение",
-                "pnl_action": "Решение P&L",
-                "pnl_category": "Категория P&L",
-                "cf_action": "Решение CF",
-                "cf_category": "Категория CF",
+
+        if rules.empty:
+            st.info(
+                t("rules.saved.empty")
+            )
+
+        else:
+            visible_rules = rules.copy()
+
+            visible_rules[
+                "direction_filter"
+            ] = visible_rules[
+                "direction_filter"
+            ].apply(
+                format_rule_direction
+            )
+
+            visible_rules[
+                "match_field"
+            ] = visible_rules[
+                "match_field"
+            ].apply(
+                format_rule_field
+            )
+
+            visible_rules[
+                "match_type"
+            ] = visible_rules[
+                "match_type"
+            ].apply(
+                format_rule_match_type
+            )
+
+            visible_rules[
+                "pnl_action"
+            ] = visible_rules[
+                "pnl_action"
+            ].apply(
+                format_report_action
+            )
+
+            visible_rules[
+                "cf_action"
+            ] = visible_rules[
+                "cf_action"
+            ].apply(
+                format_report_action
+            )
+
+            visible_rules[
+                "is_active"
+            ] = visible_rules[
+                "is_active"
+            ].apply(
+                format_rule_active_status
+            )
+
+            id_column = t(
+                "rules.saved.columns.id"
+            )
+            name_column = t(
+                "rules.saved.columns.name"
+            )
+            priority_column = t(
+                "rules.saved.columns.priority"
+            )
+            active_column = t(
+                "rules.saved.columns.active"
+            )
+            direction_column = t(
+                "rules.saved.columns.direction"
+            )
+            field_column = t(
+                "rules.saved.columns.field"
+            )
+            condition_column = t(
+                "rules.saved.columns.condition"
+            )
+            value_column = t(
+                "rules.saved.columns.value"
+            )
+            pnl_action_column = t(
+                "rules.saved.columns.pnl_action"
+            )
+            pnl_category_column = t(
+                "rules.saved.columns.pnl_category"
+            )
+            cf_action_column = t(
+                "rules.saved.columns.cf_action"
+            )
+            cf_category_column = t(
+                "rules.saved.columns.cf_category"
+            )
+
+            visible_rules = visible_rules.rename(
+                columns={
+                    "id": id_column,
+                    "name": name_column,
+                    "priority": priority_column,
+                    "is_active": active_column,
+                    "direction_filter":
+                        direction_column,
+                    "match_field": field_column,
+                    "match_type": condition_column,
+                    "match_value": value_column,
+                    "pnl_action": pnl_action_column,
+                    "pnl_category":
+                        pnl_category_column,
+                    "cf_action": cf_action_column,
+                    "cf_category":
+                        cf_category_column,
+                }
+            )
+
+            visible_rule_columns = [
+                id_column,
+                name_column,
+                priority_column,
+                active_column,
+                direction_column,
+                field_column,
+                condition_column,
+                value_column,
+                pnl_action_column,
+                pnl_category_column,
+                cf_action_column,
+                cf_category_column,
+            ]
+
+            st.dataframe(
+                visible_rules[
+                    visible_rule_columns
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            rule_options = {
+                (
+                    f"{int(row['id'])} — "
+                    f"{row['name']}"
+                ): int(row["id"])
+                for _, row in rules.iterrows()
             }
-        )
 
-        st.dataframe(
-            visible_rules,
-            use_container_width=True,
-            hide_index=True,
-        )
+            selected_rule_label = st.selectbox(
+                t("rules.saved.manage"),
+                options=list(rule_options),
+            )
 
-        rule_options = {
-            f"{int(row['id'])} — {row['name']}":
-                int(row["id"])
-            for _, row in rules.iterrows()
-        }
+            selected_rule_id = rule_options[
+                selected_rule_label
+            ]
 
-        selected_rule_label = st.selectbox(
-            "Выберите правило для управления",
-            options=list(rule_options),
-        )
+            selected_rule = rules.loc[
+                rules["id"] == selected_rule_id
+                ].iloc[0]
 
-        selected_rule_id = rule_options[
-            selected_rule_label
-        ]
+            selected_rule_active = st.checkbox(
+                t("rules.fields.active"),
+                value=bool(
+                    selected_rule["is_active"]
+                ),
+                key=(
+                    "selected_rule_active_"
+                    f"{selected_rule_id}"
+                ),
+            )
 
-        selected_rule = rules.loc[
-            rules["id"] == selected_rule_id
-        ].iloc[0]
+            action_column, delete_column = (
+                st.columns(2)
+            )
 
-        selected_rule_active = st.checkbox(
-            "Правило активно",
-            value=bool(
-                selected_rule["is_active"]
-            ),
-            key=f"selected_rule_active_{selected_rule_id}",
-        )
+            with action_column:
+                if st.button(
+                        t(
+                            "rules.saved."
+                            "save_activity"
+                        ),
+                        use_container_width=True,
+                        key=(
+                                "save_rule_activity_"
+                                f"{selected_rule_id}"
+                        ),
+                ):
+                    set_rule_active(
+                        rule_id=selected_rule_id,
+                        is_active=(
+                            selected_rule_active
+                        ),
+                    )
 
-        action_column, delete_column = st.columns(2)
+                    st.session_state[
+                        "rule_message"
+                    ] = t(
+                        "rules.messages."
+                        "activity_updated"
+                    )
 
-        with action_column:
-            if st.button(
-                    "Сохранить активность",
-                    use_container_width=True,
-                    key=f"save_rule_activity_{selected_rule_id}",
-            ):
-                set_rule_active(
-                    rule_id=selected_rule_id,
-                    is_active=selected_rule_active,
-                )
+                    st.rerun()
 
-                st.session_state["rule_message"] = (
-                    "Состояние правила обновлено."
-                )
-                st.rerun()
+            with delete_column:
+                if st.button(
+                        t("rules.saved.delete"),
+                        type="secondary",
+                        use_container_width=True,
+                        key=(
+                                "delete_rule_"
+                                f"{selected_rule_id}"
+                        ),
+                ):
+                    delete_rule(
+                        selected_rule_id
+                    )
 
-        with delete_column:
-            if st.button(
-                    "Удалить правило",
-                    type="secondary",
-                    use_container_width=True,
-                    key=f"delete_rule_{selected_rule_id}",
-            ):
-                delete_rule(selected_rule_id)
+                    st.session_state[
+                        "rule_message"
+                    ] = t(
+                        "rules.messages.deleted"
+                    )
 
-                st.session_state["rule_message"] = (
-                    "Правило удалено."
-                )
-                st.rerun()
+                    st.rerun()
 
 with pnl_tab:
     st.subheader(

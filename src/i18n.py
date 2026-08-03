@@ -170,6 +170,202 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Полностью классифицировано: {classified}. "
             "Частично: {partial}."
         ),
+        "rules.title":
+            "Правила автоматической классификации",
+        "rules.caption": (
+            "Правила применяются по убыванию приоритета. "
+            "Для каждой операции срабатывает только первое "
+            "совпадение. Ручные решения не перезаписываются."
+        ),
+        "rules.apply_button":
+            "Применить активные правила",
+        "rules.messages.applied": (
+            "Проверено операций: {checked}. "
+            "Классифицировано: {matched}. "
+            "Без совпадений: {unmatched}."
+        ),
+        "rules.create_title":
+            "Создать новое правило",
+        "rules.fields.name":
+            "Название правила",
+        "rules.placeholders.name":
+            "Например: банковские комиссии",
+        "rules.fields.priority":
+            "Приоритет",
+        "rules.help.priority": (
+            "Чем больше число, тем раньше "
+            "проверяется правило."
+        ),
+        "rules.fields.active":
+            "Правило активно",
+        "rules.fields.direction":
+            "Направление операции",
+        "rules.fields.match_field":
+            "Где искать",
+        "rules.fields.match_type":
+            "Условие",
+        "rules.fields.match_value":
+            "Искомое значение",
+        "rules.placeholders.match_value":
+            "Например: обслуживание счёта",
+        "rules.create_button":
+            "Создать правило",
+        "rules.messages.created":
+            "Правило #{rule_id} создано.",
+        "rules.errors.name_required":
+            "Укажите название правила.",
+        "rules.errors.match_value_required":
+            "Укажите значение для поиска.",
+        "rules.errors.decision_required": (
+            "Правило должно принимать решение "
+            "хотя бы для одного отчёта."
+        ),
+        "rules.errors.pnl_category_required":
+            "Для включения в P&L выберите категорию.",
+        "rules.errors.cf_category_required":
+            "Для включения в Cash Flow выберите категорию.",
+        "rules.options.direction.any":
+            "Любое движение",
+        "rules.options.direction.income":
+            "Только поступления",
+        "rules.options.direction.expense":
+            "Только списания",
+        "rules.options.field.all_text":
+            "Все текстовые поля",
+        "rules.options.field.counterparty_name":
+            "Контрагент",
+        "rules.options.field.counterparty_inn":
+            "ИНН контрагента",
+        "rules.options.field.bank_category":
+            "Категория банка",
+        "rules.options.field.description":
+            "Описание операции",
+        "rules.options.field.payment_purpose":
+            "Назначение платежа",
+        "rules.options.field.mcc":
+            "MCC",
+        "rules.options.field.tax_code":
+            "КБК",
+        "rules.options.match.contains":
+            "Содержит",
+        "rules.options.match.equals":
+            "Полностью совпадает",
+        "rules.options.match.starts_with":
+            "Начинается с",
+        "rules.transfer.title":
+            "Перенос конфигурации правил",
+        "rules.transfer.caption": (
+            "Правила можно сохранить в JSON и перенести "
+            "в другую установку Open MAS. "
+            "Локальные ID и даты базы не экспортируются."
+        ),
+        "rules.transfer.download":
+            "Скачать правила в JSON",
+        "rules.transfer.export_info": (
+            "Экспорт содержит текущие правила, "
+            "их приоритеты, условия, категории "
+            "и состояние активности."
+        ),
+        "rules.transfer.upload":
+            "Загрузить конфигурацию правил",
+        "rules.transfer.upload_help": (
+            "Сначала файл будет проверен. "
+            "База не изменится до подтверждения импорта."
+        ),
+        "rules.transfer.preview_title":
+            "Результат проверки файла",
+        "rules.transfer.metrics.received":
+            "Получено",
+        "rules.transfer.metrics.valid":
+            "Уникальных корректных",
+        "rules.transfer.metrics.file_duplicates":
+            "Дублей внутри файла",
+        "rules.transfer.metrics.database_duplicates":
+            "Уже есть в базе",
+        "rules.transfer.preview_caption": (
+            "Версия формата: {schema_version}. "
+            "Файл экспортирован: {exported_at}."
+        ),
+        "rules.transfer.errors.blocked": (
+            "Конфигурация содержит ошибки. "
+            "Импорт заблокирован."
+        ),
+        "rules.transfer.warnings.file_duplicates": (
+            "Повторяющиеся правила внутри файла "
+            "будут импортированы только один раз."
+        ),
+        "rules.transfer.info.database_duplicates": (
+            "В режиме добавления правила, которые уже "
+            "полностью совпадают с существующими, "
+            "будут пропущены."
+        ),
+        "rules.transfer.json_title":
+            "Просмотреть содержимое JSON",
+        "rules.transfer.import_title":
+            "Режим импорта",
+        "rules.transfer.import_action":
+            "Выберите действие",
+        "rules.transfer.import.merge":
+            "Добавить отсутствующие правила",
+        "rules.transfer.import.replace":
+            "Заменить все текущие правила",
+        "rules.transfer.import.merge_caption": (
+            "Текущие правила сохранятся. "
+            "Полностью совпадающие правила "
+            "будут пропущены."
+        ),
+        "rules.transfer.import.replace_warning": (
+            "Все текущие правила будут удалены "
+            "и заменены правилами из файла. "
+            "Операция выполняется одной транзакцией."
+        ),
+        "rules.transfer.import.replace_phrase":
+            "ЗАМЕНИТЬ ВСЕ ПРАВИЛА",
+        "rules.transfer.import.confirmation":
+            "Для замены введите:",
+        "rules.transfer.import.merge_button":
+            "Добавить правила",
+        "rules.transfer.import.replace_button":
+            "Заменить все правила",
+        "rules.transfer.messages.completed": (
+            "Импорт правил завершён. "
+            "Получено: {received}. "
+            "Добавлено: {inserted}. "
+            "Пропущено дублей: {skipped}. "
+            "Удалено прежних правил: {deleted}."
+        ),
+        "rules.saved.title":
+            "Сохранённые правила",
+        "rules.saved.empty":
+            "Правила пока не созданы.",
+        "rules.saved.columns.id": "ID",
+        "rules.saved.columns.name": "Название",
+        "rules.saved.columns.priority": "Приоритет",
+        "rules.saved.columns.active": "Активно",
+        "rules.saved.columns.direction": "Направление",
+        "rules.saved.columns.field": "Поле",
+        "rules.saved.columns.condition": "Условие",
+        "rules.saved.columns.value": "Значение",
+        "rules.saved.columns.pnl_action":
+            "Решение P&L",
+        "rules.saved.columns.pnl_category":
+            "Категория P&L",
+        "rules.saved.columns.cf_action":
+            "Решение Cash Flow",
+        "rules.saved.columns.cf_category":
+            "Категория Cash Flow",
+        "rules.saved.values.active": "Да",
+        "rules.saved.values.inactive": "Нет",
+        "rules.saved.manage":
+            "Выберите правило для управления",
+        "rules.saved.save_activity":
+            "Сохранить активность",
+        "rules.saved.delete":
+            "Удалить правило",
+        "rules.messages.activity_updated":
+            "Состояние правила обновлено.",
+        "rules.messages.deleted":
+            "Правило удалено.",
         "reports.empty_database":
             "В базе пока нет операций.",
         "reports.invalid_dates":
@@ -441,6 +637,201 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "Fully classified: {classified}. "
             "Partially classified: {partial}."
         ),
+        "rules.title":
+            "Automatic classification rules",
+        "rules.caption": (
+            "Rules are applied from highest to lowest priority. "
+            "Only the first matching rule is applied to each "
+            "transaction. Manual decisions are not overwritten."
+        ),
+        "rules.apply_button":
+            "Apply active rules",
+        "rules.messages.applied": (
+            "Transactions checked: {checked}. "
+            "Classified: {matched}. "
+            "No match: {unmatched}."
+        ),
+        "rules.create_title":
+            "Create a new rule",
+        "rules.fields.name":
+            "Rule name",
+        "rules.placeholders.name":
+            "For example: bank fees",
+        "rules.fields.priority":
+            "Priority",
+        "rules.help.priority": (
+            "A higher number means that the rule "
+            "is checked earlier."
+        ),
+        "rules.fields.active":
+            "Rule is active",
+        "rules.fields.direction":
+            "Transaction direction",
+        "rules.fields.match_field":
+            "Search field",
+        "rules.fields.match_type":
+            "Condition",
+        "rules.fields.match_value":
+            "Search value",
+        "rules.placeholders.match_value":
+            "For example: account service fee",
+        "rules.create_button":
+            "Create rule",
+        "rules.messages.created":
+            "Rule #{rule_id} created.",
+        "rules.errors.name_required":
+            "Enter a rule name.",
+        "rules.errors.match_value_required":
+            "Enter a search value.",
+        "rules.errors.decision_required": (
+            "The rule must make a decision "
+            "for at least one report."
+        ),
+        "rules.errors.pnl_category_required":
+            "Select a category when including in P&L.",
+        "rules.errors.cf_category_required":
+            "Select a category when including in Cash Flow.",
+        "rules.options.direction.any":
+            "Any direction",
+        "rules.options.direction.income":
+            "Inflows only",
+        "rules.options.direction.expense":
+            "Outflows only",
+        "rules.options.field.all_text":
+            "All text fields",
+        "rules.options.field.counterparty_name":
+            "Counterparty",
+        "rules.options.field.counterparty_inn":
+            "Counterparty tax ID",
+        "rules.options.field.bank_category":
+            "Bank category",
+        "rules.options.field.description":
+            "Transaction description",
+        "rules.options.field.payment_purpose":
+            "Payment purpose",
+        "rules.options.field.mcc":
+            "MCC",
+        "rules.options.field.tax_code":
+            "Budget classification code",
+        "rules.options.match.contains":
+            "Contains",
+        "rules.options.match.equals":
+            "Exact match",
+        "rules.options.match.starts_with":
+            "Starts with",
+        "rules.transfer.title":
+            "Rule configuration transfer",
+        "rules.transfer.caption": (
+            "Rules can be saved as JSON and transferred "
+            "to another Open MAS installation. "
+            "Local database IDs and dates are not exported."
+        ),
+        "rules.transfer.download":
+            "Download rules as JSON",
+        "rules.transfer.export_info": (
+            "The export contains the current rules, "
+            "their priorities, conditions, categories "
+            "and active status."
+        ),
+        "rules.transfer.upload":
+            "Upload rule configuration",
+        "rules.transfer.upload_help": (
+            "The file will be validated first. "
+            "The database will not change until import "
+            "is confirmed."
+        ),
+        "rules.transfer.preview_title":
+            "File validation result",
+        "rules.transfer.metrics.received":
+            "Received",
+        "rules.transfer.metrics.valid":
+            "Unique and valid",
+        "rules.transfer.metrics.file_duplicates":
+            "Duplicates in file",
+        "rules.transfer.metrics.database_duplicates":
+            "Already in database",
+        "rules.transfer.preview_caption": (
+            "Schema version: {schema_version}. "
+            "Exported at: {exported_at}."
+        ),
+        "rules.transfer.errors.blocked": (
+            "The configuration contains errors. "
+            "Import is blocked."
+        ),
+        "rules.transfer.warnings.file_duplicates": (
+            "Duplicate rules within the file "
+            "will be imported only once."
+        ),
+        "rules.transfer.info.database_duplicates": (
+            "In merge mode, rules that fully match "
+            "existing rules will be skipped."
+        ),
+        "rules.transfer.json_title":
+            "View JSON contents",
+        "rules.transfer.import_title":
+            "Import mode",
+        "rules.transfer.import_action":
+            "Select an action",
+        "rules.transfer.import.merge":
+            "Add missing rules",
+        "rules.transfer.import.replace":
+            "Replace all current rules",
+        "rules.transfer.import.merge_caption": (
+            "Current rules will be preserved. "
+            "Exact duplicates will be skipped."
+        ),
+        "rules.transfer.import.replace_warning": (
+            "All current rules will be deleted and replaced "
+            "with the rules from the file. "
+            "The operation is performed in one transaction."
+        ),
+        "rules.transfer.import.replace_phrase":
+            "REPLACE ALL RULES",
+        "rules.transfer.import.confirmation":
+            "To replace the rules, enter:",
+        "rules.transfer.import.merge_button":
+            "Add rules",
+        "rules.transfer.import.replace_button":
+            "Replace all rules",
+        "rules.transfer.messages.completed": (
+            "Rule import completed. "
+            "Received: {received}. "
+            "Added: {inserted}. "
+            "Duplicates skipped: {skipped}. "
+            "Previous rules deleted: {deleted}."
+        ),
+        "rules.saved.title":
+            "Saved rules",
+        "rules.saved.empty":
+            "No rules have been created yet.",
+        "rules.saved.columns.id": "ID",
+        "rules.saved.columns.name": "Name",
+        "rules.saved.columns.priority": "Priority",
+        "rules.saved.columns.active": "Active",
+        "rules.saved.columns.direction": "Direction",
+        "rules.saved.columns.field": "Field",
+        "rules.saved.columns.condition": "Condition",
+        "rules.saved.columns.value": "Value",
+        "rules.saved.columns.pnl_action":
+            "P&L decision",
+        "rules.saved.columns.pnl_category":
+            "P&L category",
+        "rules.saved.columns.cf_action":
+            "Cash Flow decision",
+        "rules.saved.columns.cf_category":
+            "Cash Flow category",
+        "rules.saved.values.active": "Yes",
+        "rules.saved.values.inactive": "No",
+        "rules.saved.manage":
+            "Select a rule to manage",
+        "rules.saved.save_activity":
+            "Save active status",
+        "rules.saved.delete":
+            "Delete rule",
+        "rules.messages.activity_updated":
+            "Rule status updated.",
+        "rules.messages.deleted":
+            "Rule deleted.",
         "reports.empty_database":
             "There are no transactions in the database yet.",
         "reports.invalid_dates":
@@ -698,6 +1089,189 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
             "完全分类：{classified}。"
             "部分分类：{partial}。"
         ),
+        "rules.title":
+            "自动分类规则",
+        "rules.caption": (
+            "规则按优先级从高到低应用。"
+            "每笔交易只应用第一个匹配规则。"
+            "手动分类不会被覆盖。"
+        ),
+        "rules.apply_button":
+            "应用启用的规则",
+        "rules.messages.applied": (
+            "已检查交易：{checked}。"
+            "已分类：{matched}。"
+            "未匹配：{unmatched}。"
+        ),
+        "rules.create_title":
+            "创建新规则",
+        "rules.fields.name":
+            "规则名称",
+        "rules.placeholders.name":
+            "例如：银行手续费",
+        "rules.fields.priority":
+            "优先级",
+        "rules.help.priority":
+            "数值越大，规则越早检查。",
+        "rules.fields.active":
+            "启用规则",
+        "rules.fields.direction":
+            "交易方向",
+        "rules.fields.match_field":
+            "搜索字段",
+        "rules.fields.match_type":
+            "匹配条件",
+        "rules.fields.match_value":
+            "搜索值",
+        "rules.placeholders.match_value":
+            "例如：账户服务费",
+        "rules.create_button":
+            "创建规则",
+        "rules.messages.created":
+            "规则 #{rule_id} 已创建。",
+        "rules.errors.name_required":
+            "请输入规则名称。",
+        "rules.errors.match_value_required":
+            "请输入搜索值。",
+        "rules.errors.decision_required":
+            "规则必须至少为一张报表作出处理决定。",
+        "rules.errors.pnl_category_required":
+            "纳入损益表时请选择类别。",
+        "rules.errors.cf_category_required":
+            "纳入现金流量表时请选择类别。",
+        "rules.options.direction.any":
+            "任意方向",
+        "rules.options.direction.income":
+            "仅资金流入",
+        "rules.options.direction.expense":
+            "仅资金流出",
+        "rules.options.field.all_text":
+            "所有文本字段",
+        "rules.options.field.counterparty_name":
+            "交易对方",
+        "rules.options.field.counterparty_inn":
+            "交易对方税号",
+        "rules.options.field.bank_category":
+            "银行类别",
+        "rules.options.field.description":
+            "交易描述",
+        "rules.options.field.payment_purpose":
+            "付款用途",
+        "rules.options.field.mcc":
+            "MCC",
+        "rules.options.field.tax_code":
+            "预算分类代码",
+        "rules.options.match.contains":
+            "包含",
+        "rules.options.match.equals":
+            "完全匹配",
+        "rules.options.match.starts_with":
+            "开头为",
+        "rules.transfer.title":
+            "规则配置迁移",
+        "rules.transfer.caption": (
+            "规则可以保存为 JSON，并迁移到其他 Open MAS "
+            "安装中。本地数据库 ID 和日期不会导出。"
+        ),
+        "rules.transfer.download":
+            "下载 JSON 规则",
+        "rules.transfer.export_info": (
+            "导出文件包含当前规则、优先级、"
+            "匹配条件、类别和启用状态。"
+        ),
+        "rules.transfer.upload":
+            "上传规则配置",
+        "rules.transfer.upload_help": (
+            "文件将首先接受验证。"
+            "确认导入前，数据库不会发生变化。"
+        ),
+        "rules.transfer.preview_title":
+            "文件验证结果",
+        "rules.transfer.metrics.received":
+            "收到",
+        "rules.transfer.metrics.valid":
+            "有效且唯一",
+        "rules.transfer.metrics.file_duplicates":
+            "文件内重复",
+        "rules.transfer.metrics.database_duplicates":
+            "数据库中已存在",
+        "rules.transfer.preview_caption": (
+            "格式版本：{schema_version}。"
+            "导出时间：{exported_at}。"
+        ),
+        "rules.transfer.errors.blocked":
+            "配置中存在错误，导入已被阻止。",
+        "rules.transfer.warnings.file_duplicates": (
+            "文件中的重复规则只会导入一次。"
+        ),
+        "rules.transfer.info.database_duplicates": (
+            "在添加模式下，与现有规则完全相同的规则"
+            "将被跳过。"
+        ),
+        "rules.transfer.json_title":
+            "查看 JSON 内容",
+        "rules.transfer.import_title":
+            "导入模式",
+        "rules.transfer.import_action":
+            "选择操作",
+        "rules.transfer.import.merge":
+            "添加缺少的规则",
+        "rules.transfer.import.replace":
+            "替换所有当前规则",
+        "rules.transfer.import.merge_caption": (
+            "当前规则将被保留，完全相同的规则将被跳过。"
+        ),
+        "rules.transfer.import.replace_warning": (
+            "所有当前规则都将被删除，并由文件中的规则替换。"
+            "该操作将在一个事务中完成。"
+        ),
+        "rules.transfer.import.replace_phrase":
+            "替换所有规则",
+        "rules.transfer.import.confirmation":
+            "请输入以下文字以确认替换：",
+        "rules.transfer.import.merge_button":
+            "添加规则",
+        "rules.transfer.import.replace_button":
+            "替换所有规则",
+        "rules.transfer.messages.completed": (
+            "规则导入完成。"
+            "收到：{received}。"
+            "已添加：{inserted}。"
+            "跳过重复项：{skipped}。"
+            "已删除原有规则：{deleted}。"
+        ),
+        "rules.saved.title":
+            "已保存的规则",
+        "rules.saved.empty":
+            "尚未创建任何规则。",
+        "rules.saved.columns.id": "ID",
+        "rules.saved.columns.name": "名称",
+        "rules.saved.columns.priority": "优先级",
+        "rules.saved.columns.active": "已启用",
+        "rules.saved.columns.direction": "方向",
+        "rules.saved.columns.field": "字段",
+        "rules.saved.columns.condition": "条件",
+        "rules.saved.columns.value": "值",
+        "rules.saved.columns.pnl_action":
+            "损益表处理方式",
+        "rules.saved.columns.pnl_category":
+            "损益表类别",
+        "rules.saved.columns.cf_action":
+            "现金流处理方式",
+        "rules.saved.columns.cf_category":
+            "现金流类别",
+        "rules.saved.values.active": "是",
+        "rules.saved.values.inactive": "否",
+        "rules.saved.manage":
+            "选择要管理的规则",
+        "rules.saved.save_activity":
+            "保存启用状态",
+        "rules.saved.delete":
+            "删除规则",
+        "rules.messages.activity_updated":
+            "规则状态已更新。",
+        "rules.messages.deleted":
+            "规则已删除。",
         "reports.empty_database":
             "数据库中暂无交易。",
         "reports.invalid_dates":
