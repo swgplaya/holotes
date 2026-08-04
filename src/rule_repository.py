@@ -347,20 +347,6 @@ def create_rule(
         raise ValueError(
             "Укажи название правила."
         )
-    def create_rule(
-    *,
-    name: str,
-    priority: int,
-    is_active: bool,
-    direction_filter: str,
-    match_field: str,
-    match_type: str,
-    match_value: str,
-    pnl_action: str,
-    pnl_category: str,
-    cf_action: str,
-    cf_category: str,
-) -> int: """Создаёт правило автоматической классификации."""
 
     values = _prepare_rule_values(
         name=name,
