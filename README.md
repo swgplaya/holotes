@@ -1,27 +1,32 @@
 # Open MAS
 
-Open MAS is an open-source management accounting system for small businesses.
+Open MAS is an open-source, local-first management accounting system for small businesses.
 
-The project is focused on importing bank transactions, classifying cash movements, and building practical management reports without relying on cloud accounting platforms. By default, all financial data is stored locally in SQLite.
+The project is focused on importing bank transactions, classifying cash movements, building management reports, planning cash flows, and calculating unit economics without relying on cloud accounting platforms. By default, all financial data is stored locally in SQLite.
 
-> Open MAS is currently an early-stage MVP. The interface and the first supported bank statement format are focused on Russian users and T-Business.
+The application interface is available in Russian, English, and Simplified Chinese and includes light and dark visual themes.
+
+> Open MAS is currently an early-stage MVP. The first supported bank statement format is focused on Russian T-Business users, while the application interface itself is multilingual.
 
 ## Features
 
 - Import and validate CSV statements exported from T-Business
-- Prevent duplicate bank transactions
+- Prevent duplicate bank transactions using stable content hashes
 - Track imported statement files and safely delete individual import batches
-- Manually classify transactions for P&L and Cash Flow
+- Manually classify transactions independently for P&L and Cash Flow
 - Create priority-based automatic classification rules
 - Export and import classification rules as versioned JSON
 - Build cash-based P&L and Cash Flow reports
 - Compare reporting periods and review financial KPIs
-- Analyze unclassified transactions
-- Maintain a payment calendar
-- Build a daily cash balance forecast
-- Calculate unit economics and pricing scenarios
-- Manage all bank data locally
+- Analyze unclassified and partially classified transactions
+- Maintain a payment calendar for future inflows and outflows
+- Build a daily cash balance forecast and identify potential cash gaps
+- Calculate unit economics, pricing scenarios, margins, and break-even points
+- Manage products and cost items
 - Visualize reports with interactive Plotly charts
+- Switch between Russian, English, and Simplified Chinese
+- Use light and dark application themes
+- Keep financial data locally in SQLite
 
 ## Important note
 
@@ -88,7 +93,7 @@ The SQLite database is created locally when the application starts.
 
 ### Import bank transactions
 
-1. Open the **Импорт выписки** tab.
+1. Open the **Import statement** tab. Its name is translated according to the selected interface language.
 2. Upload a CSV statement exported from T-Business.
 3. Review validation warnings and the transaction preview.
 4. Save the new transactions to the local database.
@@ -97,7 +102,7 @@ Open MAS calculates a content hash for every transaction and skips duplicates.
 
 ### Classify transactions
 
-Use the **Классификация** tab to decide whether each transaction should be:
+Use the **Classification** tab to decide independently whether each transaction should be:
 
 - included in P&L;
 - excluded from P&L;
@@ -108,7 +113,7 @@ P&L and Cash Flow decisions are independent.
 
 ### Create automatic rules
 
-Use the **Правила** tab to create priority-based classification rules.
+Use the **Rules** tab to create priority-based classification rules.
 
 Rules can match:
 
@@ -136,6 +141,34 @@ The application currently provides:
 - unit economics;
 - payment calendar and cash forecast.
 
+## Interface languages and themes
+
+Open MAS currently supports the following interface languages:
+
+- Russian
+- English
+- Simplified Chinese
+
+The language can be changed directly in the application. The selected language affects tabs, forms, reports, tables, buttons, validation messages, payment calendar views, unit economics, and bank import screens.
+
+User-entered data, imported transaction descriptions, rule names, counterparties, and financial category names are preserved exactly as stored and are not automatically translated.
+
+The application also supports light and dark visual themes. Theme selection is stored in the Streamlit session and does not affect financial data.
+
+Translations are maintained in `src/i18n.py`. Translation dictionaries are expected to contain the same set of keys for every supported language.
+
+Translation consistency can be checked with:
+
+```powershell
+python -c "from src.i18n import find_translation_issues; print(find_translation_issues())"
+```
+
+A successful check returns:
+
+```text
+()
+```
+
 ## Local data and privacy
 
 The following files and directories are excluded from Git:
@@ -153,15 +186,21 @@ Do not commit real bank statements, credentials, API tokens, personal informatio
 
 ```text
 open-mas/
+├── .streamlit/
+│   └── config.toml
+├── assets/
+│   └── styles.css
 ├── app.py
 ├── requirements.txt
 ├── README.md
+├── CONTRIBUTING.md
 ├── LICENSE
 ├── src/
 │   ├── bank_import.py
 │   ├── categories.py
 │   ├── classification_summary.py
 │   ├── database.py
+│   ├── i18n.py
 │   ├── models.py
 │   ├── payment_calendar.py
 │   ├── reporting.py
@@ -174,19 +213,23 @@ open-mas/
 
 ## Current limitations
 
-- Only T-Business CSV statements are supported
-- The interface is currently in Russian
+- Only T-Business CSV statements are currently supported
+- Imported bank data and monetary formatting are currently focused on Russian business workflows and RUB
 - SQLite is the only configured database
 - The application is designed primarily for local single-user operation
 - P&L is cash-based rather than accrual-based
+- User-entered data and financial category names are not automatically translated
+- Some low-level validation errors originating from internal modules may not yet be localized
 - Automated test coverage is still under development
 
 ## Roadmap
 
 - Refactor the Streamlit interface into separate UI modules
-- Add automated tests
-- Improve the visual theme and navigation
+- Expand automated test coverage
+- Move localization into smaller domain-specific translation modules
+- Localize low-level validation and repository error messages
 - Support additional bank statement formats
+- Add configurable currencies and number formatting
 - Add PostgreSQL support
 - Add Docker configuration
 - Introduce an API layer
