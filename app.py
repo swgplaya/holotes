@@ -96,7 +96,6 @@ from src.unit_economics import (
     update_unit_economics_pricing,
 )
 
-
 st.set_page_config(
     page_title="Open MAS",
     page_icon="📊",
@@ -112,6 +111,18 @@ st.html(
 init_db()
 
 LANGUAGE_STATE_KEY = "ui_language"
+MAIN_NAVIGATION_KEY = "main_navigation"
+
+MAIN_TAB_TRANSLATION_KEYS = (
+    "tabs.operations",
+    "tabs.classification",
+    "tabs.rules",
+    "tabs.pnl",
+    "tabs.cash_flow",
+    "tabs.unit_economics",
+    "tabs.payment_calendar",
+    "tabs.import",
+)
 
 
 def t(
@@ -127,6 +138,45 @@ def t(
             DEFAULT_LANGUAGE,
         ),
         **values,
+    )
+
+def sync_main_navigation_language() -> None:
+    """Сохраняет активный раздел при смене языка."""
+
+    active_label = st.session_state.get(
+        MAIN_NAVIGATION_KEY
+    )
+
+    if active_label is None:
+        return
+
+    active_translation_key = None
+
+    for translation_key in MAIN_TAB_TRANSLATION_KEYS:
+        for language in SUPPORTED_LANGUAGES:
+            translated_label = translate(
+                key=translation_key,
+                language=language,
+            )
+
+            if translated_label == active_label:
+                active_translation_key = translation_key
+                break
+
+        if active_translation_key is not None:
+            break
+
+    if active_translation_key is None:
+        return
+
+    new_language = st.session_state.get(
+        LANGUAGE_STATE_KEY,
+        DEFAULT_LANGUAGE,
+    )
+
+    st.session_state[MAIN_NAVIGATION_KEY] = translate(
+        key=active_translation_key,
+        language=new_language,
     )
 
 def format_rubles(kopecks: int) -> str:
@@ -2157,6 +2207,7 @@ with language_column:
         options=list(SUPPORTED_LANGUAGES),
         format_func=SUPPORTED_LANGUAGES.get,
         key=LANGUAGE_STATE_KEY,
+        on_change=sync_main_navigation_language,
         label_visibility="collapsed",
     )
 
@@ -2218,15 +2269,11 @@ if last_import_message:
     import_tab,
 ) = st.tabs(
     [
-        t("tabs.operations"),
-        t("tabs.classification"),
-        t("tabs.rules"),
-        t("tabs.pnl"),
-        t("tabs.cash_flow"),
-        t("tabs.unit_economics"),
-        t("tabs.payment_calendar"),
-        t("tabs.import"),
-    ]
+        t(translation_key)
+        for translation_key in MAIN_TAB_TRANSLATION_KEYS
+    ],
+    key=MAIN_NAVIGATION_KEY,
+    on_change="rerun",
 )
 
 classification_message = st.session_state.pop(
@@ -2261,220 +2308,38 @@ rule_message = st.session_state.pop(
 if rule_message:
     st.success(rule_message)
 
-with operations_tab:
-    stored_transactions = (
-        get_transactions_dataframe()
-    )
-
-    if stored_transactions.empty:
-        st.info(
-            t("operations.empty_state")
-        )
-    else:
-        show_metrics(stored_transactions)
-
-        st.subheader(
-            t("operations.saved_title")
+if operations_tab.open:
+    with operations_tab:
+        stored_transactions = (
+            get_transactions_dataframe()
         )
 
-        operations_table = (
-            prepare_visible_table(
-                stored_transactions
-            )
-        )
-
-        amount_column = t(
-            "operations.columns.amount"
-        )
-
-        st.dataframe(
-            operations_table,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                amount_column:
-                    st.column_config.NumberColumn(
-                        amount_column,
-                        format="%.2f",
-                    ),
-            },
-        )
-
-        with st.expander(
-            t("operations.technical_info")
-        ):
-            st.write(
-                t("operations.sqlite_records"),
-                len(stored_transactions),
-            )
-
-            st.code("data/finance.db")
-
-with classification_tab:
-    st.subheader(
-        t("classification.title")
-    )
-
-    classification_transactions = (
-        get_transactions_dataframe()
-    )
-
-    classification_summary = (
-        build_unclassified_summary(
-            classification_transactions
-        )
-    )
-
-    st.markdown(
-        "#### "
-        + t("classification.pending_title")
-    )
-
-    summary_columns = st.columns(4)
-
-    summary_columns[0].metric(
-        t("classification.metrics.inflow"),
-        format_rubles(
-            classification_summary.inflow_kopecks
-        ),
-    )
-
-    summary_columns[1].metric(
-        t("classification.metrics.outflow"),
-        format_rubles(
-            classification_summary.outflow_kopecks
-        ),
-    )
-
-    summary_columns[2].metric(
-        t("classification.metrics.net"),
-        format_rubles(
-            classification_summary.net_kopecks
-        ),
-    )
-
-    summary_columns[3].metric(
-        t("classification.metrics.count"),
-        classification_summary.operation_count,
-    )
-
-    st.caption(
-        t("classification.pending_caption")
-    )
-
-    if classification_summary.operation_count == 0:
-        st.success(
-            t("classification.all_classified")
-        )
-
-    if classification_transactions.empty:
-        st.info(
-            t("classification.empty_database")
-        )
-    else:
-        only_pending = st.checkbox(
-            t("classification.only_pending"),
-            value=True,
-        )
-
-        if only_pending:
-            classification_transactions = (
-                classification_transactions.loc[
-                    classification_transactions[
-                        "classification_status"
-                    ] != "classified"
-                ].copy()
-            )
-
-        if classification_transactions.empty:
-            st.success(
-                t("classification.filtered_empty")
+        if stored_transactions.empty:
+            st.info(
+                t("operations.empty_state")
             )
         else:
-            st.caption(
-                t("classification.instructions")
+            show_metrics(stored_transactions)
+
+            st.subheader(
+                t("operations.saved_title")
             )
 
-            selection_source = (
-                prepare_classification_editor(
-                    classification_transactions
+            operations_table = (
+                prepare_visible_table(
+                    stored_transactions
                 )
-                .reset_index(drop=True)
             )
 
-            st.markdown(
-                "#### "
-                + t("classification.select_title")
-            )
-
-            st.caption(
-                t("classification.select_caption")
-            )
-
-            date_column = t(
-                "classification.columns.date"
-            )
             amount_column = t(
-                "classification.columns.amount"
-            )
-            counterparty_column = t(
-                "classification.columns.counterparty"
-            )
-            description_column = t(
-                "classification.columns.description"
-            )
-            pnl_action_column = t(
-                "classification.columns.pnl_action"
-            )
-            pnl_category_column = t(
-                "classification.columns.pnl_category"
-            )
-            cf_action_column = t(
-                "classification.columns.cf_action"
-            )
-            cf_category_column = t(
-                "classification.columns.cf_category"
+                "operations.columns.amount"
             )
 
-            selection_columns = [
-                "id",
-                date_column,
-                amount_column,
-                counterparty_column,
-                description_column,
-                pnl_action_column,
-                pnl_category_column,
-                cf_action_column,
-                cf_category_column,
-            ]
-
-            classification_ui_version = int(
-                st.session_state.get(
-                    "classification_ui_version",
-                    0,
-                )
-            )
-
-            selection_event = st.dataframe(
-                selection_source[
-                    selection_columns
-                ],
+            st.dataframe(
+                operations_table,
                 use_container_width=True,
                 hide_index=True,
-                on_select="rerun",
-                selection_mode="single-row",
-                key=(
-                    "classification_selection_table_"
-                    f"{classification_ui_version}"
-                ),
                 column_config={
-                    "id":
-                        st.column_config.NumberColumn(
-                            t(
-                                "classification.columns.id"
-                            ),
-                            format="%d",
-                        ),
                     amount_column:
                         st.column_config.NumberColumn(
                             amount_column,
@@ -2483,213 +2348,357 @@ with classification_tab:
                 },
             )
 
-            displayed_ids = (
-                selection_source["id"]
-                .astype(int)
-                .tolist()
+            with st.expander(
+                t("operations.technical_info")
+            ):
+                st.write(
+                    t("operations.sqlite_records"),
+                    len(stored_transactions),
+                )
+
+                st.code("data/finance.db")
+
+if classification_tab.open:
+    with classification_tab:
+        st.subheader(
+            t("classification.title")
+        )
+
+        classification_transactions = (
+            get_transactions_dataframe()
+        )
+
+        classification_summary = (
+            build_unclassified_summary(
+                classification_transactions
+            )
+        )
+
+        st.markdown(
+            "#### "
+            + t("classification.pending_title")
+        )
+
+        summary_columns = st.columns(4)
+
+        summary_columns[0].metric(
+            t("classification.metrics.inflow"),
+            format_rubles(
+                classification_summary.inflow_kopecks
+            ),
+        )
+
+        summary_columns[1].metric(
+            t("classification.metrics.outflow"),
+            format_rubles(
+                classification_summary.outflow_kopecks
+            ),
+        )
+
+        summary_columns[2].metric(
+            t("classification.metrics.net"),
+            format_rubles(
+                classification_summary.net_kopecks
+            ),
+        )
+
+        summary_columns[3].metric(
+            t("classification.metrics.count"),
+            classification_summary.operation_count,
+        )
+
+        st.caption(
+            t("classification.pending_caption")
+        )
+
+        if classification_summary.operation_count == 0:
+            st.success(
+                t("classification.all_classified")
             )
 
-            selected_rows = (
-                selection_event.selection.rows
+        if classification_transactions.empty:
+            st.info(
+                t("classification.empty_database")
+            )
+        else:
+            only_pending = st.checkbox(
+                t("classification.only_pending"),
+                value=True,
             )
 
-            if selected_rows:
-                selected_position = int(
-                    selected_rows[0]
+            if only_pending:
+                classification_transactions = (
+                    classification_transactions.loc[
+                        classification_transactions[
+                            "classification_status"
+                        ] != "classified"
+                    ].copy()
+                )
+
+            if classification_transactions.empty:
+                st.success(
+                    t("classification.filtered_empty")
+                )
+            else:
+                st.caption(
+                    t("classification.instructions")
+                )
+
+                selection_source = (
+                    prepare_classification_editor(
+                        classification_transactions
+                    )
+                    .reset_index(drop=True)
+                )
+
+                st.markdown(
+                    "#### "
+                    + t("classification.select_title")
+                )
+
+                st.caption(
+                    t("classification.select_caption")
+                )
+
+                date_column = t(
+                    "classification.columns.date"
+                )
+                amount_column = t(
+                    "classification.columns.amount"
+                )
+                counterparty_column = t(
+                    "classification.columns.counterparty"
+                )
+                description_column = t(
+                    "classification.columns.description"
+                )
+                pnl_action_column = t(
+                    "classification.columns.pnl_action"
+                )
+                pnl_category_column = t(
+                    "classification.columns.pnl_category"
+                )
+                cf_action_column = t(
+                    "classification.columns.cf_action"
+                )
+                cf_category_column = t(
+                    "classification.columns.cf_category"
+                )
+
+                selection_columns = [
+                    "id",
+                    date_column,
+                    amount_column,
+                    counterparty_column,
+                    description_column,
+                    pnl_action_column,
+                    pnl_category_column,
+                    cf_action_column,
+                    cf_category_column,
+                ]
+
+                classification_ui_version = int(
+                    st.session_state.get(
+                        "classification_ui_version",
+                        0,
+                    )
+                )
+
+                selection_event = st.dataframe(
+                    selection_source[
+                        selection_columns
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                    on_select="rerun",
+                    selection_mode="single-row",
+                    key=(
+                        "classification_selection_table_"
+                        f"{classification_ui_version}"
+                    ),
+                    column_config={
+                        "id":
+                            st.column_config.NumberColumn(
+                                t(
+                                    "classification.columns.id"
+                                ),
+                                format="%d",
+                            ),
+                        amount_column:
+                            st.column_config.NumberColumn(
+                                amount_column,
+                                format="%.2f",
+                            ),
+                    },
+                )
+
+                displayed_ids = (
+                    selection_source["id"]
+                    .astype(int)
+                    .tolist()
+                )
+
+                selected_rows = (
+                    selection_event.selection.rows
+                )
+
+                if selected_rows:
+                    selected_position = int(
+                        selected_rows[0]
+                    )
+
+                    if (
+                            0
+                            <= selected_position
+                            < len(selection_source)
+                    ):
+                        selected_from_table = int(
+                            selection_source.iloc[
+                                selected_position
+                            ]["id"]
+                        )
+
+                        st.session_state[
+                            "classification_selected_id"
+                        ] = selected_from_table
+
+                selected_transaction_id = (
+                    st.session_state.get(
+                        "classification_selected_id"
+                    )
                 )
 
                 if (
-                        0
-                        <= selected_position
-                        < len(selection_source)
+                        selected_transaction_id
+                        not in displayed_ids
                 ):
-                    selected_from_table = int(
-                        selection_source.iloc[
-                            selected_position
-                        ]["id"]
+                    selected_transaction_id = (
+                        displayed_ids[0]
                     )
 
                     st.session_state[
                         "classification_selected_id"
-                    ] = selected_from_table
+                    ] = selected_transaction_id
 
-            selected_transaction_id = (
-                st.session_state.get(
-                    "classification_selected_id"
-                )
-            )
-
-            if (
-                    selected_transaction_id
-                    not in displayed_ids
-            ):
-                selected_transaction_id = (
-                    displayed_ids[0]
+                selected_rows_in_database = (
+                    classification_transactions.loc[
+                        pd.to_numeric(
+                            classification_transactions[
+                                "id"
+                            ],
+                            errors="coerce",
+                        )
+                        == selected_transaction_id
+                        ]
                 )
 
-                st.session_state[
-                    "classification_selected_id"
-                ] = selected_transaction_id
+                if selected_rows_in_database.empty:
+                    st.error(
+                        t(
+                            "classification.errors."
+                            "transaction_not_found"
+                        )
+                    )
+                else:
+                    selected_transaction = (
+                        selected_rows_in_database.iloc[0]
+                    )
 
-            selected_rows_in_database = (
-                classification_transactions.loc[
-                    pd.to_numeric(
-                        classification_transactions[
-                            "id"
+                    selected_position = (
+                        displayed_ids.index(
+                            selected_transaction_id
+                        )
+                    )
+
+                    st.divider()
+
+                    st.markdown(
+                        "#### "
+                        + t(
+                            "classification.selected_title"
+                        )
+                    )
+
+                    operation_header_columns = (
+                        st.columns([1, 1, 2])
+                    )
+
+                    posted_at = pd.to_datetime(
+                        selected_transaction[
+                            "posted_at"
                         ],
                         errors="coerce",
                     )
-                    == selected_transaction_id
-                    ]
-            )
 
-            if selected_rows_in_database.empty:
-                st.error(
-                    t(
-                        "classification.errors."
-                        "transaction_not_found"
-                    )
-                )
-            else:
-                selected_transaction = (
-                    selected_rows_in_database.iloc[0]
-                )
-
-                selected_position = (
-                    displayed_ids.index(
-                        selected_transaction_id
-                    )
-                )
-
-                st.divider()
-
-                st.markdown(
-                    "#### "
-                    + t(
-                        "classification.selected_title"
-                    )
-                )
-
-                operation_header_columns = (
-                    st.columns([1, 1, 2])
-                )
-
-                posted_at = pd.to_datetime(
-                    selected_transaction[
-                        "posted_at"
-                    ],
-                    errors="coerce",
-                )
-
-                if pd.isna(posted_at):
-                    posted_at_text = "—"
-                else:
-                    posted_at_text = (
-                        posted_at.strftime(
-                            "%d.%m.%Y"
+                    if pd.isna(posted_at):
+                        posted_at_text = "—"
+                    else:
+                        posted_at_text = (
+                            posted_at.strftime(
+                                "%d.%m.%Y"
+                            )
                         )
+
+                    operation_header_columns[0].metric(
+                        t(
+                            "classification.details.date"
+                        ),
+                        posted_at_text,
                     )
 
-                operation_header_columns[0].metric(
-                    t(
-                        "classification.details.date"
-                    ),
-                    posted_at_text,
-                )
-
-                operation_header_columns[1].metric(
-                    t(
-                        "classification.details.amount"
-                    ),
-                    format_rubles(
-                        int(
-                            selected_transaction[
-                                "signed_amount_kopecks"
-                            ]
-                        )
-                    ),
-                )
-
-                operation_header_columns[2].metric(
-                    t(
-                        "classification.details.position"
-                    ),
-                    t(
-                        "classification.details."
-                        "position_value",
-                        current=selected_position + 1,
-                        total=len(displayed_ids),
-                    ),
-                )
-
-                counterparty_text = text_or_empty(
-                    selected_transaction[
-                        "counterparty_name"
-                    ]
-                )
-
-                description_text = text_or_empty(
-                    selected_transaction[
-                        "description"
-                    ]
-                )
-
-                purpose_text = text_or_empty(
-                    selected_transaction[
-                        "payment_purpose"
-                    ]
-                )
-
-                not_specified_text = t(
-                    "classification.details."
-                    "not_specified"
-                )
-
-                st.write(
-                    f"**{t(
-                        'classification.details.'
-                        'counterparty'
-                    )}:** "
-                    + (
-                            counterparty_text
-                            or not_specified_text
+                    operation_header_columns[1].metric(
+                        t(
+                            "classification.details.amount"
+                        ),
+                        format_rubles(
+                            int(
+                                selected_transaction[
+                                    "signed_amount_kopecks"
+                                ]
+                            )
+                        ),
                     )
-                )
 
-                st.write(
-                    f"**{t(
-                        'classification.details.'
-                        'description'
-                    )}:** "
-                    + (
-                            description_text
-                            or not_specified_text
-                    )
-                )
-
-                with st.expander(
+                    operation_header_columns[2].metric(
+                        t(
+                            "classification.details.position"
+                        ),
                         t(
                             "classification.details."
-                            "payment_purpose"
+                            "position_value",
+                            current=selected_position + 1,
+                            total=len(displayed_ids),
                         ),
-                        expanded=True,
-                ):
-                    st.write(
-                        purpose_text
-                        or not_specified_text
-                    )
-                    counterparty_label = t(
-                        "classification.details."
-                        "counterparty"
                     )
 
-                    description_label = t(
+                    counterparty_text = text_or_empty(
+                        selected_transaction[
+                            "counterparty_name"
+                        ]
+                    )
+
+                    description_text = text_or_empty(
+                        selected_transaction[
+                            "description"
+                        ]
+                    )
+
+                    purpose_text = text_or_empty(
+                        selected_transaction[
+                            "payment_purpose"
+                        ]
+                    )
+
+                    not_specified_text = t(
                         "classification.details."
-                        "description"
+                        "not_specified"
                     )
 
                     st.write(
-                        f"**{counterparty_label}:** "
+                        f"**{t(
+                            'classification.details.'
+                            'counterparty'
+                        )}:** "
                         + (
                                 counterparty_text
                                 or not_specified_text
@@ -2697,675 +2706,1001 @@ with classification_tab:
                     )
 
                     st.write(
-                        f"**{description_label}:** "
+                        f"**{t(
+                            'classification.details.'
+                            'description'
+                        )}:** "
                         + (
                                 description_text
                                 or not_specified_text
                         )
                     )
 
-                current_pnl_action = (
-                    bool_to_action(
+                    with st.expander(
+                            t(
+                                "classification.details."
+                                "payment_purpose"
+                            ),
+                            expanded=True,
+                    ):
+                        st.write(
+                            purpose_text
+                            or not_specified_text
+                        )
+                        counterparty_label = t(
+                            "classification.details."
+                            "counterparty"
+                        )
+
+                        description_label = t(
+                            "classification.details."
+                            "description"
+                        )
+
+                        st.write(
+                            f"**{counterparty_label}:** "
+                            + (
+                                    counterparty_text
+                                    or not_specified_text
+                            )
+                        )
+
+                        st.write(
+                            f"**{description_label}:** "
+                            + (
+                                    description_text
+                                    or not_specified_text
+                            )
+                        )
+
+                    current_pnl_action = (
+                        bool_to_action(
+                            selected_transaction[
+                                "include_in_pnl"
+                            ]
+                        )
+                    )
+
+                    current_cf_action = (
+                        bool_to_action(
+                            selected_transaction[
+                                "include_in_cf"
+                            ]
+                        )
+                    )
+
+                    current_pnl_category = (
+                        text_or_empty(
+                            selected_transaction[
+                                "pnl_category"
+                            ]
+                        )
+                    )
+
+                    current_cf_category = (
+                        text_or_empty(
+                            selected_transaction[
+                                "cf_category"
+                            ]
+                        )
+                    )
+
+                    current_comment = text_or_empty(
                         selected_transaction[
-                            "include_in_pnl"
-                        ]
-                    )
-                )
-
-                current_cf_action = (
-                    bool_to_action(
-                        selected_transaction[
-                            "include_in_cf"
-                        ]
-                    )
-                )
-
-                current_pnl_category = (
-                    text_or_empty(
-                        selected_transaction[
-                            "pnl_category"
-                        ]
-                    )
-                )
-
-                current_cf_category = (
-                    text_or_empty(
-                        selected_transaction[
-                            "cf_category"
-                        ]
-                    )
-                )
-
-                current_comment = text_or_empty(
-                    selected_transaction[
-                        "comment"
-                    ]
-                )
-
-                pnl_action_options = list(
-                    REPORT_ACTIONS
-                )
-
-                cf_action_options = list(
-                    REPORT_ACTIONS
-                )
-
-                pnl_category_options = list(
-                    dict.fromkeys(
-                        [
-                            "",
-                            *list(PNL_CATEGORIES),
-                            current_pnl_category,
-                        ]
-                    )
-                )
-
-                cf_category_options = list(
-                    dict.fromkeys(
-                        [
-                            "",
-                            *list(CF_CATEGORIES),
-                            current_cf_category,
-                        ]
-                    )
-                )
-
-                form_key = (
-                    "classification_form_"
-                    f"{selected_transaction_id}_"
-                    f"{classification_ui_version}"
-                )
-
-                with st.form(
-                        form_key,
-                        clear_on_submit=False,
-                ):
-                    pnl_column, cf_column = (
-                        st.columns(2)
-                    )
-
-                    with pnl_column:
-                        st.markdown(
-                            "### "
-                            + t("reports.pnl.title")
-                        )
-
-                        selected_pnl_action = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "pnl_action"
-                                ),
-                                options=(
-                                    pnl_action_options
-                                ),
-                                format_func=(
-                                    format_report_action
-                                ),
-                                index=option_index(
-                                    pnl_action_options,
-                                    current_pnl_action,
-                                ),
-                                key=(
-                                    "classification_pnl_action_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                            )
-                        )
-
-                        selected_pnl_category = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "pnl_category"
-                                ),
-                                options=(
-                                    pnl_category_options
-                                ),
-                                index=option_index(
-                                    pnl_category_options,
-                                    current_pnl_category,
-                                ),
-                                key=(
-                                    "classification_pnl_category_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                                help=t(
-                                    "classification.help."
-                                    "pnl_category"
-                                ),
-                            )
-                        )
-
-                    with cf_column:
-                        st.markdown(
-                            "### "
-                            + t(
-                                "reports.cash_flow.title"
-                            )
-                        )
-
-                        selected_cf_action = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "cf_action"
-                                ),
-                                options=(
-                                    cf_action_options
-                                ),
-                                format_func=(
-                                    format_report_action
-                                ),
-                                index=option_index(
-                                    cf_action_options,
-                                    current_cf_action,
-                                ),
-                                key=(
-                                    "classification_cf_action_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                            )
-                        )
-
-                        selected_cf_category = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "cf_category"
-                                ),
-                                options=(
-                                    cf_category_options
-                                ),
-                                index=option_index(
-                                    cf_category_options,
-                                    current_cf_category,
-                                ),
-                                key=(
-                                    "classification_cf_category_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                                help=t(
-                                    "classification.help."
-                                    "cf_category"
-                                ),
-                            )
-                        )
-
-                    selected_comment = st.text_area(
-                        t(
-                            "classification.columns."
                             "comment"
-                        ),
-                        value=current_comment,
-                        max_chars=500,
-                        key=(
-                            "classification_comment_"
-                            f"{selected_transaction_id}_"
-                            f"{classification_ui_version}"
-                        ),
+                        ]
                     )
 
-                    button_columns = st.columns(
-                        [1, 1.3, 1.3]
+                    pnl_action_options = list(
+                        REPORT_ACTIONS
                     )
 
-                    with button_columns[0]:
-                        save_current = (
-                            st.form_submit_button(
-                                t(
-                                    "classification.buttons."
-                                    "save"
-                                ),
-                                use_container_width=True,
+                    cf_action_options = list(
+                        REPORT_ACTIONS
+                    )
+
+                    pnl_category_options = list(
+                        dict.fromkeys(
+                            [
+                                "",
+                                *list(PNL_CATEGORIES),
+                                current_pnl_category,
+                            ]
+                        )
+                    )
+
+                    cf_category_options = list(
+                        dict.fromkeys(
+                            [
+                                "",
+                                *list(CF_CATEGORIES),
+                                current_cf_category,
+                            ]
+                        )
+                    )
+
+                    form_key = (
+                        "classification_form_"
+                        f"{selected_transaction_id}_"
+                        f"{classification_ui_version}"
+                    )
+
+                    with st.form(
+                            form_key,
+                            clear_on_submit=False,
+                    ):
+                        pnl_column, cf_column = (
+                            st.columns(2)
+                        )
+
+                        with pnl_column:
+                            st.markdown(
+                                "### "
+                                + t("reports.pnl.title")
                             )
-                        )
 
-                    with button_columns[1]:
-                        save_and_next = (
-                            st.form_submit_button(
-                                t(
-                                    "classification.buttons."
-                                    "save_next"
-                                ),
+                            selected_pnl_action = (
+                                st.selectbox(
+                                    t(
+                                        "classification.columns."
+                                        "pnl_action"
+                                    ),
+                                    options=(
+                                        pnl_action_options
+                                    ),
+                                    format_func=(
+                                        format_report_action
+                                    ),
+                                    index=option_index(
+                                        pnl_action_options,
+                                        current_pnl_action,
+                                    ),
+                                    key=(
+                                        "classification_pnl_action_"
+                                        f"{selected_transaction_id}_"
+                                        f"{classification_ui_version}"
+                                    ),
+                                )
                             )
-                        )
 
-                    with button_columns[2]:
-                        exclude_from_both = (
-                            st.form_submit_button(
-                                t(
-                                    "classification.buttons."
-                                    "exclude_both"
-                                ),
+                            selected_pnl_category = (
+                                st.selectbox(
+                                    t(
+                                        "classification.columns."
+                                        "pnl_category"
+                                    ),
+                                    options=(
+                                        pnl_category_options
+                                    ),
+                                    index=option_index(
+                                        pnl_category_options,
+                                        current_pnl_category,
+                                    ),
+                                    key=(
+                                        "classification_pnl_category_"
+                                        f"{selected_transaction_id}_"
+                                        f"{classification_ui_version}"
+                                    ),
+                                    help=t(
+                                        "classification.help."
+                                        "pnl_category"
+                                    ),
+                                )
                             )
+
+                        with cf_column:
+                            st.markdown(
+                                "### "
+                                + t(
+                                    "reports.cash_flow.title"
+                                )
+                            )
+
+                            selected_cf_action = (
+                                st.selectbox(
+                                    t(
+                                        "classification.columns."
+                                        "cf_action"
+                                    ),
+                                    options=(
+                                        cf_action_options
+                                    ),
+                                    format_func=(
+                                        format_report_action
+                                    ),
+                                    index=option_index(
+                                        cf_action_options,
+                                        current_cf_action,
+                                    ),
+                                    key=(
+                                        "classification_cf_action_"
+                                        f"{selected_transaction_id}_"
+                                        f"{classification_ui_version}"
+                                    ),
+                                )
+                            )
+
+                            selected_cf_category = (
+                                st.selectbox(
+                                    t(
+                                        "classification.columns."
+                                        "cf_category"
+                                    ),
+                                    options=(
+                                        cf_category_options
+                                    ),
+                                    index=option_index(
+                                        cf_category_options,
+                                        current_cf_category,
+                                    ),
+                                    key=(
+                                        "classification_cf_category_"
+                                        f"{selected_transaction_id}_"
+                                        f"{classification_ui_version}"
+                                    ),
+                                    help=t(
+                                        "classification.help."
+                                        "cf_category"
+                                    ),
+                                )
+                            )
+
+                        selected_comment = st.text_area(
+                            t(
+                                "classification.columns."
+                                "comment"
+                            ),
+                            value=current_comment,
+                            max_chars=500,
+                            key=(
+                                "classification_comment_"
+                                f"{selected_transaction_id}_"
+                                f"{classification_ui_version}"
+                            ),
                         )
 
-                if (
-                        save_current
-                        or save_and_next
-                        or exclude_from_both
-                ):
-                    if exclude_from_both:
-                        final_pnl_action = (
-                            EXCLUDE_ACTION
+                        button_columns = st.columns(
+                            [1, 1.3, 1.3]
                         )
 
-                        final_cf_action = (
-                            EXCLUDE_ACTION
-                        )
+                        with button_columns[0]:
+                            save_current = (
+                                st.form_submit_button(
+                                    t(
+                                        "classification.buttons."
+                                        "save"
+                                    ),
+                                    use_container_width=True,
+                                )
+                            )
 
-                        final_pnl_category = ""
-                        final_cf_category = ""
+                        with button_columns[1]:
+                            save_and_next = (
+                                st.form_submit_button(
+                                    t(
+                                        "classification.buttons."
+                                        "save_next"
+                                    ),
+                                )
+                            )
 
-                    else:
-                        final_pnl_action = (
-                            selected_pnl_action
-                        )
+                        with button_columns[2]:
+                            exclude_from_both = (
+                                st.form_submit_button(
+                                    t(
+                                        "classification.buttons."
+                                        "exclude_both"
+                                    ),
+                                )
+                            )
 
-                        final_cf_action = (
-                            selected_cf_action
-                        )
+                    if (
+                            save_current
+                            or save_and_next
+                            or exclude_from_both
+                    ):
+                        if exclude_from_both:
+                            final_pnl_action = (
+                                EXCLUDE_ACTION
+                            )
 
-                        final_pnl_category = (
-                            selected_pnl_category
-                        )
+                            final_cf_action = (
+                                EXCLUDE_ACTION
+                            )
 
-                        final_cf_category = (
-                            selected_cf_category
-                        )
+                            final_pnl_category = ""
+                            final_cf_category = ""
+
+                        else:
+                            final_pnl_action = (
+                                selected_pnl_action
+                            )
+
+                            final_cf_action = (
+                                selected_cf_action
+                            )
+
+                            final_pnl_category = (
+                                selected_pnl_category
+                            )
+
+                            final_cf_category = (
+                                selected_cf_category
+                            )
+
+                            if (
+                                    final_pnl_action
+                                    != INCLUDE_ACTION
+                            ):
+                                final_pnl_category = ""
+
+                            if (
+                                    final_cf_action
+                                    != INCLUDE_ACTION
+                            ):
+                                final_cf_category = ""
+
+                        validation_errors = []
 
                         if (
                                 final_pnl_action
-                                != INCLUDE_ACTION
+                                == INCLUDE_ACTION
+                                and not final_pnl_category
                         ):
-                            final_pnl_category = ""
+                            validation_errors.append(
+                                t(
+                                    "classification.errors."
+                                    "pnl_category_required"
+                                )
+                            )
 
                         if (
                                 final_cf_action
-                                != INCLUDE_ACTION
+                                == INCLUDE_ACTION
+                                and not final_cf_category
                         ):
-                            final_cf_category = ""
+                            validation_errors.append(
+                                t(
+                                    "classification.errors."
+                                    "cf_category_required"
+                                )
+                            )
 
-                    validation_errors = []
+                        if validation_errors:
+                            for error_message in (
+                                    validation_errors
+                            ):
+                                st.error(error_message)
+
+                        else:
+                            classification_payload = (
+                                pd.DataFrame(
+                                    [
+                                        {
+                                            "id":
+                                                selected_transaction_id,
+                                            "pnl_action":
+                                                final_pnl_action,
+                                            "pnl_category":
+                                                final_pnl_category,
+                                            "cf_action":
+                                                final_cf_action,
+                                            "cf_category":
+                                                final_cf_category,
+                                            "comment":
+                                                selected_comment,
+                                        }
+                                    ]
+                                )
+                            )
+
+                            try:
+                                save_result = (
+                                    save_classifications(
+                                        classification_payload
+                                    )
+                                )
+                            except ValueError as exc:
+                                st.error(str(exc))
+                            else:
+                                next_transaction_id = None
+
+                                if save_and_next:
+                                    next_position = (
+                                            selected_position + 1
+                                    )
+
+                                    if (
+                                            next_position
+                                            < len(displayed_ids)
+                                    ):
+                                        next_transaction_id = (
+                                            displayed_ids[
+                                                next_position
+                                            ]
+                                        )
+
+                                if (
+                                        next_transaction_id
+                                        is not None
+                                ):
+                                    st.session_state[
+                                        "classification_selected_id"
+                                    ] = (
+                                        next_transaction_id
+                                    )
+
+                                st.session_state[
+                                    "classification_ui_version"
+                                ] = (
+                                        classification_ui_version
+                                        + 1
+                                )
+
+                                action_key = (
+                                    "classification.messages."
+                                    "excluded_both"
+                                    if exclude_from_both
+                                    else (
+                                        "classification.messages."
+                                        "saved"
+                                    )
+                                )
+
+                                st.session_state[
+                                    "classification_message"
+                                ] = t(
+                                    "classification.messages."
+                                    "summary",
+                                    action=t(action_key),
+                                    updated=(
+                                        save_result.updated
+                                    ),
+                                    classified=(
+                                        save_result.classified
+                                    ),
+                                    partial=(
+                                        save_result.partial
+                                    ),
+                                )
+
+                                st.rerun()
+
+if rules_tab.open:
+    with rules_tab:
+        st.subheader(
+            t("rules.title")
+        )
+
+        st.caption(
+            t("rules.caption")
+        )
+
+        if st.button(
+            t("rules.apply_button"),
+            type="primary",
+            use_container_width=True,
+        ):
+            apply_result = (
+                apply_classification_rules()
+            )
+
+            st.session_state["rule_message"] = t(
+                "rules.messages.applied",
+                checked=apply_result.checked,
+                matched=apply_result.matched,
+                unmatched=apply_result.unmatched,
+            )
+
+            st.rerun()
+
+        with st.expander(
+            t("rules.create_title"),
+            expanded=True,
+        ):
+            with st.form("create_rule_form"):
+                rule_name = st.text_input(
+                    t("rules.fields.name"),
+                    placeholder=t(
+                        "rules.placeholders.name"
+                    ),
+                )
+
+                priority = st.number_input(
+                    t("rules.fields.priority"),
+                    min_value=0,
+                    max_value=10_000,
+                    value=100,
+                    step=10,
+                    help=t(
+                        "rules.help.priority"
+                    ),
+                )
+
+                is_active = st.checkbox(
+                    t("rules.fields.active"),
+                    value=True,
+                )
+
+                direction_filter = st.selectbox(
+                    t("rules.fields.direction"),
+                    options=list(
+                        DIRECTION_FILTERS
+                    ),
+                    format_func=(
+                        format_rule_direction
+                    ),
+                )
+
+                match_field = st.selectbox(
+                    t("rules.fields.match_field"),
+                    options=list(
+                        MATCH_FIELDS
+                    ),
+                    format_func=(
+                        format_rule_field
+                    ),
+                )
+
+                match_type = st.selectbox(
+                    t("rules.fields.match_type"),
+                    options=list(
+                        MATCH_TYPES
+                    ),
+                    format_func=(
+                        format_rule_match_type
+                    ),
+                )
+
+                match_value = st.text_input(
+                    t("rules.fields.match_value"),
+                    placeholder=t(
+                        "rules.placeholders."
+                        "match_value"
+                    ),
+                )
+
+                pnl_column, cf_column = (
+                    st.columns(2)
+                )
+
+                with pnl_column:
+                    st.markdown(
+                        "**"
+                        + t("reports.pnl.title")
+                        + "**"
+                    )
+
+                    pnl_action = st.selectbox(
+                        t(
+                            "classification.columns."
+                            "pnl_action"
+                        ),
+                        options=list(
+                            REPORT_ACTIONS
+                        ),
+                        format_func=(
+                            format_report_action
+                        ),
+                        key="rule_pnl_action",
+                    )
+
+                    pnl_category = st.selectbox(
+                        t(
+                            "classification.columns."
+                            "pnl_category"
+                        ),
+                        options=list(
+                            PNL_CATEGORIES
+                        ),
+                        key="rule_pnl_category",
+                    )
+
+                with cf_column:
+                    st.markdown(
+                        "**"
+                        + t(
+                            "reports.cash_flow.title"
+                        )
+                        + "**"
+                    )
+
+                    cf_action = st.selectbox(
+                        t(
+                            "classification.columns."
+                            "cf_action"
+                        ),
+                        options=list(
+                            REPORT_ACTIONS
+                        ),
+                        format_func=(
+                            format_report_action
+                        ),
+                        key="rule_cf_action",
+                    )
+
+                    cf_category = st.selectbox(
+                        t(
+                            "classification.columns."
+                            "cf_category"
+                        ),
+                        options=list(
+                            CF_CATEGORIES
+                        ),
+                        key="rule_cf_category",
+                    )
+
+                create_rule_submitted = (
+                    st.form_submit_button(
+                        t("rules.create_button"),
+                        type="primary",
+                        use_container_width=True,
+                    )
+                )
+
+                if create_rule_submitted:
+                    validation_errors: list[str] = []
+
+                    if not rule_name.strip():
+                        validation_errors.append(
+                            t(
+                                "rules.errors."
+                                "name_required"
+                            )
+                        )
+
+                    if not match_value.strip():
+                        validation_errors.append(
+                            t(
+                                "rules.errors."
+                                "match_value_required"
+                            )
+                        )
 
                     if (
-                            final_pnl_action
-                            == INCLUDE_ACTION
-                            and not final_pnl_category
+                        pnl_action
+                        == UNDEFINED_ACTION
+                        and cf_action
+                        == UNDEFINED_ACTION
                     ):
                         validation_errors.append(
                             t(
-                                "classification.errors."
+                                "rules.errors."
+                                "decision_required"
+                            )
+                        )
+
+                    if (
+                        pnl_action
+                        == INCLUDE_ACTION
+                        and not pnl_category
+                    ):
+                        validation_errors.append(
+                            t(
+                                "rules.errors."
                                 "pnl_category_required"
                             )
                         )
 
                     if (
-                            final_cf_action
-                            == INCLUDE_ACTION
-                            and not final_cf_category
+                        cf_action
+                        == INCLUDE_ACTION
+                        and not cf_category
                     ):
                         validation_errors.append(
                             t(
-                                "classification.errors."
+                                "rules.errors."
                                 "cf_category_required"
                             )
                         )
 
                     if validation_errors:
                         for error_message in (
-                                validation_errors
+                            validation_errors
                         ):
                             st.error(error_message)
 
                     else:
-                        classification_payload = (
-                            pd.DataFrame(
-                                [
-                                    {
-                                        "id":
-                                            selected_transaction_id,
-                                        "pnl_action":
-                                            final_pnl_action,
-                                        "pnl_category":
-                                            final_pnl_category,
-                                        "cf_action":
-                                            final_cf_action,
-                                        "cf_category":
-                                            final_cf_category,
-                                        "comment":
-                                            selected_comment,
-                                    }
-                                ]
-                            )
-                        )
-
                         try:
-                            save_result = (
-                                save_classifications(
-                                    classification_payload
-                                )
+                            new_rule_id = create_rule(
+                                name=rule_name,
+                                priority=int(priority),
+                                is_active=is_active,
+                                direction_filter=(
+                                    direction_filter
+                                ),
+                                match_field=match_field,
+                                match_type=match_type,
+                                match_value=match_value,
+                                pnl_action=pnl_action,
+                                pnl_category=pnl_category,
+                                cf_action=cf_action,
+                                cf_category=cf_category,
                             )
+
                         except ValueError as exc:
                             st.error(str(exc))
+
                         else:
-                            next_transaction_id = None
-
-                            if save_and_next:
-                                next_position = (
-                                        selected_position + 1
-                                )
-
-                                if (
-                                        next_position
-                                        < len(displayed_ids)
-                                ):
-                                    next_transaction_id = (
-                                        displayed_ids[
-                                            next_position
-                                        ]
-                                    )
-
-                            if (
-                                    next_transaction_id
-                                    is not None
-                            ):
-                                st.session_state[
-                                    "classification_selected_id"
-                                ] = (
-                                    next_transaction_id
-                                )
-
                             st.session_state[
-                                "classification_ui_version"
-                            ] = (
-                                    classification_ui_version
-                                    + 1
-                            )
-
-                            action_key = (
-                                "classification.messages."
-                                "excluded_both"
-                                if exclude_from_both
-                                else (
-                                    "classification.messages."
-                                    "saved"
-                                )
-                            )
-
-                            st.session_state[
-                                "classification_message"
+                                "rule_message"
                             ] = t(
-                                "classification.messages."
-                                "summary",
-                                action=t(action_key),
-                                updated=(
-                                    save_result.updated
-                                ),
-                                classified=(
-                                    save_result.classified
-                                ),
-                                partial=(
-                                    save_result.partial
-                                ),
+                                "rules.messages.created",
+                                rule_id=new_rule_id,
                             )
 
                             st.rerun()
 
-with rules_tab:
-    st.subheader(
-        t("rules.title")
-    )
+        st.divider()
 
-    st.caption(
-        t("rules.caption")
-    )
-
-    if st.button(
-        t("rules.apply_button"),
-        type="primary",
-        use_container_width=True,
-    ):
-        apply_result = (
-            apply_classification_rules()
+        st.subheader(
+            t("rules.transfer.title")
         )
 
-        st.session_state["rule_message"] = t(
-            "rules.messages.applied",
-            checked=apply_result.checked,
-            matched=apply_result.matched,
-            unmatched=apply_result.unmatched,
+        st.caption(
+            t("rules.transfer.caption")
         )
 
-        st.rerun()
+        export_json = export_rule_config_json()
 
-    with st.expander(
-        t("rules.create_title"),
-        expanded=True,
-    ):
-        with st.form("create_rule_form"):
-            rule_name = st.text_input(
-                t("rules.fields.name"),
-                placeholder=t(
-                    "rules.placeholders.name"
+        export_column, export_info_column = (
+            st.columns([1, 2])
+        )
+
+        with export_column:
+            st.download_button(
+                t("rules.transfer.download"),
+                data=export_json,
+                file_name=(
+                    "open_mas_rules_"
+                    f"{date.today().isoformat()}.json"
                 ),
+                mime="application/json",
+                use_container_width=True,
+                key="download_rule_config",
             )
 
-            priority = st.number_input(
-                t("rules.fields.priority"),
-                min_value=0,
-                max_value=10_000,
-                value=100,
-                step=10,
-                help=t(
-                    "rules.help.priority"
-                ),
+        with export_info_column:
+            st.info(
+                t("rules.transfer.export_info")
             )
 
-            is_active = st.checkbox(
-                t("rules.fields.active"),
-                value=True,
-            )
+        uploaded_rule_config = st.file_uploader(
+            t("rules.transfer.upload"),
+            type=["json"],
+            help=t(
+                "rules.transfer.upload_help"
+            ),
+            key="rule_config_uploader",
+        )
 
-            direction_filter = st.selectbox(
-                t("rules.fields.direction"),
-                options=list(
-                    DIRECTION_FILTERS
-                ),
-                format_func=(
-                    format_rule_direction
-                ),
-            )
+        if uploaded_rule_config is not None:
+            try:
+                parsed_rule_config = (
+                    parse_rule_config_json(
+                        uploaded_rule_config.getvalue()
+                    )
+                )
 
-            match_field = st.selectbox(
-                t("rules.fields.match_field"),
-                options=list(
-                    MATCH_FIELDS
-                ),
-                format_func=(
-                    format_rule_field
-                ),
-            )
+            except (TypeError, ValueError) as exc:
+                st.error(str(exc))
 
-            match_type = st.selectbox(
-                t("rules.fields.match_type"),
-                options=list(
-                    MATCH_TYPES
-                ),
-                format_func=(
-                    format_rule_match_type
-                ),
-            )
+            else:
+                rule_preview = (
+                    parsed_rule_config.preview
+                )
 
-            match_value = st.text_input(
-                t("rules.fields.match_value"),
-                placeholder=t(
-                    "rules.placeholders."
-                    "match_value"
-                ),
-            )
-
-            pnl_column, cf_column = (
-                st.columns(2)
-            )
-
-            with pnl_column:
                 st.markdown(
-                    "**"
-                    + t("reports.pnl.title")
-                    + "**"
-                )
-
-                pnl_action = st.selectbox(
-                    t(
-                        "classification.columns."
-                        "pnl_action"
-                    ),
-                    options=list(
-                        REPORT_ACTIONS
-                    ),
-                    format_func=(
-                        format_report_action
-                    ),
-                    key="rule_pnl_action",
-                )
-
-                pnl_category = st.selectbox(
-                    t(
-                        "classification.columns."
-                        "pnl_category"
-                    ),
-                    options=list(
-                        PNL_CATEGORIES
-                    ),
-                    key="rule_pnl_category",
-                )
-
-            with cf_column:
-                st.markdown(
-                    "**"
+                    "#### "
                     + t(
-                        "reports.cash_flow.title"
+                        "rules.transfer.preview_title"
                     )
-                    + "**"
                 )
 
-                cf_action = st.selectbox(
+                preview_metrics = st.columns(4)
+
+                preview_metrics[0].metric(
                     t(
-                        "classification.columns."
-                        "cf_action"
+                        "rules.transfer.metrics."
+                        "received"
                     ),
-                    options=list(
-                        REPORT_ACTIONS
-                    ),
-                    format_func=(
-                        format_report_action
-                    ),
-                    key="rule_cf_action",
+                    rule_preview.received,
                 )
 
-                cf_category = st.selectbox(
+                preview_metrics[1].metric(
                     t(
-                        "classification.columns."
-                        "cf_category"
+                        "rules.transfer.metrics."
+                        "valid"
                     ),
-                    options=list(
-                        CF_CATEGORIES
-                    ),
-                    key="rule_cf_category",
+                    rule_preview.valid_unique,
                 )
 
-            create_rule_submitted = (
-                st.form_submit_button(
-                    t("rules.create_button"),
-                    type="primary",
-                    use_container_width=True,
+                preview_metrics[2].metric(
+                    t(
+                        "rules.transfer.metrics."
+                        "file_duplicates"
+                    ),
+                    rule_preview.duplicates_in_file,
                 )
-            )
 
-            if create_rule_submitted:
-                validation_errors: list[str] = []
+                preview_metrics[3].metric(
+                    t(
+                        "rules.transfer.metrics."
+                        "database_duplicates"
+                    ),
+                    rule_preview.duplicates_in_database,
+                )
 
-                if not rule_name.strip():
-                    validation_errors.append(
+                st.caption(
+                    t(
+                        "rules.transfer."
+                        "preview_caption",
+                        schema_version=(
+                            parsed_rule_config.schema_version
+                        ),
+                        exported_at=(
+                            parsed_rule_config.exported_at
+                        ),
+                    )
+                )
+
+                if rule_preview.errors:
+                    st.error(
                         t(
-                            "rules.errors."
-                            "name_required"
+                            "rules.transfer.errors."
+                            "blocked"
                         )
                     )
 
-                if not match_value.strip():
-                    validation_errors.append(
-                        t(
-                            "rules.errors."
-                            "match_value_required"
-                        )
-                    )
-
-                if (
-                    pnl_action
-                    == UNDEFINED_ACTION
-                    and cf_action
-                    == UNDEFINED_ACTION
-                ):
-                    validation_errors.append(
-                        t(
-                            "rules.errors."
-                            "decision_required"
-                        )
-                    )
-
-                if (
-                    pnl_action
-                    == INCLUDE_ACTION
-                    and not pnl_category
-                ):
-                    validation_errors.append(
-                        t(
-                            "rules.errors."
-                            "pnl_category_required"
-                        )
-                    )
-
-                if (
-                    cf_action
-                    == INCLUDE_ACTION
-                    and not cf_category
-                ):
-                    validation_errors.append(
-                        t(
-                            "rules.errors."
-                            "cf_category_required"
-                        )
-                    )
-
-                if validation_errors:
                     for error_message in (
-                        validation_errors
+                            rule_preview.errors
                     ):
                         st.error(error_message)
 
-                else:
-                    try:
-                        new_rule_id = create_rule(
-                            name=rule_name,
-                            priority=int(priority),
-                            is_active=is_active,
-                            direction_filter=(
-                                direction_filter
+                if (
+                        rule_preview.duplicates_in_file
+                        > 0
+                ):
+                    st.warning(
+                        t(
+                            "rules.transfer.warnings."
+                            "file_duplicates"
+                        )
+                    )
+
+                if (
+                        rule_preview.duplicates_in_database
+                        > 0
+                ):
+                    st.info(
+                        t(
+                            "rules.transfer.info."
+                            "database_duplicates"
+                        )
+                    )
+
+                with st.expander(
+                        t(
+                            "rules.transfer.json_title"
+                        ),
+                        expanded=False,
+                ):
+                    st.json(
+                        {
+                            "schema_version":
+                                parsed_rule_config.schema_version,
+                            "exported_at":
+                                parsed_rule_config.exported_at,
+                            "rules": list(
+                                parsed_rule_config.records
                             ),
-                            match_field=match_field,
-                            match_type=match_type,
-                            match_value=match_value,
-                            pnl_action=pnl_action,
-                            pnl_category=pnl_category,
-                            cf_action=cf_action,
-                            cf_category=cf_category,
+                        }
+                    )
+
+                st.markdown(
+                    "#### "
+                    + t(
+                        "rules.transfer.import_title"
+                    )
+                )
+
+                import_mode_options = {
+                    "merge": t(
+                        "rules.transfer.import.merge"
+                    ),
+                    "replace": t(
+                        "rules.transfer.import.replace"
+                    ),
+                }
+
+                import_mode = st.radio(
+                    t(
+                        "rules.transfer.import_action"
+                    ),
+                    options=list(
+                        import_mode_options
+                    ),
+                    format_func=(
+                        import_mode_options.get
+                    ),
+                    horizontal=True,
+                    key="rule_import_mode",
+                )
+
+                if import_mode == "merge":
+                    st.caption(
+                        t(
+                            "rules.transfer.import."
+                            "merge_caption"
+                        )
+                    )
+
+                    replace_confirmation_valid = True
+
+                else:
+                    st.warning(
+                        t(
+                            "rules.transfer.import."
+                            "replace_warning"
+                        )
+                    )
+
+                    replace_phrase = t(
+                        "rules.transfer.import."
+                        "replace_phrase"
+                    )
+
+                    replace_confirmation = (
+                        st.text_input(
+                            t(
+                                "rules.transfer.import."
+                                "confirmation"
+                            ),
+                            placeholder=replace_phrase,
+                            key=(
+                                "replace_rules_confirmation"
+                            ),
+                        )
+                    )
+
+                    replace_confirmation_valid = (
+                            replace_confirmation.strip()
+                            == replace_phrase
+                    )
+
+                import_disabled = (
+                        bool(rule_preview.errors)
+                        or rule_preview.valid_unique == 0
+                        or not replace_confirmation_valid
+                )
+
+                import_button_label = (
+                    t(
+                        "rules.transfer.import."
+                        "merge_button"
+                    )
+                    if import_mode == "merge"
+                    else t(
+                        "rules.transfer.import."
+                        "replace_button"
+                    )
+                )
+
+                if st.button(
+                        import_button_label,
+                        type="primary",
+                        use_container_width=True,
+                        disabled=import_disabled,
+                        key="import_rule_config_button",
+                ):
+                    try:
+                        rule_import_result = (
+                            import_rule_records(
+                                list(
+                                    parsed_rule_config.records
+                                ),
+                                mode=import_mode,
+                            )
                         )
 
                     except ValueError as exc:
@@ -3375,2108 +3710,1512 @@ with rules_tab:
                         st.session_state[
                             "rule_message"
                         ] = t(
-                            "rules.messages.created",
-                            rule_id=new_rule_id,
+                            "rules.transfer.messages."
+                            "completed",
+                            received=(
+                                rule_import_result.received
+                            ),
+                            inserted=(
+                                rule_import_result.inserted
+                            ),
+                            skipped=(
+                                rule_import_result
+                                .skipped_duplicates
+                            ),
+                            deleted=(
+                                rule_import_result
+                                .deleted_existing
+                            ),
                         )
 
                         st.rerun()
 
-    st.divider()
+            rules = get_rules_dataframe()
 
-    st.subheader(
-        t("rules.transfer.title")
-    )
-
-    st.caption(
-        t("rules.transfer.caption")
-    )
-
-    export_json = export_rule_config_json()
-
-    export_column, export_info_column = (
-        st.columns([1, 2])
-    )
-
-    with export_column:
-        st.download_button(
-            t("rules.transfer.download"),
-            data=export_json,
-            file_name=(
-                "open_mas_rules_"
-                f"{date.today().isoformat()}.json"
-            ),
-            mime="application/json",
-            use_container_width=True,
-            key="download_rule_config",
-        )
-
-    with export_info_column:
-        st.info(
-            t("rules.transfer.export_info")
-        )
-
-    uploaded_rule_config = st.file_uploader(
-        t("rules.transfer.upload"),
-        type=["json"],
-        help=t(
-            "rules.transfer.upload_help"
-        ),
-        key="rule_config_uploader",
-    )
-
-    if uploaded_rule_config is not None:
-        try:
-            parsed_rule_config = (
-                parse_rule_config_json(
-                    uploaded_rule_config.getvalue()
-                )
+            st.subheader(
+                t("rules.saved.title")
             )
 
-        except (TypeError, ValueError) as exc:
-            st.error(str(exc))
-
-        else:
-            rule_preview = (
-                parsed_rule_config.preview
-            )
-
-            st.markdown(
-                "#### "
-                + t(
-                    "rules.transfer.preview_title"
-                )
-            )
-
-            preview_metrics = st.columns(4)
-
-            preview_metrics[0].metric(
-                t(
-                    "rules.transfer.metrics."
-                    "received"
-                ),
-                rule_preview.received,
-            )
-
-            preview_metrics[1].metric(
-                t(
-                    "rules.transfer.metrics."
-                    "valid"
-                ),
-                rule_preview.valid_unique,
-            )
-
-            preview_metrics[2].metric(
-                t(
-                    "rules.transfer.metrics."
-                    "file_duplicates"
-                ),
-                rule_preview.duplicates_in_file,
-            )
-
-            preview_metrics[3].metric(
-                t(
-                    "rules.transfer.metrics."
-                    "database_duplicates"
-                ),
-                rule_preview.duplicates_in_database,
-            )
-
-            st.caption(
-                t(
-                    "rules.transfer."
-                    "preview_caption",
-                    schema_version=(
-                        parsed_rule_config.schema_version
-                    ),
-                    exported_at=(
-                        parsed_rule_config.exported_at
-                    ),
-                )
-            )
-
-            if rule_preview.errors:
-                st.error(
-                    t(
-                        "rules.transfer.errors."
-                        "blocked"
-                    )
-                )
-
-                for error_message in (
-                        rule_preview.errors
-                ):
-                    st.error(error_message)
-
-            if (
-                    rule_preview.duplicates_in_file
-                    > 0
-            ):
-                st.warning(
-                    t(
-                        "rules.transfer.warnings."
-                        "file_duplicates"
-                    )
-                )
-
-            if (
-                    rule_preview.duplicates_in_database
-                    > 0
-            ):
+            if rules.empty:
                 st.info(
-                    t(
-                        "rules.transfer.info."
-                        "database_duplicates"
-                    )
+                    t("rules.saved.empty")
                 )
-
-            with st.expander(
-                    t(
-                        "rules.transfer.json_title"
-                    ),
-                    expanded=False,
-            ):
-                st.json(
-                    {
-                        "schema_version":
-                            parsed_rule_config.schema_version,
-                        "exported_at":
-                            parsed_rule_config.exported_at,
-                        "rules": list(
-                            parsed_rule_config.records
-                        ),
-                    }
-                )
-
-            st.markdown(
-                "#### "
-                + t(
-                    "rules.transfer.import_title"
-                )
-            )
-
-            import_mode_options = {
-                "merge": t(
-                    "rules.transfer.import.merge"
-                ),
-                "replace": t(
-                    "rules.transfer.import.replace"
-                ),
-            }
-
-            import_mode = st.radio(
-                t(
-                    "rules.transfer.import_action"
-                ),
-                options=list(
-                    import_mode_options
-                ),
-                format_func=(
-                    import_mode_options.get
-                ),
-                horizontal=True,
-                key="rule_import_mode",
-            )
-
-            if import_mode == "merge":
-                st.caption(
-                    t(
-                        "rules.transfer.import."
-                        "merge_caption"
-                    )
-                )
-
-                replace_confirmation_valid = True
 
             else:
-                st.warning(
-                    t(
-                        "rules.transfer.import."
-                        "replace_warning"
-                    )
-                )
+                visible_rules = rules.copy()
 
-                replace_phrase = t(
-                    "rules.transfer.import."
-                    "replace_phrase"
-                )
-
-                replace_confirmation = (
-                    st.text_input(
-                        t(
-                            "rules.transfer.import."
-                            "confirmation"
-                        ),
-                        placeholder=replace_phrase,
-                        key=(
-                            "replace_rules_confirmation"
-                        ),
-                    )
-                )
-
-                replace_confirmation_valid = (
-                        replace_confirmation.strip()
-                        == replace_phrase
-                )
-
-            import_disabled = (
-                    bool(rule_preview.errors)
-                    or rule_preview.valid_unique == 0
-                    or not replace_confirmation_valid
-            )
-
-            import_button_label = (
-                t(
-                    "rules.transfer.import."
-                    "merge_button"
-                )
-                if import_mode == "merge"
-                else t(
-                    "rules.transfer.import."
-                    "replace_button"
-                )
-            )
-
-            if st.button(
-                    import_button_label,
-                    type="primary",
-                    use_container_width=True,
-                    disabled=import_disabled,
-                    key="import_rule_config_button",
-            ):
-                try:
-                    rule_import_result = (
-                        import_rule_records(
-                            list(
-                                parsed_rule_config.records
-                            ),
-                            mode=import_mode,
-                        )
-                    )
-
-                except ValueError as exc:
-                    st.error(str(exc))
-
-                else:
-                    st.session_state[
-                        "rule_message"
-                    ] = t(
-                        "rules.transfer.messages."
-                        "completed",
-                        received=(
-                            rule_import_result.received
-                        ),
-                        inserted=(
-                            rule_import_result.inserted
-                        ),
-                        skipped=(
-                            rule_import_result
-                            .skipped_duplicates
-                        ),
-                        deleted=(
-                            rule_import_result
-                            .deleted_existing
-                        ),
-                    )
-
-                    st.rerun()
-
-        rules = get_rules_dataframe()
-
-        st.subheader(
-            t("rules.saved.title")
-        )
-
-        if rules.empty:
-            st.info(
-                t("rules.saved.empty")
-            )
-
-        else:
-            visible_rules = rules.copy()
-
-            visible_rules[
-                "direction_filter"
-            ] = visible_rules[
-                "direction_filter"
-            ].apply(
-                format_rule_direction
-            )
-
-            visible_rules[
-                "match_field"
-            ] = visible_rules[
-                "match_field"
-            ].apply(
-                format_rule_field
-            )
-
-            visible_rules[
-                "match_type"
-            ] = visible_rules[
-                "match_type"
-            ].apply(
-                format_rule_match_type
-            )
-
-            visible_rules[
-                "pnl_action"
-            ] = visible_rules[
-                "pnl_action"
-            ].apply(
-                format_report_action
-            )
-
-            visible_rules[
-                "cf_action"
-            ] = visible_rules[
-                "cf_action"
-            ].apply(
-                format_report_action
-            )
-
-            visible_rules[
-                "is_active"
-            ] = visible_rules[
-                "is_active"
-            ].apply(
-                format_rule_active_status
-            )
-
-            id_column = t(
-                "rules.saved.columns.id"
-            )
-            name_column = t(
-                "rules.saved.columns.name"
-            )
-            priority_column = t(
-                "rules.saved.columns.priority"
-            )
-            active_column = t(
-                "rules.saved.columns.active"
-            )
-            direction_column = t(
-                "rules.saved.columns.direction"
-            )
-            field_column = t(
-                "rules.saved.columns.field"
-            )
-            condition_column = t(
-                "rules.saved.columns.condition"
-            )
-            value_column = t(
-                "rules.saved.columns.value"
-            )
-            pnl_action_column = t(
-                "rules.saved.columns.pnl_action"
-            )
-            pnl_category_column = t(
-                "rules.saved.columns.pnl_category"
-            )
-            cf_action_column = t(
-                "rules.saved.columns.cf_action"
-            )
-            cf_category_column = t(
-                "rules.saved.columns.cf_category"
-            )
-
-            visible_rules = visible_rules.rename(
-                columns={
-                    "id": id_column,
-                    "name": name_column,
-                    "priority": priority_column,
-                    "is_active": active_column,
-                    "direction_filter":
-                        direction_column,
-                    "match_field": field_column,
-                    "match_type": condition_column,
-                    "match_value": value_column,
-                    "pnl_action": pnl_action_column,
-                    "pnl_category":
-                        pnl_category_column,
-                    "cf_action": cf_action_column,
-                    "cf_category":
-                        cf_category_column,
-                }
-            )
-
-            visible_rule_columns = [
-                id_column,
-                name_column,
-                priority_column,
-                active_column,
-                direction_column,
-                field_column,
-                condition_column,
-                value_column,
-                pnl_action_column,
-                pnl_category_column,
-                cf_action_column,
-                cf_category_column,
-            ]
-
-            st.dataframe(
                 visible_rules[
-                    visible_rule_columns
-                ],
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            rule_options = {
-                (
-                    f"{int(row['id'])} — "
-                    f"{row['name']}"
-                ): int(row["id"])
-                for _, row in rules.iterrows()
-            }
-
-            selected_rule_label = st.selectbox(
-                t("rules.saved.manage"),
-                options=list(rule_options),
-            )
-
-            selected_rule_id = rule_options[
-                selected_rule_label
-            ]
-
-            selected_rule = rules.loc[
-                rules["id"] == selected_rule_id
-                ].iloc[0]
-
-            selected_rule_active = st.checkbox(
-                t("rules.fields.active"),
-                value=bool(
-                    selected_rule["is_active"]
-                ),
-                key=(
-                    "selected_rule_active_"
-                    f"{selected_rule_id}"
-                ),
-            )
-
-            action_column, delete_column = (
-                st.columns(2)
-            )
-
-            with action_column:
-                if st.button(
-                        t(
-                            "rules.saved."
-                            "save_activity"
-                        ),
-                        use_container_width=True,
-                        key=(
-                                "save_rule_activity_"
-                                f"{selected_rule_id}"
-                        ),
-                ):
-                    set_rule_active(
-                        rule_id=selected_rule_id,
-                        is_active=(
-                            selected_rule_active
-                        ),
-                    )
-
-                    st.session_state[
-                        "rule_message"
-                    ] = t(
-                        "rules.messages."
-                        "activity_updated"
-                    )
-
-                    st.rerun()
-
-            with delete_column:
-                if st.button(
-                        t("rules.saved.delete"),
-                        type="secondary",
-                        use_container_width=True,
-                        key=(
-                                "delete_rule_"
-                                f"{selected_rule_id}"
-                        ),
-                ):
-                    delete_rule(
-                        selected_rule_id
-                    )
-
-                    st.session_state[
-                        "rule_message"
-                    ] = t(
-                        "rules.messages.deleted"
-                    )
-
-                    st.rerun()
-
-with pnl_tab:
-    st.subheader(
-        t("reports.pnl.title")
-    )
-
-    st.caption(
-        t("reports.pnl.caption")
-    )
-
-    pnl_transactions = (
-        get_transactions_dataframe()
-    )
-
-    show_financial_report(
-        transactions=pnl_transactions,
-        report_type="pnl",
-        key_prefix="pnl",
-    )
-
-with cash_flow_tab:
-    st.subheader(
-        t("reports.cash_flow.title")
-    )
-
-    st.caption(
-        t("reports.cash_flow.caption")
-    )
-
-    cash_flow_transactions = (
-        get_transactions_dataframe()
-    )
-
-    show_financial_report(
-        transactions=cash_flow_transactions,
-        report_type="cash_flow",
-        key_prefix="cash_flow",
-    )
-
-with unit_economics_tab:
-    st.subheader(t("unit.title"))
-
-    st.caption(t("unit.caption"))
-
-    with st.expander(
-        t("unit.product.add_title"),
-        expanded=True,
-    ):
-        with st.form(
-            "create_unit_economics_product_form",
-            clear_on_submit=True,
-        ):
-            product_name = st.text_input(
-                t("unit.product.name"),
-                placeholder=t(
-                    "unit.product.name_placeholder"
-                ),
-            )
-
-            planned_units = st.number_input(
-                t("unit.product.planned_units"),
-                min_value=1,
-                value=100,
-                step=1,
-            )
-
-            product_is_active = st.checkbox(
-                t("unit.product.active"),
-                value=True,
-            )
-
-            product_comment = st.text_area(
-                t("unit.product.comment"),
-                max_chars=500,
-            )
-
-            product_submitted = st.form_submit_button(
-                t("unit.product.add_button"),
-                type="primary",
-                use_container_width=True,
-            )
-
-            if product_submitted:
-                try:
-                    product_id = (
-                        create_unit_economics_product(
-                            name=product_name,
-                            planned_units=int(
-                                planned_units
-                            ),
-                            is_active=product_is_active,
-                            comment=product_comment,
-                        )
-                    )
-                except ValueError as exc:
-                    st.error(str(exc))
-                else:
-                    st.session_state[
-                        "unit_economics_message"
-                    ] = t(
-                        "unit.product.added",
-                        product_id=product_id,
-                    )
-
-                    st.rerun()
-
-    products = (
-        get_unit_economics_products_dataframe()
-    )
-
-    cost_items = (
-        get_unit_economics_cost_items_dataframe()
-    )
-
-    if products.empty:
-        st.info(t("unit.product.empty"))
-    else:
-        product_options = {
-            (
-                f"{int(row['id'])} — "
-                f"{row['name']}"
-            ): int(row["id"])
-            for _, row in products.iterrows()
-        }
-
-        selected_product_label = st.selectbox(
-            t("unit.product.select"),
-            options=list(product_options),
-            key="unit_economics_selected_product",
-        )
-
-        selected_product_id = product_options[
-            selected_product_label
-        ]
-
-        selected_product = products.loc[
-            products["id"] == selected_product_id
-        ].iloc[0]
-
-        st.subheader(
-            t(
-                "unit.costs.title",
-                product_name=selected_product["name"],
-            )
-        )
-
-        with st.form(
-            f"create_cost_item_form_"
-            f"{selected_product_id}",
-            clear_on_submit=True,
-        ):
-            cost_name = st.text_input(
-                t("unit.cost.name"),
-                placeholder=t(
-                    "unit.cost.name_placeholder"
-                ),
-            )
-
-            calculation_type = st.selectbox(
-                t("unit.cost.type"),
-                options=list(COST_TYPE_LABELS),
-                format_func=format_unit_cost_type,
-            )
-
-            cost_amount_rubles: float | None
-            percentage_value: float | None
-
-            if calculation_type in {
-                "fixed_per_unit",
-                "fixed_period",
-            }:
-                cost_amount_rubles = st.number_input(
-                    t("common.amount_rub"),
-                    min_value=0.00,
-                    value=100.00,
-                    step=10.00,
-                    format="%.2f",
+                    "direction_filter"
+                ] = visible_rules[
+                    "direction_filter"
+                ].apply(
+                    format_rule_direction
                 )
 
-                percentage_value = None
-
-            else:
-                percentage_value = st.number_input(
-                    t("common.percent"),
-                    min_value=0.00,
-                    max_value=99.99,
-                    value=2.50,
-                    step=0.10,
-                    format="%.2f",
+                visible_rules[
+                    "match_field"
+                ] = visible_rules[
+                    "match_field"
+                ].apply(
+                    format_rule_field
                 )
 
-                cost_amount_rubles = None
+                visible_rules[
+                    "match_type"
+                ] = visible_rules[
+                    "match_type"
+                ].apply(
+                    format_rule_match_type
+                )
 
-            cost_is_active = st.checkbox(
-                t("unit.cost.active"),
-                value=True,
-            )
+                visible_rules[
+                    "pnl_action"
+                ] = visible_rules[
+                    "pnl_action"
+                ].apply(
+                    format_report_action
+                )
 
-            cost_comment = st.text_area(
-                t("unit.cost.comment"),
-                max_chars=500,
-            )
+                visible_rules[
+                    "cf_action"
+                ] = visible_rules[
+                    "cf_action"
+                ].apply(
+                    format_report_action
+                )
 
-            cost_submitted = st.form_submit_button(
-                t("unit.cost.add_button"),
-                type="primary",
-                use_container_width=True,
-            )
-
-            if cost_submitted:
-                try:
-                    cost_item_id = (
-                        create_unit_economics_cost_item(
-                            product_id=selected_product_id,
-                            name=cost_name,
-                            calculation_type=calculation_type,
-                            amount_kopecks=(
-                                rubles_to_kopecks(
-                                    cost_amount_rubles
-                                )
-                                if cost_amount_rubles
-                                is not None
-                                else None
-                            ),
-                            percentage_bp=(
-                                percent_to_basis_points(
-                                    percentage_value
-                                )
-                                if percentage_value
-                                is not None
-                                else None
-                            ),
-                            is_active=cost_is_active,
-                            comment=cost_comment,
-                        )
-                    )
-                except ValueError as exc:
-                    st.error(str(exc))
-                else:
-                    st.session_state[
-                        "unit_economics_message"
-                    ] = t(
-                        "unit.cost.added",
-                        cost_id=cost_item_id,
-                    )
-
-                    st.rerun()
-
-        selected_cost_items = cost_items.loc[
-            cost_items["product_id"]
-            == selected_product_id
-        ].copy()
-
-        if selected_cost_items.empty:
-            st.info(t("unit.cost.empty"))
-        else:
-            visible_cost_items = (
-                selected_cost_items.copy()
-            )
-
-            id_column = t("common.id")
-            item_column = t(
-                "unit.cost.item_column"
-            )
-            type_column = t("unit.cost.type")
-            amount_column = t("common.amount_rub")
-            percent_column = t("common.percent")
-            active_column = t("common.active")
-            comment_column = t("common.comment")
-
-            visible_cost_items[type_column] = (
-                visible_cost_items[
-                    "calculation_type"
-                ].apply(format_unit_cost_type)
-            )
-
-            visible_cost_items[amount_column] = (
-                pd.to_numeric(
-                    visible_cost_items[
-                        "amount_kopecks"
-                    ],
-                    errors="coerce",
-                ) / 100
-            )
-
-            visible_cost_items[percent_column] = (
-                pd.to_numeric(
-                    visible_cost_items[
-                        "percentage_bp"
-                    ],
-                    errors="coerce",
-                ) / 100
-            )
-
-            visible_cost_items[active_column] = (
-                visible_cost_items[
+                visible_rules[
                     "is_active"
-                ].apply(format_boolean_status)
-            )
+                ] = visible_rules[
+                    "is_active"
+                ].apply(
+                    format_rule_active_status
+                )
 
-            visible_cost_items = (
-                visible_cost_items.rename(
+                id_column = t(
+                    "rules.saved.columns.id"
+                )
+                name_column = t(
+                    "rules.saved.columns.name"
+                )
+                priority_column = t(
+                    "rules.saved.columns.priority"
+                )
+                active_column = t(
+                    "rules.saved.columns.active"
+                )
+                direction_column = t(
+                    "rules.saved.columns.direction"
+                )
+                field_column = t(
+                    "rules.saved.columns.field"
+                )
+                condition_column = t(
+                    "rules.saved.columns.condition"
+                )
+                value_column = t(
+                    "rules.saved.columns.value"
+                )
+                pnl_action_column = t(
+                    "rules.saved.columns.pnl_action"
+                )
+                pnl_category_column = t(
+                    "rules.saved.columns.pnl_category"
+                )
+                cf_action_column = t(
+                    "rules.saved.columns.cf_action"
+                )
+                cf_category_column = t(
+                    "rules.saved.columns.cf_category"
+                )
+
+                visible_rules = visible_rules.rename(
                     columns={
                         "id": id_column,
-                        "name": item_column,
-                        "comment": comment_column,
+                        "name": name_column,
+                        "priority": priority_column,
+                        "is_active": active_column,
+                        "direction_filter":
+                            direction_column,
+                        "match_field": field_column,
+                        "match_type": condition_column,
+                        "match_value": value_column,
+                        "pnl_action": pnl_action_column,
+                        "pnl_category":
+                            pnl_category_column,
+                        "cf_action": cf_action_column,
+                        "cf_category":
+                            cf_category_column,
                     }
                 )
-            )
 
-            st.dataframe(
-                visible_cost_items[
-                    [
-                        id_column,
-                        item_column,
-                        type_column,
-                        amount_column,
-                        percent_column,
-                        active_column,
-                        comment_column,
-                    ]
-                ],
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    amount_column:
-                        st.column_config.NumberColumn(
-                            amount_column,
-                            format="%.2f",
-                        ),
-                    percent_column:
-                        st.column_config.NumberColumn(
-                            percent_column,
-                            format="%.2f%%",
-                        ),
-                },
-            )
+                visible_rule_columns = [
+                    id_column,
+                    name_column,
+                    priority_column,
+                    active_column,
+                    direction_column,
+                    field_column,
+                    condition_column,
+                    value_column,
+                    pnl_action_column,
+                    pnl_category_column,
+                    cf_action_column,
+                    cf_category_column,
+                ]
 
-            cost_item_options = {
+                st.dataframe(
+                    visible_rules[
+                        visible_rule_columns
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+                rule_options = {
+                    (
+                        f"{int(row['id'])} — "
+                        f"{row['name']}"
+                    ): int(row["id"])
+                    for _, row in rules.iterrows()
+                }
+
+                selected_rule_label = st.selectbox(
+                    t("rules.saved.manage"),
+                    options=list(rule_options),
+                )
+
+                selected_rule_id = rule_options[
+                    selected_rule_label
+                ]
+
+                selected_rule = rules.loc[
+                    rules["id"] == selected_rule_id
+                    ].iloc[0]
+
+                selected_rule_active = st.checkbox(
+                    t("rules.fields.active"),
+                    value=bool(
+                        selected_rule["is_active"]
+                    ),
+                    key=(
+                        "selected_rule_active_"
+                        f"{selected_rule_id}"
+                    ),
+                )
+
+                action_column, delete_column = (
+                    st.columns(2)
+                )
+
+                with action_column:
+                    if st.button(
+                            t(
+                                "rules.saved."
+                                "save_activity"
+                            ),
+                            use_container_width=True,
+                            key=(
+                                    "save_rule_activity_"
+                                    f"{selected_rule_id}"
+                            ),
+                    ):
+                        set_rule_active(
+                            rule_id=selected_rule_id,
+                            is_active=(
+                                selected_rule_active
+                            ),
+                        )
+
+                        st.session_state[
+                            "rule_message"
+                        ] = t(
+                            "rules.messages."
+                            "activity_updated"
+                        )
+
+                        st.rerun()
+
+                with delete_column:
+                    if st.button(
+                            t("rules.saved.delete"),
+                            type="secondary",
+                            use_container_width=True,
+                            key=(
+                                    "delete_rule_"
+                                    f"{selected_rule_id}"
+                            ),
+                    ):
+                        delete_rule(
+                            selected_rule_id
+                        )
+
+                        st.session_state[
+                            "rule_message"
+                        ] = t(
+                            "rules.messages.deleted"
+                        )
+
+                        st.rerun()
+
+if pnl_tab.open:
+    with pnl_tab:
+        st.subheader(
+            t("reports.pnl.title")
+        )
+
+        st.caption(
+            t("reports.pnl.caption")
+        )
+
+        pnl_transactions = (
+            get_transactions_dataframe()
+        )
+
+        show_financial_report(
+            transactions=pnl_transactions,
+            report_type="pnl",
+            key_prefix="pnl",
+        )
+
+if cash_flow_tab.open:
+    with cash_flow_tab:
+        st.subheader(
+            t("reports.cash_flow.title")
+        )
+
+        st.caption(
+            t("reports.cash_flow.caption")
+        )
+
+        cash_flow_transactions = (
+            get_transactions_dataframe()
+        )
+
+        show_financial_report(
+            transactions=cash_flow_transactions,
+            report_type="cash_flow",
+            key_prefix="cash_flow",
+        )
+
+if unit_economics_tab.open:
+    with unit_economics_tab:
+        st.subheader(t("unit.title"))
+
+        st.caption(t("unit.caption"))
+
+        with st.expander(
+            t("unit.product.add_title"),
+            expanded=True,
+        ):
+            with st.form(
+                "create_unit_economics_product_form",
+                clear_on_submit=True,
+            ):
+                product_name = st.text_input(
+                    t("unit.product.name"),
+                    placeholder=t(
+                        "unit.product.name_placeholder"
+                    ),
+                )
+
+                planned_units = st.number_input(
+                    t("unit.product.planned_units"),
+                    min_value=1,
+                    value=100,
+                    step=1,
+                )
+
+                product_is_active = st.checkbox(
+                    t("unit.product.active"),
+                    value=True,
+                )
+
+                product_comment = st.text_area(
+                    t("unit.product.comment"),
+                    max_chars=500,
+                )
+
+                product_submitted = st.form_submit_button(
+                    t("unit.product.add_button"),
+                    type="primary",
+                    use_container_width=True,
+                )
+
+                if product_submitted:
+                    try:
+                        product_id = (
+                            create_unit_economics_product(
+                                name=product_name,
+                                planned_units=int(
+                                    planned_units
+                                ),
+                                is_active=product_is_active,
+                                comment=product_comment,
+                            )
+                        )
+                    except ValueError as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state[
+                            "unit_economics_message"
+                        ] = t(
+                            "unit.product.added",
+                            product_id=product_id,
+                        )
+
+                        st.rerun()
+
+        products = (
+            get_unit_economics_products_dataframe()
+        )
+
+        cost_items = (
+            get_unit_economics_cost_items_dataframe()
+        )
+
+        if products.empty:
+            st.info(t("unit.product.empty"))
+        else:
+            product_options = {
                 (
                     f"{int(row['id'])} — "
                     f"{row['name']}"
                 ): int(row["id"])
-                for _, row
-                in selected_cost_items.iterrows()
+                for _, row in products.iterrows()
             }
 
-            selected_cost_item_label = (
-                st.selectbox(
-                    t("unit.cost.select_manage"),
-                    options=list(cost_item_options),
-                    key=(
-                        "selected_unit_cost_item_"
-                        f"{selected_product_id}"
-                    ),
+            selected_product_label = st.selectbox(
+                t("unit.product.select"),
+                options=list(product_options),
+                key="unit_economics_selected_product",
+            )
+
+            selected_product_id = product_options[
+                selected_product_label
+            ]
+
+            selected_product = products.loc[
+                products["id"] == selected_product_id
+            ].iloc[0]
+
+            st.subheader(
+                t(
+                    "unit.costs.title",
+                    product_name=selected_product["name"],
                 )
             )
 
-            selected_cost_item_id = (
-                cost_item_options[
-                    selected_cost_item_label
-                ]
-            )
+            with st.form(
+                f"create_cost_item_form_"
+                f"{selected_product_id}",
+                clear_on_submit=True,
+            ):
+                cost_name = st.text_input(
+                    t("unit.cost.name"),
+                    placeholder=t(
+                        "unit.cost.name_placeholder"
+                    ),
+                )
 
-            selected_cost_item = (
-                selected_cost_items.loc[
-                    selected_cost_items["id"]
-                    == selected_cost_item_id
-                ].iloc[0]
-            )
+                calculation_type = st.selectbox(
+                    t("unit.cost.type"),
+                    options=list(COST_TYPE_LABELS),
+                    format_func=format_unit_cost_type,
+                )
 
-            selected_cost_item_active = (
-                st.checkbox(
+                cost_amount_rubles: float | None
+                percentage_value: float | None
+
+                if calculation_type in {
+                    "fixed_per_unit",
+                    "fixed_period",
+                }:
+                    cost_amount_rubles = st.number_input(
+                        t("common.amount_rub"),
+                        min_value=0.00,
+                        value=100.00,
+                        step=10.00,
+                        format="%.2f",
+                    )
+
+                    percentage_value = None
+
+                else:
+                    percentage_value = st.number_input(
+                        t("common.percent"),
+                        min_value=0.00,
+                        max_value=99.99,
+                        value=2.50,
+                        step=0.10,
+                        format="%.2f",
+                    )
+
+                    cost_amount_rubles = None
+
+                cost_is_active = st.checkbox(
                     t("unit.cost.active"),
-                    value=bool(
-                        selected_cost_item[
-                            "is_active"
-                        ]
-                    ),
-                    key=(
-                        "unit_cost_active_"
-                        f"{selected_cost_item_id}"
-                    ),
+                    value=True,
                 )
-            )
 
-            cost_active_column, cost_delete_column = (
-                st.columns(2)
-            )
+                cost_comment = st.text_area(
+                    t("unit.cost.comment"),
+                    max_chars=500,
+                )
 
-            with cost_active_column:
-                if st.button(
-                    t("unit.cost.save_activity"),
+                cost_submitted = st.form_submit_button(
+                    t("unit.cost.add_button"),
+                    type="primary",
                     use_container_width=True,
-                    key=(
-                        "save_unit_cost_activity_"
-                        f"{selected_cost_item_id}"
-                    ),
-                ):
-                    set_unit_economics_cost_item_active(
-                        cost_item_id=(
-                            selected_cost_item_id
-                        ),
-                        is_active=(
-                            selected_cost_item_active
-                        ),
-                    )
-
-                    st.session_state[
-                        "unit_economics_message"
-                    ] = t(
-                        "unit.cost.activity_updated"
-                    )
-                    st.rerun()
-
-            with cost_delete_column:
-                if st.button(
-                    t("unit.cost.delete"),
-                    use_container_width=True,
-                    key=(
-                        "delete_unit_cost_"
-                        f"{selected_cost_item_id}"
-                    ),
-                ):
-                    delete_unit_economics_cost_item(
-                        selected_cost_item_id
-                    )
-
-                    st.session_state[
-                        "unit_economics_message"
-                    ] = t("unit.cost.deleted")
-                    st.rerun()
-
-        st.subheader(t("unit.pricing.title"))
-
-        pricing_options = [
-            "manual",
-            "markup",
-            "target_margin",
-        ]
-
-        stored_method = str(
-            selected_product["pricing_method"]
-        )
-
-        default_pricing_index = (
-            pricing_options.index(stored_method)
-            if stored_method in pricing_options
-            else 2
-        )
-
-        pricing_method = st.selectbox(
-            t("unit.pricing.method"),
-            options=pricing_options,
-            index=default_pricing_index,
-            format_func=format_unit_pricing_method,
-            key=f"pricing_method_{selected_product_id}",
-        )
-
-        manual_price_rubles = None
-        pricing_percent = None
-
-        if pricing_method == "manual":
-            stored_manual_price = (
-                selected_product[
-                    "manual_price_kopecks"
-                ]
-            )
-
-            manual_price_rubles = st.number_input(
-                t("unit.pricing.manual_price"),
-                min_value=0.01,
-                value=(
-                    float(stored_manual_price) / 100
-                    if not pd.isna(stored_manual_price)
-                    else 1_000.00
-                ),
-                step=100.00,
-                format="%.2f",
-                key=f"manual_price_{selected_product_id}",
-            )
-
-        else:
-            stored_pricing_value = (
-                selected_product["pricing_value_bp"]
-            )
-
-            pricing_percent = st.number_input(
-                (
-                    t("unit.pricing.markup")
-                    if pricing_method == "markup"
-                    else t(
-                        "unit.pricing.target_margin"
-                    )
-                ),
-                min_value=0.00,
-                max_value=99.99,
-                value=(
-                    float(stored_pricing_value) / 100
-                    if not pd.isna(stored_pricing_value)
-                    else 35.00
-                ),
-                step=1.00,
-                format="%.2f",
-                key=f"pricing_percent_{selected_product_id}",
-            )
-
-        stored_rounding_step = int(
-            selected_product["rounding_step_kopecks"]
-        )
-
-        rounding_step_rubles = st.number_input(
-            t("unit.pricing.rounding"),
-            min_value=1.00,
-            value=float(stored_rounding_step) / 100,
-            step=10.00,
-            format="%.2f",
-            key=f"rounding_step_{selected_product_id}",
-        )
-
-        if st.button(
-            t("unit.pricing.save"),
-            type="primary",
-            use_container_width=True,
-            key=f"save_pricing_{selected_product_id}",
-        ):
-            try:
-                update_unit_economics_pricing(
-                    product_id=selected_product_id,
-                    pricing_method=pricing_method,
-                    pricing_value_bp=(
-                        percent_to_basis_points(
-                            pricing_percent
-                        )
-                        if pricing_percent is not None
-                        else None
-                    ),
-                    manual_price_kopecks=(
-                        rubles_to_kopecks(
-                            manual_price_rubles
-                        )
-                        if manual_price_rubles is not None
-                        else None
-                    ),
-                    rounding_step_kopecks=(
-                        rubles_to_kopecks(
-                            rounding_step_rubles
-                        )
-                    ),
                 )
-            except ValueError as exc:
-                st.error(str(exc))
+
+                if cost_submitted:
+                    try:
+                        cost_item_id = (
+                            create_unit_economics_cost_item(
+                                product_id=selected_product_id,
+                                name=cost_name,
+                                calculation_type=calculation_type,
+                                amount_kopecks=(
+                                    rubles_to_kopecks(
+                                        cost_amount_rubles
+                                    )
+                                    if cost_amount_rubles
+                                    is not None
+                                    else None
+                                ),
+                                percentage_bp=(
+                                    percent_to_basis_points(
+                                        percentage_value
+                                    )
+                                    if percentage_value
+                                    is not None
+                                    else None
+                                ),
+                                is_active=cost_is_active,
+                                comment=cost_comment,
+                            )
+                        )
+                    except ValueError as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state[
+                            "unit_economics_message"
+                        ] = t(
+                            "unit.cost.added",
+                            cost_id=cost_item_id,
+                        )
+
+                        st.rerun()
+
+            selected_cost_items = cost_items.loc[
+                cost_items["product_id"]
+                == selected_product_id
+            ].copy()
+
+            if selected_cost_items.empty:
+                st.info(t("unit.cost.empty"))
             else:
-                st.session_state[
-                    "unit_economics_message"
-                ] = t("unit.pricing.saved")
-
-                st.rerun()
-
-        st.divider()
-        st.subheader(t("unit.calculation.title"))
-
-        summary = build_unit_economics_summary(
-            products=products,
-            cost_items=cost_items,
-        )
-
-        selected_summary = summary.loc[
-            summary["product_id"] == selected_product_id
-        ]
-
-        if selected_summary.empty:
-            st.warning(
-                t("unit.calculation.inactive")
-            )
-        else:
-            result = selected_summary.iloc[0]
-
-            base_metrics = st.columns(4)
-
-            base_metrics[0].metric(
-                t("unit.metrics.fixed_per_unit"),
-                format_rubles(
-                    int(result["fixed_per_unit_kopecks"])
-                ),
-            )
-
-            base_metrics[1].metric(
-                t("unit.metrics.allocated_period"),
-                format_rubles(
-                    int(
-                        result[
-                            "allocated_period_per_unit_kopecks"
-                        ]
-                    )
-                ),
-            )
-
-            base_metrics[2].metric(
-                t("unit.metrics.base_cost"),
-                format_rubles(
-                    int(
-                        result[
-                            "base_cost_per_unit_kopecks"
-                        ]
-                    )
-                ),
-            )
-
-            base_metrics[3].metric(
-                t("unit.metrics.percentage_rate"),
-                (
-                    f"{float(result['percentage_cost_rate']):.2f}%"
-                ),
-            )
-
-            pricing_error = result["pricing_error"]
-
-            if (
-                pricing_error is not None
-                and not pd.isna(pricing_error)
-                and str(pricing_error).strip()
-            ):
-                st.warning(
-                    localize_unit_pricing_error(
-                        pricing_error
-                    )
+                visible_cost_items = (
+                    selected_cost_items.copy()
                 )
 
-                st.info(
-                    t("unit.calculation.setup_hint")
+                id_column = t("common.id")
+                item_column = t(
+                    "unit.cost.item_column"
                 )
-
-            else:
-                selling_price = int(
-                    result["selling_price_kopecks"]
-                )
-
-                percentage_cost_per_unit = int(
-                    result[
-                        "percentage_cost_per_unit_kopecks"
-                    ]
-                )
-
-                total_cost_per_unit = int(
-                    result["total_cost_per_unit_kopecks"]
-                )
-
-                profit_per_unit = int(
-                    result["profit_per_unit_kopecks"]
-                )
-
-                price_metrics = st.columns(4)
-
-                price_metrics[0].metric(
-                    t("unit.metrics.selling_price"),
-                    format_rubles(selling_price),
-                )
-
-                price_metrics[1].metric(
-                    t(
-                        "unit.metrics.percentage_per_unit"
-                    ),
-                    format_rubles(
-                        percentage_cost_per_unit
-                    ),
-                )
-
-                price_metrics[2].metric(
-                    t("unit.metrics.total_cost"),
-                    format_rubles(total_cost_per_unit),
-                )
-
-                price_metrics[3].metric(
-                    t("unit.metrics.profit_per_unit"),
-                    format_rubles(profit_per_unit),
-                )
-
-                margin_percent = result["margin_percent"]
-
-                if (
-                    margin_percent is None
-                    or pd.isna(margin_percent)
-                ):
-                    margin_text = t(
-                        "common.not_calculated"
-                    )
-                else:
-                    margin_text = (
-                        f"{float(margin_percent):.1f}%"
-                    )
-
-                break_even_units = result[
-                    "break_even_units"
-                ]
-
-                if (
-                    break_even_units is None
-                    or pd.isna(break_even_units)
-                ):
-                    break_even_text = t(
-                        "common.not_calculated"
-                    )
-                else:
-                    break_even_text = t(
-                        "common.units_short",
-                        count=int(break_even_units),
-                    )
-
-                st.write(
-                    f"**{t('unit.details.sales_plan')}:** "
-                    + t(
-                        "common.units_short",
-                        count=int(result["planned_units"]),
-                    )
-                )
-
-                st.write(
-                    f"**{t('unit.details.revenue')}:** "
-                    f"{format_rubles(int(result['revenue_kopecks']))}"
-                )
-
-                st.write(
-                    f"**{t('unit.details.total_batch_cost')}:** "
-                    f"{format_rubles(int(result['total_cost_kopecks']))}"
-                )
-
-                st.write(
-                    f"**{t('unit.details.batch_result')}:** "
-                    f"{format_rubles(int(result['operating_result_kopecks']))}"
-                )
-
-                st.write(
-                    f"**{t('unit.details.margin')}:** "
-                    f"{margin_text}"
-                )
-
-                st.write(
-                    f"**{t('unit.details.break_even')}:** "
-                    f"{break_even_text}"
-                )
-
-                metric_column = t("unit.chart.metric")
+                type_column = t("unit.cost.type")
                 amount_column = t("common.amount_rub")
+                percent_column = t("common.percent")
+                active_column = t("common.active")
+                comment_column = t("common.comment")
 
-                chart_data = pd.DataFrame(
-                    {
-                        metric_column: [
-                            t("unit.chart.price"),
-                            t("unit.chart.base_cost"),
-                            t(
-                                "unit.chart.percentage_cost"
-                            ),
-                            t("unit.chart.profit"),
-                        ],
-                        amount_column: [
-                            selling_price / 100,
-                            int(
-                                result[
-                                    "base_cost_per_unit_kopecks"
-                                ]
-                            ) / 100,
-                            percentage_cost_per_unit / 100,
-                            profit_per_unit / 100,
-                        ],
-                    }
+                visible_cost_items[type_column] = (
+                    visible_cost_items[
+                        "calculation_type"
+                    ].apply(format_unit_cost_type)
                 )
 
-                unit_chart = px.bar(
-                    chart_data,
-                    x=metric_column,
-                    y=amount_column,
-                    text_auto=".2s",
-                )
-
-                unit_chart.update_layout(
-                    xaxis_title="",
-                    yaxis_title=amount_column,
-                )
-
-                st.plotly_chart(
-                    unit_chart,
-                    use_container_width=True,
-                )
-
-        st.divider()
-        st.subheader(t("unit.management.title"))
-
-        selected_product_active = st.checkbox(
-            t("unit.product.active"),
-            value=bool(
-                selected_product["is_active"]
-            ),
-            key=(
-                "unit_product_active_"
-                f"{selected_product_id}"
-            ),
-        )
-
-        product_active_column, product_delete_column = (
-            st.columns(2)
-        )
-
-        with product_active_column:
-            if st.button(
-                t("unit.management.save_activity"),
-                use_container_width=True,
-                key=(
-                    "save_unit_product_activity_"
-                    f"{selected_product_id}"
-                ),
-            ):
-                set_unit_economics_product_active(
-                    product_id=selected_product_id,
-                    is_active=selected_product_active,
-                )
-
-                st.session_state[
-                    "unit_economics_message"
-                ] = t(
-                    "unit.management.activity_updated"
-                )
-                st.rerun()
-
-        with product_delete_column:
-            if st.button(
-                t("unit.management.delete"),
-                use_container_width=True,
-                key=(
-                    "delete_unit_product_"
-                    f"{selected_product_id}"
-                ),
-            ):
-                delete_unit_economics_product(
-                    selected_product_id
-                )
-
-                st.session_state[
-                    "unit_economics_message"
-                ] = t("unit.management.deleted")
-                st.rerun()
-
-        st.divider()
-        st.subheader(t("unit.summary.title"))
-
-        if summary.empty:
-            st.info(t("unit.summary.empty"))
-        else:
-            visible_summary = summary.copy()
-
-            product_column = t("unit.summary.product")
-            plan_column = t("unit.summary.plan_units")
-            pricing_method_column = t(
-                "unit.summary.pricing_method"
-            )
-            fixed_column = t(
-                "unit.summary.fixed_per_unit"
-            )
-            period_column = t(
-                "unit.summary.allocated_period"
-            )
-            base_cost_column = t(
-                "unit.summary.base_cost"
-            )
-            percentage_rate_column = t(
-                "unit.summary.percentage_rate"
-            )
-            selling_price_column = t(
-                "unit.summary.selling_price"
-            )
-            percentage_unit_column = t(
-                "unit.summary.percentage_per_unit"
-            )
-            total_cost_column = t(
-                "unit.summary.total_cost"
-            )
-            profit_column = t(
-                "unit.summary.profit_per_unit"
-            )
-            margin_column = t("unit.summary.margin")
-            revenue_column = t("unit.summary.revenue")
-            batch_result_column = t(
-                "unit.summary.batch_result"
-            )
-            break_even_column = t(
-                "unit.summary.break_even"
-            )
-            status_column = t("unit.summary.status")
-
-            visible_summary[pricing_method_column] = (
-                visible_summary[
-                    "pricing_method"
-                ].apply(format_unit_pricing_method)
-            )
-
-            money_columns = {
-                "fixed_per_unit_kopecks":
-                    fixed_column,
-                "allocated_period_per_unit_kopecks":
-                    period_column,
-                "base_cost_per_unit_kopecks":
-                    base_cost_column,
-                "selling_price_kopecks":
-                    selling_price_column,
-                "percentage_cost_per_unit_kopecks":
-                    percentage_unit_column,
-                "total_cost_per_unit_kopecks":
-                    total_cost_column,
-                "profit_per_unit_kopecks":
-                    profit_column,
-                "revenue_kopecks":
-                    revenue_column,
-                "operating_result_kopecks":
-                    batch_result_column,
-            }
-
-            for source_column, visible_column in (
-                money_columns.items()
-            ):
-                visible_summary[visible_column] = (
+                visible_cost_items[amount_column] = (
                     pd.to_numeric(
-                        visible_summary[source_column],
+                        visible_cost_items[
+                            "amount_kopecks"
+                        ],
                         errors="coerce",
                     ) / 100
                 )
 
-            visible_summary[margin_column] = (
-                pd.to_numeric(
-                    visible_summary["margin_percent"],
-                    errors="coerce",
+                visible_cost_items[percent_column] = (
+                    pd.to_numeric(
+                        visible_cost_items[
+                            "percentage_bp"
+                        ],
+                        errors="coerce",
+                    ) / 100
                 )
-            )
 
-            visible_summary[
-                percentage_rate_column
-            ] = pd.to_numeric(
-                visible_summary[
-                    "percentage_cost_rate"
-                ],
-                errors="coerce",
-            )
+                visible_cost_items[active_column] = (
+                    visible_cost_items[
+                        "is_active"
+                    ].apply(format_boolean_status)
+                )
 
-            visible_summary[
-                break_even_column
-            ] = pd.to_numeric(
-                visible_summary["break_even_units"],
-                errors="coerce",
-            )
-
-            visible_summary[status_column] = (
-                visible_summary["pricing_error"]
-                .apply(
-                    lambda value: (
-                        t("unit.summary.status_ok")
-                        if not text_or_empty(value)
-                        else localize_unit_pricing_error(
-                            value
-                        )
+                visible_cost_items = (
+                    visible_cost_items.rename(
+                        columns={
+                            "id": id_column,
+                            "name": item_column,
+                            "comment": comment_column,
+                        }
                     )
                 )
-            )
 
-            visible_summary = visible_summary.rename(
-                columns={
-                    "product_name": product_column,
-                    "planned_units": plan_column,
+                st.dataframe(
+                    visible_cost_items[
+                        [
+                            id_column,
+                            item_column,
+                            type_column,
+                            amount_column,
+                            percent_column,
+                            active_column,
+                            comment_column,
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        amount_column:
+                            st.column_config.NumberColumn(
+                                amount_column,
+                                format="%.2f",
+                            ),
+                        percent_column:
+                            st.column_config.NumberColumn(
+                                percent_column,
+                                format="%.2f%%",
+                            ),
+                    },
+                )
+
+                cost_item_options = {
+                    (
+                        f"{int(row['id'])} — "
+                        f"{row['name']}"
+                    ): int(row["id"])
+                    for _, row
+                    in selected_cost_items.iterrows()
                 }
-            )
 
-            summary_columns = [
-                product_column,
-                plan_column,
-                pricing_method_column,
-                fixed_column,
-                period_column,
-                base_cost_column,
-                percentage_rate_column,
-                selling_price_column,
-                total_cost_column,
-                profit_column,
-                margin_column,
-                revenue_column,
-                batch_result_column,
-                break_even_column,
-                status_column,
+                selected_cost_item_label = (
+                    st.selectbox(
+                        t("unit.cost.select_manage"),
+                        options=list(cost_item_options),
+                        key=(
+                            "selected_unit_cost_item_"
+                            f"{selected_product_id}"
+                        ),
+                    )
+                )
+
+                selected_cost_item_id = (
+                    cost_item_options[
+                        selected_cost_item_label
+                    ]
+                )
+
+                selected_cost_item = (
+                    selected_cost_items.loc[
+                        selected_cost_items["id"]
+                        == selected_cost_item_id
+                    ].iloc[0]
+                )
+
+                selected_cost_item_active = (
+                    st.checkbox(
+                        t("unit.cost.active"),
+                        value=bool(
+                            selected_cost_item[
+                                "is_active"
+                            ]
+                        ),
+                        key=(
+                            "unit_cost_active_"
+                            f"{selected_cost_item_id}"
+                        ),
+                    )
+                )
+
+                cost_active_column, cost_delete_column = (
+                    st.columns(2)
+                )
+
+                with cost_active_column:
+                    if st.button(
+                        t("unit.cost.save_activity"),
+                        use_container_width=True,
+                        key=(
+                            "save_unit_cost_activity_"
+                            f"{selected_cost_item_id}"
+                        ),
+                    ):
+                        set_unit_economics_cost_item_active(
+                            cost_item_id=(
+                                selected_cost_item_id
+                            ),
+                            is_active=(
+                                selected_cost_item_active
+                            ),
+                        )
+
+                        st.session_state[
+                            "unit_economics_message"
+                        ] = t(
+                            "unit.cost.activity_updated"
+                        )
+                        st.rerun()
+
+                with cost_delete_column:
+                    if st.button(
+                        t("unit.cost.delete"),
+                        use_container_width=True,
+                        key=(
+                            "delete_unit_cost_"
+                            f"{selected_cost_item_id}"
+                        ),
+                    ):
+                        delete_unit_economics_cost_item(
+                            selected_cost_item_id
+                        )
+
+                        st.session_state[
+                            "unit_economics_message"
+                        ] = t("unit.cost.deleted")
+                        st.rerun()
+
+            st.subheader(t("unit.pricing.title"))
+
+            pricing_options = [
+                "manual",
+                "markup",
+                "target_margin",
             ]
 
-            st.dataframe(
-                visible_summary[summary_columns],
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    fixed_column:
-                        st.column_config.NumberColumn(
-                            fixed_column,
-                            format="%.2f",
-                        ),
-                    period_column:
-                        st.column_config.NumberColumn(
-                            period_column,
-                            format="%.2f",
-                        ),
-                    base_cost_column:
-                        st.column_config.NumberColumn(
-                            base_cost_column,
-                            format="%.2f",
-                        ),
-                    percentage_rate_column:
-                        st.column_config.NumberColumn(
-                            percentage_rate_column,
-                            format="%.2f%%",
-                        ),
-                    selling_price_column:
-                        st.column_config.NumberColumn(
-                            selling_price_column,
-                            format="%.2f",
-                        ),
-                    total_cost_column:
-                        st.column_config.NumberColumn(
-                            total_cost_column,
-                            format="%.2f",
-                        ),
-                    profit_column:
-                        st.column_config.NumberColumn(
-                            profit_column,
-                            format="%.2f",
-                        ),
-                    margin_column:
-                        st.column_config.NumberColumn(
-                            margin_column,
-                            format="%.1f%%",
-                        ),
-                    revenue_column:
-                        st.column_config.NumberColumn(
-                            revenue_column,
-                            format="%.2f",
-                        ),
-                    batch_result_column:
-                        st.column_config.NumberColumn(
-                            batch_result_column,
-                            format="%.2f",
-                        ),
-                    break_even_column:
-                        st.column_config.NumberColumn(
-                            break_even_column,
-                            format="%d",
-                        ),
-                },
+            stored_method = str(
+                selected_product["pricing_method"]
             )
 
-with payment_calendar_tab:
-    st.subheader(t("calendar.title"))
-
-    st.caption(t("calendar.caption"))
-
-    with st.expander(
-        t("calendar.add_title"),
-        expanded=True,
-    ):
-        with st.form(
-            "planned_cash_flow_form",
-            clear_on_submit=True,
-        ):
-            plan_name = st.text_input(
-                t("calendar.fields.name"),
-                placeholder=t(
-                    "calendar.placeholders.name"
-                ),
+            default_pricing_index = (
+                pricing_options.index(stored_method)
+                if stored_method in pricing_options
+                else 2
             )
 
-            direction = st.selectbox(
-                t("calendar.fields.direction"),
-                options=list(DIRECTION_LABELS),
-                format_func=format_calendar_direction,
+            pricing_method = st.selectbox(
+                t("unit.pricing.method"),
+                options=pricing_options,
+                index=default_pricing_index,
+                format_func=format_unit_pricing_method,
+                key=f"pricing_method_{selected_product_id}",
             )
 
-            amount_rubles = st.number_input(
-                t("calendar.fields.amount"),
-                min_value=0.01,
-                value=1_000.00,
-                step=100.00,
+            manual_price_rubles = None
+            pricing_percent = None
+
+            if pricing_method == "manual":
+                stored_manual_price = (
+                    selected_product[
+                        "manual_price_kopecks"
+                    ]
+                )
+
+                manual_price_rubles = st.number_input(
+                    t("unit.pricing.manual_price"),
+                    min_value=0.01,
+                    value=(
+                        float(stored_manual_price) / 100
+                        if not pd.isna(stored_manual_price)
+                        else 1_000.00
+                    ),
+                    step=100.00,
+                    format="%.2f",
+                    key=f"manual_price_{selected_product_id}",
+                )
+
+            else:
+                stored_pricing_value = (
+                    selected_product["pricing_value_bp"]
+                )
+
+                pricing_percent = st.number_input(
+                    (
+                        t("unit.pricing.markup")
+                        if pricing_method == "markup"
+                        else t(
+                            "unit.pricing.target_margin"
+                        )
+                    ),
+                    min_value=0.00,
+                    max_value=99.99,
+                    value=(
+                        float(stored_pricing_value) / 100
+                        if not pd.isna(stored_pricing_value)
+                        else 35.00
+                    ),
+                    step=1.00,
+                    format="%.2f",
+                    key=f"pricing_percent_{selected_product_id}",
+                )
+
+            stored_rounding_step = int(
+                selected_product["rounding_step_kopecks"]
+            )
+
+            rounding_step_rubles = st.number_input(
+                t("unit.pricing.rounding"),
+                min_value=1.00,
+                value=float(stored_rounding_step) / 100,
+                step=10.00,
                 format="%.2f",
+                key=f"rounding_step_{selected_product_id}",
             )
 
-            category = st.selectbox(
-                t("calendar.fields.category"),
-                options=list(CF_CATEGORIES),
-            )
-
-            counterparty = st.text_input(
-                t("calendar.fields.counterparty"),
-            )
-
-            start_date = st.date_input(
-                t("calendar.fields.start_date"),
-                value=date.today(),
-                format="DD.MM.YYYY",
-            )
-
-            recurrence = st.selectbox(
-                t("calendar.fields.recurrence"),
-                options=list(RECURRENCE_LABELS),
-                format_func=format_calendar_recurrence,
-            )
-
-            use_end_date = st.checkbox(
-                t("calendar.fields.use_end_date"),
-                value=False,
-            )
-
-            selected_end_date = st.date_input(
-                t("calendar.fields.end_date"),
-                value=(
-                    date.today()
-                    + timedelta(days=365)
-                ),
-                format="DD.MM.YYYY",
-            )
-
-            is_active = st.checkbox(
-                t("calendar.fields.active"),
-                value=True,
-            )
-
-            comment = st.text_area(
-                t("calendar.fields.comment"),
-                max_chars=500,
-            )
-
-            create_plan_submitted = (
-                st.form_submit_button(
-                    t("calendar.add_button"),
-                    type="primary",
-                    use_container_width=True,
-                )
-            )
-
-            if create_plan_submitted:
-                plan_end_date = (
-                    selected_end_date
-                    if use_end_date
-                    else None
-                )
-
+            if st.button(
+                t("unit.pricing.save"),
+                type="primary",
+                use_container_width=True,
+                key=f"save_pricing_{selected_product_id}",
+            ):
                 try:
-                    new_plan_id = create_planned_cash_flow(
-                        name=plan_name,
-                        direction=direction,
-                        amount_kopecks=(
+                    update_unit_economics_pricing(
+                        product_id=selected_product_id,
+                        pricing_method=pricing_method,
+                        pricing_value_bp=(
+                            percent_to_basis_points(
+                                pricing_percent
+                            )
+                            if pricing_percent is not None
+                            else None
+                        ),
+                        manual_price_kopecks=(
                             rubles_to_kopecks(
-                                amount_rubles
+                                manual_price_rubles
+                            )
+                            if manual_price_rubles is not None
+                            else None
+                        ),
+                        rounding_step_kopecks=(
+                            rubles_to_kopecks(
+                                rounding_step_rubles
                             )
                         ),
-                        category=category,
-                        counterparty=counterparty,
-                        start_date=start_date,
-                        recurrence=recurrence,
-                        end_date=plan_end_date,
-                        is_active=is_active,
-                        comment=comment,
                     )
                 except ValueError as exc:
                     st.error(str(exc))
                 else:
                     st.session_state[
-                        "calendar_message"
+                        "unit_economics_message"
+                    ] = t("unit.pricing.saved")
+
+                    st.rerun()
+
+            st.divider()
+            st.subheader(t("unit.calculation.title"))
+
+            summary = build_unit_economics_summary(
+                products=products,
+                cost_items=cost_items,
+            )
+
+            selected_summary = summary.loc[
+                summary["product_id"] == selected_product_id
+            ]
+
+            if selected_summary.empty:
+                st.warning(
+                    t("unit.calculation.inactive")
+                )
+            else:
+                result = selected_summary.iloc[0]
+
+                base_metrics = st.columns(4)
+
+                base_metrics[0].metric(
+                    t("unit.metrics.fixed_per_unit"),
+                    format_rubles(
+                        int(result["fixed_per_unit_kopecks"])
+                    ),
+                )
+
+                base_metrics[1].metric(
+                    t("unit.metrics.allocated_period"),
+                    format_rubles(
+                        int(
+                            result[
+                                "allocated_period_per_unit_kopecks"
+                            ]
+                        )
+                    ),
+                )
+
+                base_metrics[2].metric(
+                    t("unit.metrics.base_cost"),
+                    format_rubles(
+                        int(
+                            result[
+                                "base_cost_per_unit_kopecks"
+                            ]
+                        )
+                    ),
+                )
+
+                base_metrics[3].metric(
+                    t("unit.metrics.percentage_rate"),
+                    (
+                        f"{float(result['percentage_cost_rate']):.2f}%"
+                    ),
+                )
+
+                pricing_error = result["pricing_error"]
+
+                if (
+                    pricing_error is not None
+                    and not pd.isna(pricing_error)
+                    and str(pricing_error).strip()
+                ):
+                    st.warning(
+                        localize_unit_pricing_error(
+                            pricing_error
+                        )
+                    )
+
+                    st.info(
+                        t("unit.calculation.setup_hint")
+                    )
+
+                else:
+                    selling_price = int(
+                        result["selling_price_kopecks"]
+                    )
+
+                    percentage_cost_per_unit = int(
+                        result[
+                            "percentage_cost_per_unit_kopecks"
+                        ]
+                    )
+
+                    total_cost_per_unit = int(
+                        result["total_cost_per_unit_kopecks"]
+                    )
+
+                    profit_per_unit = int(
+                        result["profit_per_unit_kopecks"]
+                    )
+
+                    price_metrics = st.columns(4)
+
+                    price_metrics[0].metric(
+                        t("unit.metrics.selling_price"),
+                        format_rubles(selling_price),
+                    )
+
+                    price_metrics[1].metric(
+                        t(
+                            "unit.metrics.percentage_per_unit"
+                        ),
+                        format_rubles(
+                            percentage_cost_per_unit
+                        ),
+                    )
+
+                    price_metrics[2].metric(
+                        t("unit.metrics.total_cost"),
+                        format_rubles(total_cost_per_unit),
+                    )
+
+                    price_metrics[3].metric(
+                        t("unit.metrics.profit_per_unit"),
+                        format_rubles(profit_per_unit),
+                    )
+
+                    margin_percent = result["margin_percent"]
+
+                    if (
+                        margin_percent is None
+                        or pd.isna(margin_percent)
+                    ):
+                        margin_text = t(
+                            "common.not_calculated"
+                        )
+                    else:
+                        margin_text = (
+                            f"{float(margin_percent):.1f}%"
+                        )
+
+                    break_even_units = result[
+                        "break_even_units"
+                    ]
+
+                    if (
+                        break_even_units is None
+                        or pd.isna(break_even_units)
+                    ):
+                        break_even_text = t(
+                            "common.not_calculated"
+                        )
+                    else:
+                        break_even_text = t(
+                            "common.units_short",
+                            count=int(break_even_units),
+                        )
+
+                    st.write(
+                        f"**{t('unit.details.sales_plan')}:** "
+                        + t(
+                            "common.units_short",
+                            count=int(result["planned_units"]),
+                        )
+                    )
+
+                    st.write(
+                        f"**{t('unit.details.revenue')}:** "
+                        f"{format_rubles(int(result['revenue_kopecks']))}"
+                    )
+
+                    st.write(
+                        f"**{t('unit.details.total_batch_cost')}:** "
+                        f"{format_rubles(int(result['total_cost_kopecks']))}"
+                    )
+
+                    st.write(
+                        f"**{t('unit.details.batch_result')}:** "
+                        f"{format_rubles(int(result['operating_result_kopecks']))}"
+                    )
+
+                    st.write(
+                        f"**{t('unit.details.margin')}:** "
+                        f"{margin_text}"
+                    )
+
+                    st.write(
+                        f"**{t('unit.details.break_even')}:** "
+                        f"{break_even_text}"
+                    )
+
+                    metric_column = t("unit.chart.metric")
+                    amount_column = t("common.amount_rub")
+
+                    chart_data = pd.DataFrame(
+                        {
+                            metric_column: [
+                                t("unit.chart.price"),
+                                t("unit.chart.base_cost"),
+                                t(
+                                    "unit.chart.percentage_cost"
+                                ),
+                                t("unit.chart.profit"),
+                            ],
+                            amount_column: [
+                                selling_price / 100,
+                                int(
+                                    result[
+                                        "base_cost_per_unit_kopecks"
+                                    ]
+                                ) / 100,
+                                percentage_cost_per_unit / 100,
+                                profit_per_unit / 100,
+                            ],
+                        }
+                    )
+
+                    unit_chart = px.bar(
+                        chart_data,
+                        x=metric_column,
+                        y=amount_column,
+                        text_auto=".2s",
+                    )
+
+                    unit_chart.update_layout(
+                        xaxis_title="",
+                        yaxis_title=amount_column,
+                    )
+
+                    st.plotly_chart(
+                        unit_chart,
+                        use_container_width=True,
+                    )
+
+            st.divider()
+            st.subheader(t("unit.management.title"))
+
+            selected_product_active = st.checkbox(
+                t("unit.product.active"),
+                value=bool(
+                    selected_product["is_active"]
+                ),
+                key=(
+                    "unit_product_active_"
+                    f"{selected_product_id}"
+                ),
+            )
+
+            product_active_column, product_delete_column = (
+                st.columns(2)
+            )
+
+            with product_active_column:
+                if st.button(
+                    t("unit.management.save_activity"),
+                    use_container_width=True,
+                    key=(
+                        "save_unit_product_activity_"
+                        f"{selected_product_id}"
+                    ),
+                ):
+                    set_unit_economics_product_active(
+                        product_id=selected_product_id,
+                        is_active=selected_product_active,
+                    )
+
+                    st.session_state[
+                        "unit_economics_message"
                     ] = t(
-                        "calendar.messages.added",
-                        plan_id=new_plan_id,
+                        "unit.management.activity_updated"
                     )
                     st.rerun()
 
-    plans = get_planned_cash_flows_dataframe()
-
-    st.subheader(t("calendar.plans.title"))
-
-    if plans.empty:
-        st.info(t("calendar.plans.empty"))
-    else:
-        visible_plans = plans.copy()
-
-        id_column = t("common.id")
-        name_column = t("common.name")
-        type_column = t("calendar.columns.type")
-        amount_column = t("common.amount_rub")
-        category_column = t("common.category")
-        counterparty_column = t(
-            "common.counterparty"
-        )
-        start_column = t("calendar.columns.start")
-        recurrence_column = t(
-            "calendar.columns.recurrence"
-        )
-        end_column = t("calendar.columns.end")
-        active_column = t("common.active")
-        comment_column = t("common.comment")
-
-        visible_plans[type_column] = (
-            visible_plans["direction"]
-            .apply(format_calendar_direction)
-        )
-
-        visible_plans[amount_column] = (
-            visible_plans["amount_kopecks"] / 100
-        )
-
-        visible_plans[start_column] = pd.to_datetime(
-            visible_plans["start_date"]
-        ).dt.strftime("%d.%m.%Y")
-
-        visible_plans[end_column] = (
-            pd.to_datetime(
-                visible_plans["end_date"],
-                errors="coerce",
-            )
-            .dt.strftime("%d.%m.%Y")
-            .fillna("")
-        )
-
-        visible_plans[recurrence_column] = (
-            visible_plans["recurrence"]
-            .apply(format_calendar_recurrence)
-        )
-
-        visible_plans[active_column] = (
-            visible_plans["is_active"]
-            .apply(format_boolean_status)
-        )
-
-        visible_plans = visible_plans.rename(
-            columns={
-                "id": id_column,
-                "name": name_column,
-                "category": category_column,
-                "counterparty": counterparty_column,
-                "comment": comment_column,
-            }
-        )
-
-        plan_columns = [
-            id_column,
-            name_column,
-            type_column,
-            amount_column,
-            category_column,
-            counterparty_column,
-            start_column,
-            recurrence_column,
-            end_column,
-            active_column,
-            comment_column,
-        ]
-
-        st.dataframe(
-            visible_plans[plan_columns],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                amount_column:
-                    st.column_config.NumberColumn(
-                        amount_column,
-                        format="%.2f",
+            with product_delete_column:
+                if st.button(
+                    t("unit.management.delete"),
+                    use_container_width=True,
+                    key=(
+                        "delete_unit_product_"
+                        f"{selected_product_id}"
                     ),
-            },
-        )
+                ):
+                    delete_unit_economics_product(
+                        selected_product_id
+                    )
 
-        plan_options = {
-            (
-                f"{int(row['id'])} — "
-                f"{row['name']}"
-            ): int(row["id"])
-            for _, row in plans.iterrows()
-        }
+                    st.session_state[
+                        "unit_economics_message"
+                    ] = t("unit.management.deleted")
+                    st.rerun()
 
-        selected_plan_label = st.selectbox(
-            t("calendar.select_manage"),
-            options=list(plan_options),
-        )
+            st.divider()
+            st.subheader(t("unit.summary.title"))
 
-        selected_plan_id = plan_options[
-            selected_plan_label
-        ]
+            if summary.empty:
+                st.info(t("unit.summary.empty"))
+            else:
+                visible_summary = summary.copy()
 
-        selected_plan = plans.loc[
-            plans["id"] == selected_plan_id
-        ].iloc[0]
+                product_column = t("unit.summary.product")
+                plan_column = t("unit.summary.plan_units")
+                pricing_method_column = t(
+                    "unit.summary.pricing_method"
+                )
+                fixed_column = t(
+                    "unit.summary.fixed_per_unit"
+                )
+                period_column = t(
+                    "unit.summary.allocated_period"
+                )
+                base_cost_column = t(
+                    "unit.summary.base_cost"
+                )
+                percentage_rate_column = t(
+                    "unit.summary.percentage_rate"
+                )
+                selling_price_column = t(
+                    "unit.summary.selling_price"
+                )
+                percentage_unit_column = t(
+                    "unit.summary.percentage_per_unit"
+                )
+                total_cost_column = t(
+                    "unit.summary.total_cost"
+                )
+                profit_column = t(
+                    "unit.summary.profit_per_unit"
+                )
+                margin_column = t("unit.summary.margin")
+                revenue_column = t("unit.summary.revenue")
+                batch_result_column = t(
+                    "unit.summary.batch_result"
+                )
+                break_even_column = t(
+                    "unit.summary.break_even"
+                )
+                status_column = t("unit.summary.status")
 
-        selected_plan_active = st.checkbox(
-            t("calendar.fields.active"),
-            value=bool(
-                selected_plan["is_active"]
-            ),
-            key=(
-                f"selected_plan_active_"
-                f"{selected_plan_id}"
-            ),
-        )
+                visible_summary[pricing_method_column] = (
+                    visible_summary[
+                        "pricing_method"
+                    ].apply(format_unit_pricing_method)
+                )
 
-        active_action_column, delete_column = (
-            st.columns(2)
-        )
+                money_columns = {
+                    "fixed_per_unit_kopecks":
+                        fixed_column,
+                    "allocated_period_per_unit_kopecks":
+                        period_column,
+                    "base_cost_per_unit_kopecks":
+                        base_cost_column,
+                    "selling_price_kopecks":
+                        selling_price_column,
+                    "percentage_cost_per_unit_kopecks":
+                        percentage_unit_column,
+                    "total_cost_per_unit_kopecks":
+                        total_cost_column,
+                    "profit_per_unit_kopecks":
+                        profit_column,
+                    "revenue_kopecks":
+                        revenue_column,
+                    "operating_result_kopecks":
+                        batch_result_column,
+                }
 
-        with active_action_column:
-            if st.button(
-                t("calendar.save_activity"),
-                use_container_width=True,
-                key=(
-                    f"save_plan_activity_"
-                    f"{selected_plan_id}"
-                ),
+                for source_column, visible_column in (
+                    money_columns.items()
+                ):
+                    visible_summary[visible_column] = (
+                        pd.to_numeric(
+                            visible_summary[source_column],
+                            errors="coerce",
+                        ) / 100
+                    )
+
+                visible_summary[margin_column] = (
+                    pd.to_numeric(
+                        visible_summary["margin_percent"],
+                        errors="coerce",
+                    )
+                )
+
+                visible_summary[
+                    percentage_rate_column
+                ] = pd.to_numeric(
+                    visible_summary[
+                        "percentage_cost_rate"
+                    ],
+                    errors="coerce",
+                )
+
+                visible_summary[
+                    break_even_column
+                ] = pd.to_numeric(
+                    visible_summary["break_even_units"],
+                    errors="coerce",
+                )
+
+                visible_summary[status_column] = (
+                    visible_summary["pricing_error"]
+                    .apply(
+                        lambda value: (
+                            t("unit.summary.status_ok")
+                            if not text_or_empty(value)
+                            else localize_unit_pricing_error(
+                                value
+                            )
+                        )
+                    )
+                )
+
+                visible_summary = visible_summary.rename(
+                    columns={
+                        "product_name": product_column,
+                        "planned_units": plan_column,
+                    }
+                )
+
+                summary_columns = [
+                    product_column,
+                    plan_column,
+                    pricing_method_column,
+                    fixed_column,
+                    period_column,
+                    base_cost_column,
+                    percentage_rate_column,
+                    selling_price_column,
+                    total_cost_column,
+                    profit_column,
+                    margin_column,
+                    revenue_column,
+                    batch_result_column,
+                    break_even_column,
+                    status_column,
+                ]
+
+                st.dataframe(
+                    visible_summary[summary_columns],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        fixed_column:
+                            st.column_config.NumberColumn(
+                                fixed_column,
+                                format="%.2f",
+                            ),
+                        period_column:
+                            st.column_config.NumberColumn(
+                                period_column,
+                                format="%.2f",
+                            ),
+                        base_cost_column:
+                            st.column_config.NumberColumn(
+                                base_cost_column,
+                                format="%.2f",
+                            ),
+                        percentage_rate_column:
+                            st.column_config.NumberColumn(
+                                percentage_rate_column,
+                                format="%.2f%%",
+                            ),
+                        selling_price_column:
+                            st.column_config.NumberColumn(
+                                selling_price_column,
+                                format="%.2f",
+                            ),
+                        total_cost_column:
+                            st.column_config.NumberColumn(
+                                total_cost_column,
+                                format="%.2f",
+                            ),
+                        profit_column:
+                            st.column_config.NumberColumn(
+                                profit_column,
+                                format="%.2f",
+                            ),
+                        margin_column:
+                            st.column_config.NumberColumn(
+                                margin_column,
+                                format="%.1f%%",
+                            ),
+                        revenue_column:
+                            st.column_config.NumberColumn(
+                                revenue_column,
+                                format="%.2f",
+                            ),
+                        batch_result_column:
+                            st.column_config.NumberColumn(
+                                batch_result_column,
+                                format="%.2f",
+                            ),
+                        break_even_column:
+                            st.column_config.NumberColumn(
+                                break_even_column,
+                                format="%d",
+                            ),
+                    },
+                )
+
+if payment_calendar_tab.open:
+    with payment_calendar_tab:
+        st.subheader(t("calendar.title"))
+
+        st.caption(t("calendar.caption"))
+
+        with st.expander(
+            t("calendar.add_title"),
+            expanded=True,
+        ):
+            with st.form(
+                "planned_cash_flow_form",
+                clear_on_submit=True,
             ):
-                set_planned_cash_flow_active(
-                    plan_id=selected_plan_id,
-                    is_active=selected_plan_active,
+                plan_name = st.text_input(
+                    t("calendar.fields.name"),
+                    placeholder=t(
+                        "calendar.placeholders.name"
+                    ),
                 )
 
-                st.session_state[
-                    "calendar_message"
-                ] = t(
-                    "calendar.messages.activity_updated"
-                )
-                st.rerun()
-
-        with delete_column:
-            if st.button(
-                t("calendar.delete"),
-                use_container_width=True,
-                key=(
-                    f"delete_plan_"
-                    f"{selected_plan_id}"
-                ),
-            ):
-                delete_planned_cash_flow(
-                    selected_plan_id
+                direction = st.selectbox(
+                    t("calendar.fields.direction"),
+                    options=list(DIRECTION_LABELS),
+                    format_func=format_calendar_direction,
                 )
 
-                st.session_state[
-                    "calendar_message"
-                ] = t("calendar.messages.deleted")
-                st.rerun()
+                amount_rubles = st.number_input(
+                    t("calendar.fields.amount"),
+                    min_value=0.01,
+                    value=1_000.00,
+                    step=100.00,
+                    format="%.2f",
+                )
 
-    st.divider()
-    st.subheader(t("calendar.forecast.title"))
+                category = st.selectbox(
+                    t("calendar.fields.category"),
+                    options=list(CF_CATEGORIES),
+                )
 
-    forecast_start = st.date_input(
-        t("calendar.forecast.start"),
-        value=date.today(),
-        format="DD.MM.YYYY",
-        key="forecast_start",
-    )
+                counterparty = st.text_input(
+                    t("calendar.fields.counterparty"),
+                )
 
-    forecast_horizon = st.selectbox(
-        t("calendar.forecast.horizon"),
-        options=[30, 60, 90, 180, 365],
-        index=2,
-        format_func=lambda days: t(
-            "common.days",
-            count=days,
-        ),
-    )
+                start_date = st.date_input(
+                    t("calendar.fields.start_date"),
+                    value=date.today(),
+                    format="DD.MM.YYYY",
+                )
 
-    opening_balance_rubles = st.number_input(
-        t("calendar.forecast.opening_balance"),
-        value=0.00,
-        step=1_000.00,
-        format="%.2f",
-    )
+                recurrence = st.selectbox(
+                    t("calendar.fields.recurrence"),
+                    options=list(RECURRENCE_LABELS),
+                    format_func=format_calendar_recurrence,
+                )
 
-    forecast_end = (
-        forecast_start
-        + timedelta(days=forecast_horizon - 1)
-    )
+                use_end_date = st.checkbox(
+                    t("calendar.fields.use_end_date"),
+                    value=False,
+                )
 
-    occurrences = expand_planned_cash_flows(
-        plans=plans,
-        period_start=forecast_start,
-        period_end=forecast_end,
-    )
+                selected_end_date = st.date_input(
+                    t("calendar.fields.end_date"),
+                    value=(
+                        date.today()
+                        + timedelta(days=365)
+                    ),
+                    format="DD.MM.YYYY",
+                )
 
-    forecast = build_cash_forecast(
-        occurrences=occurrences,
-        period_start=forecast_start,
-        period_end=forecast_end,
-        opening_balance_kopecks=(
-            rubles_to_kopecks(
-                opening_balance_rubles
-            )
-        ),
-    )
+                is_active = st.checkbox(
+                    t("calendar.fields.active"),
+                    value=True,
+                )
 
-    total_inflow = int(
-        occurrences.loc[
-            occurrences[
-                "signed_amount_kopecks"
-            ] > 0,
-            "signed_amount_kopecks",
-        ].sum()
-    )
+                comment = st.text_area(
+                    t("calendar.fields.comment"),
+                    max_chars=500,
+                )
 
-    total_outflow = abs(
-        int(
-            occurrences.loc[
-                occurrences[
-                    "signed_amount_kopecks"
-                ] < 0,
-                "signed_amount_kopecks",
-            ].sum()
-        )
-    )
+                create_plan_submitted = (
+                    st.form_submit_button(
+                        t("calendar.add_button"),
+                        type="primary",
+                        use_container_width=True,
+                    )
+                )
 
-    ending_balance = int(
-        forecast[
-            "closing_balance_kopecks"
-        ].iloc[-1]
-    )
+                if create_plan_submitted:
+                    plan_end_date = (
+                        selected_end_date
+                        if use_end_date
+                        else None
+                    )
 
-    minimum_balance = int(
-        forecast[
-            "closing_balance_kopecks"
-        ].min()
-    )
+                    try:
+                        new_plan_id = create_planned_cash_flow(
+                            name=plan_name,
+                            direction=direction,
+                            amount_kopecks=(
+                                rubles_to_kopecks(
+                                    amount_rubles
+                                )
+                            ),
+                            category=category,
+                            counterparty=counterparty,
+                            start_date=start_date,
+                            recurrence=recurrence,
+                            end_date=plan_end_date,
+                            is_active=is_active,
+                            comment=comment,
+                        )
+                    except ValueError as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state[
+                            "calendar_message"
+                        ] = t(
+                            "calendar.messages.added",
+                            plan_id=new_plan_id,
+                        )
+                        st.rerun()
 
-    forecast_metrics = st.columns(4)
+        plans = get_planned_cash_flows_dataframe()
 
-    forecast_metrics[0].metric(
-        t("calendar.forecast.inflows"),
-        format_rubles(total_inflow),
-    )
+        st.subheader(t("calendar.plans.title"))
 
-    forecast_metrics[1].metric(
-        t("calendar.forecast.outflows"),
-        format_rubles(total_outflow),
-    )
-
-    forecast_metrics[2].metric(
-        t("calendar.forecast.ending_balance"),
-        format_rubles(ending_balance),
-    )
-
-    forecast_metrics[3].metric(
-        t("calendar.forecast.minimum_balance"),
-        format_rubles(minimum_balance),
-    )
-
-    cash_gap_rows = forecast.loc[
-        forecast["closing_balance_kopecks"] < 0
-    ]
-
-    if cash_gap_rows.empty:
-        st.success(
-            t("calendar.forecast.no_gap")
-        )
-    else:
-        first_cash_gap = (
-            cash_gap_rows.iloc[0]["date"]
-        )
-
-        cash_gap_amount = abs(
-            int(
-                cash_gap_rows[
-                    "closing_balance_kopecks"
-                ].min()
-            )
-        )
-
-        st.error(
-            t(
-                "calendar.forecast.gap",
-                date=first_cash_gap.strftime(
-                    "%d.%m.%Y"
-                ),
-                amount=format_rubles(
-                    cash_gap_amount
-                ),
-            )
-        )
-
-    chart_data = forecast.copy()
-
-    date_column = t("common.date")
-    balance_column = t(
-        "calendar.forecast.balance"
-    )
-
-    chart_data[date_column] = pd.to_datetime(
-        chart_data["date"]
-    )
-
-    chart_data[balance_column] = (
-        chart_data[
-            "closing_balance_kopecks"
-        ] / 100
-    )
-
-    balance_chart = px.line(
-        chart_data,
-        x=date_column,
-        y=balance_column,
-    )
-
-    balance_chart.add_hline(y=0)
-
-    balance_chart.update_layout(
-        xaxis_title="",
-        yaxis_title=balance_column,
-    )
-
-    st.plotly_chart(
-        balance_chart,
-        use_container_width=True,
-    )
-
-    with st.expander(
-        t("calendar.events.title"),
-        expanded=False,
-    ):
-        if occurrences.empty:
-            st.info(
-                t("calendar.events.empty")
-            )
+        if plans.empty:
+            st.info(t("calendar.plans.empty"))
         else:
-            visible_occurrences = (
-                occurrences.copy()
-            )
+            visible_plans = plans.copy()
 
+            id_column = t("common.id")
             name_column = t("common.name")
+            type_column = t("calendar.columns.type")
             amount_column = t("common.amount_rub")
             category_column = t("common.category")
             counterparty_column = t(
                 "common.counterparty"
             )
+            start_column = t("calendar.columns.start")
+            recurrence_column = t(
+                "calendar.columns.recurrence"
+            )
+            end_column = t("calendar.columns.end")
+            active_column = t("common.active")
             comment_column = t("common.comment")
 
-            visible_occurrences[date_column] = (
+            visible_plans[type_column] = (
+                visible_plans["direction"]
+                .apply(format_calendar_direction)
+            )
+
+            visible_plans[amount_column] = (
+                visible_plans["amount_kopecks"] / 100
+            )
+
+            visible_plans[start_column] = pd.to_datetime(
+                visible_plans["start_date"]
+            ).dt.strftime("%d.%m.%Y")
+
+            visible_plans[end_column] = (
                 pd.to_datetime(
-                    visible_occurrences["date"]
-                ).dt.strftime("%d.%m.%Y")
-            )
-
-            visible_occurrences[amount_column] = (
-                visible_occurrences[
-                    "signed_amount_kopecks"
-                ] / 100
-            )
-
-            visible_occurrences = (
-                visible_occurrences.rename(
-                    columns={
-                        "name": name_column,
-                        "category": category_column,
-                        "counterparty":
-                            counterparty_column,
-                        "comment": comment_column,
-                    }
+                    visible_plans["end_date"],
+                    errors="coerce",
                 )
+                .dt.strftime("%d.%m.%Y")
+                .fillna("")
             )
 
-            occurrence_columns = [
-                date_column,
+            visible_plans[recurrence_column] = (
+                visible_plans["recurrence"]
+                .apply(format_calendar_recurrence)
+            )
+
+            visible_plans[active_column] = (
+                visible_plans["is_active"]
+                .apply(format_boolean_status)
+            )
+
+            visible_plans = visible_plans.rename(
+                columns={
+                    "id": id_column,
+                    "name": name_column,
+                    "category": category_column,
+                    "counterparty": counterparty_column,
+                    "comment": comment_column,
+                }
+            )
+
+            plan_columns = [
+                id_column,
                 name_column,
+                type_column,
                 amount_column,
                 category_column,
                 counterparty_column,
+                start_column,
+                recurrence_column,
+                end_column,
+                active_column,
                 comment_column,
             ]
 
             st.dataframe(
-                visible_occurrences[
-                    occurrence_columns
-                ],
+                visible_plans[plan_columns],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
@@ -5488,353 +5227,512 @@ with payment_calendar_tab:
                 },
             )
 
-with import_tab:
-    st.subheader(t("import.title"))
+            plan_options = {
+                (
+                    f"{int(row['id'])} — "
+                    f"{row['name']}"
+                ): int(row["id"])
+                for _, row in plans.iterrows()
+            }
 
-    uploaded_file = st.file_uploader(
-        t("import.upload"),
-        type=["csv"],
-        help=t("import.upload_help"),
-    )
-
-    if uploaded_file is None:
-        st.info(t("import.select_file"))
-    else:
-        uploaded_bytes = uploaded_file.getvalue()
-
-        source_sha256 = hashlib.sha256(
-            uploaded_bytes
-        ).hexdigest()
-
-        try:
-            result = read_tbank_csv(
-                BytesIO(uploaded_bytes)
+            selected_plan_label = st.selectbox(
+                t("calendar.select_manage"),
+                options=list(plan_options),
             )
-        except BankStatementError as exc:
-            st.error(str(exc))
-            st.stop()
-        except Exception as exc:
-            st.exception(exc)
-            st.stop()
 
-        imported_transactions = result.transactions
+            selected_plan_id = plan_options[
+                selected_plan_label
+            ]
 
-        file_info_columns = st.columns(3)
+            selected_plan = plans.loc[
+                plans["id"] == selected_plan_id
+            ].iloc[0]
 
-        file_info_columns[0].metric(
-            t("import.file.name"),
-            uploaded_file.name,
+            selected_plan_active = st.checkbox(
+                t("calendar.fields.active"),
+                value=bool(
+                    selected_plan["is_active"]
+                ),
+                key=(
+                    f"selected_plan_active_"
+                    f"{selected_plan_id}"
+                ),
+            )
+
+            active_action_column, delete_column = (
+                st.columns(2)
+            )
+
+            with active_action_column:
+                if st.button(
+                    t("calendar.save_activity"),
+                    use_container_width=True,
+                    key=(
+                        f"save_plan_activity_"
+                        f"{selected_plan_id}"
+                    ),
+                ):
+                    set_planned_cash_flow_active(
+                        plan_id=selected_plan_id,
+                        is_active=selected_plan_active,
+                    )
+
+                    st.session_state[
+                        "calendar_message"
+                    ] = t(
+                        "calendar.messages.activity_updated"
+                    )
+                    st.rerun()
+
+            with delete_column:
+                if st.button(
+                    t("calendar.delete"),
+                    use_container_width=True,
+                    key=(
+                        f"delete_plan_"
+                        f"{selected_plan_id}"
+                    ),
+                ):
+                    delete_planned_cash_flow(
+                        selected_plan_id
+                    )
+
+                    st.session_state[
+                        "calendar_message"
+                    ] = t("calendar.messages.deleted")
+                    st.rerun()
+
+        st.divider()
+        st.subheader(t("calendar.forecast.title"))
+
+        forecast_start = st.date_input(
+            t("calendar.forecast.start"),
+            value=date.today(),
+            format="DD.MM.YYYY",
+            key="forecast_start",
         )
 
-        file_info_columns[1].metric(
-            t("import.file.size"),
-            t(
-                "import.file.size_kb",
-                size=len(uploaded_bytes) / 1024,
+        forecast_horizon = st.selectbox(
+            t("calendar.forecast.horizon"),
+            options=[30, 60, 90, 180, 365],
+            index=2,
+            format_func=lambda days: t(
+                "common.days",
+                count=days,
             ),
         )
 
-        file_info_columns[2].metric(
-            "SHA-256",
-            source_sha256[:12] + "…",
-            help=source_sha256,
+        opening_balance_rubles = st.number_input(
+            t("calendar.forecast.opening_balance"),
+            value=0.00,
+            step=1_000.00,
+            format="%.2f",
         )
 
-        for warning in result.warnings:
-            st.warning(warning)
-
-        show_metrics(imported_transactions)
-
-        st.subheader(t("import.preview"))
-
-        st.dataframe(
-            prepare_visible_table(imported_transactions),
-            use_container_width=True,
-            hide_index=True,
+        forecast_end = (
+            forecast_start
+            + timedelta(days=forecast_horizon - 1)
         )
 
-        if st.button(
-            t("import.save_button"),
-            type="primary",
-            use_container_width=True,
-        ):
-            try:
-                save_result = save_transactions(
-                    imported_transactions,
-                    source_filename=uploaded_file.name,
-                    source_size_bytes=len(
-                        uploaded_bytes
-                    ),
-                    source_sha256=source_sha256,
-                    warnings=result.warnings,
+        occurrences = expand_planned_cash_flows(
+            plans=plans,
+            period_start=forecast_start,
+            period_end=forecast_end,
+        )
+
+        forecast = build_cash_forecast(
+            occurrences=occurrences,
+            period_start=forecast_start,
+            period_end=forecast_end,
+            opening_balance_kopecks=(
+                rubles_to_kopecks(
+                    opening_balance_rubles
                 )
-            except ValueError as exc:
-                st.error(str(exc))
-            else:
-                st.session_state[
-                    "last_import_message"
-                ] = t(
-                    "import.messages.saved",
-                    batch_id=(
-                        save_result.import_batch_id
-                    ),
-                    received=save_result.received,
-                    inserted=save_result.inserted,
-                    duplicates=save_result.duplicates,
-                )
-
-                st.rerun()
-
-    st.divider()
-    st.subheader(t("import.management.title"))
-
-    import_batches = get_import_batches_dataframe()
-    untracked_count = get_untracked_transaction_count()
-    total_transaction_count = len(
-        get_transactions_dataframe()
-    )
-
-    management_metrics = st.columns(3)
-
-    management_metrics[0].metric(
-        t("import.management.logged_batches"),
-        len(import_batches),
-    )
-
-    management_metrics[1].metric(
-        t("import.management.untracked"),
-        untracked_count,
-    )
-
-    management_metrics[2].metric(
-        t("import.management.total"),
-        total_transaction_count,
-    )
-
-    st.caption(t("import.management.caption"))
-
-    if import_batches.empty:
-        st.info(t("import.history.empty"))
-    else:
-        st.markdown(
-            "#### " + t("import.history.title")
+            ),
         )
 
-        import_history = import_batches.copy()
-
-        id_column = t("common.id")
-        file_column = t("import.history.file")
-        imported_column = t(
-            "import.history.imported_at"
-        )
-        size_column = t("import.history.size_kb")
-        received_column = t(
-            "import.history.received"
-        )
-        inserted_column = t(
-            "import.history.inserted"
-        )
-        duplicates_column = t(
-            "import.history.duplicates"
-        )
-        linked_column = t("import.history.linked")
-
-        import_history[imported_column] = (
-            pd.to_datetime(
-                import_history["imported_at"],
-                errors="coerce",
-            ).dt.strftime("%d.%m.%Y %H:%M")
+        total_inflow = int(
+            occurrences.loc[
+                occurrences[
+                    "signed_amount_kopecks"
+                ] > 0,
+                "signed_amount_kopecks",
+            ].sum()
         )
 
-        import_history[size_column] = (
-            pd.to_numeric(
-                import_history["source_size_bytes"],
-                errors="coerce",
-            ) / 1024
+        total_outflow = abs(
+            int(
+                occurrences.loc[
+                    occurrences[
+                        "signed_amount_kopecks"
+                    ] < 0,
+                    "signed_amount_kopecks",
+                ].sum()
+            )
         )
 
-        import_history = import_history.rename(
-            columns={
-                "id": id_column,
-                "source_filename": file_column,
-                "received_count": received_column,
-                "inserted_count": inserted_column,
-                "duplicate_count": duplicates_column,
-                "linked_transaction_count":
-                    linked_column,
-            }
+        ending_balance = int(
+            forecast[
+                "closing_balance_kopecks"
+            ].iloc[-1]
         )
 
-        history_columns = [
-            id_column,
-            file_column,
-            imported_column,
-            size_column,
-            received_column,
-            inserted_column,
-            duplicates_column,
-            linked_column,
+        minimum_balance = int(
+            forecast[
+                "closing_balance_kopecks"
+            ].min()
+        )
+
+        forecast_metrics = st.columns(4)
+
+        forecast_metrics[0].metric(
+            t("calendar.forecast.inflows"),
+            format_rubles(total_inflow),
+        )
+
+        forecast_metrics[1].metric(
+            t("calendar.forecast.outflows"),
+            format_rubles(total_outflow),
+        )
+
+        forecast_metrics[2].metric(
+            t("calendar.forecast.ending_balance"),
+            format_rubles(ending_balance),
+        )
+
+        forecast_metrics[3].metric(
+            t("calendar.forecast.minimum_balance"),
+            format_rubles(minimum_balance),
+        )
+
+        cash_gap_rows = forecast.loc[
+            forecast["closing_balance_kopecks"] < 0
         ]
 
-        st.dataframe(
-            import_history[history_columns],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                id_column:
-                    st.column_config.NumberColumn(
-                        id_column,
-                        format="%d",
-                    ),
-                size_column:
-                    st.column_config.NumberColumn(
-                        size_column,
-                        format="%.1f",
-                    ),
-            },
-        )
-
-        batch_ids = (
-            import_batches["id"]
-            .astype(int)
-            .tolist()
-        )
-
-        batch_labels: dict[int, str] = {}
-
-        for _, batch_row in (
-            import_batches.iterrows()
-        ):
-            batch_id = int(batch_row["id"])
-
-            imported_at = pd.to_datetime(
-                batch_row["imported_at"],
-                errors="coerce",
+        if cash_gap_rows.empty:
+            st.success(
+                t("calendar.forecast.no_gap")
+            )
+        else:
+            first_cash_gap = (
+                cash_gap_rows.iloc[0]["date"]
             )
 
-            if pd.isna(imported_at):
-                imported_at_text = t(
-                    "common.unknown_date"
+            cash_gap_amount = abs(
+                int(
+                    cash_gap_rows[
+                        "closing_balance_kopecks"
+                    ].min()
+                )
+            )
+
+            st.error(
+                t(
+                    "calendar.forecast.gap",
+                    date=first_cash_gap.strftime(
+                        "%d.%m.%Y"
+                    ),
+                    amount=format_rubles(
+                        cash_gap_amount
+                    ),
+                )
+            )
+
+        chart_data = forecast.copy()
+
+        date_column = t("common.date")
+        balance_column = t(
+            "calendar.forecast.balance"
+        )
+
+        chart_data[date_column] = pd.to_datetime(
+            chart_data["date"]
+        )
+
+        chart_data[balance_column] = (
+            chart_data[
+                "closing_balance_kopecks"
+            ] / 100
+        )
+
+        balance_chart = px.line(
+            chart_data,
+            x=date_column,
+            y=balance_column,
+        )
+
+        balance_chart.add_hline(y=0)
+
+        balance_chart.update_layout(
+            xaxis_title="",
+            yaxis_title=balance_column,
+        )
+
+        st.plotly_chart(
+            balance_chart,
+            use_container_width=True,
+        )
+
+        with st.expander(
+            t("calendar.events.title"),
+            expanded=False,
+        ):
+            if occurrences.empty:
+                st.info(
+                    t("calendar.events.empty")
                 )
             else:
-                imported_at_text = (
-                    imported_at.strftime(
-                        "%d.%m.%Y %H:%M"
+                visible_occurrences = (
+                    occurrences.copy()
+                )
+
+                name_column = t("common.name")
+                amount_column = t("common.amount_rub")
+                category_column = t("common.category")
+                counterparty_column = t(
+                    "common.counterparty"
+                )
+                comment_column = t("common.comment")
+
+                visible_occurrences[date_column] = (
+                    pd.to_datetime(
+                        visible_occurrences["date"]
+                    ).dt.strftime("%d.%m.%Y")
+                )
+
+                visible_occurrences[amount_column] = (
+                    visible_occurrences[
+                        "signed_amount_kopecks"
+                    ] / 100
+                )
+
+                visible_occurrences = (
+                    visible_occurrences.rename(
+                        columns={
+                            "name": name_column,
+                            "category": category_column,
+                            "counterparty":
+                                counterparty_column,
+                            "comment": comment_column,
+                        }
                     )
                 )
 
-            batch_labels[batch_id] = (
-                f"#{batch_id} — "
-                f"{batch_row['source_filename']} — "
-                f"{imported_at_text}"
-            )
+                occurrence_columns = [
+                    date_column,
+                    name_column,
+                    amount_column,
+                    category_column,
+                    counterparty_column,
+                    comment_column,
+                ]
 
-        selected_batch_id = st.selectbox(
-            t("import.history.select"),
-            options=batch_ids,
-            format_func=lambda value: (
-                batch_labels[int(value)]
-            ),
-            key="selected_import_batch_id",
-        )
-
-        selected_batch = import_batches.loc[
-            import_batches["id"].astype(int)
-            == int(selected_batch_id)
-        ].iloc[0]
-
-        selected_warnings = text_or_empty(
-            selected_batch["warnings"]
-        )
-
-        if selected_warnings:
-            st.warning(selected_warnings)
-
-        selected_transactions = (
-            get_import_batch_transactions_dataframe(
-                int(selected_batch_id)
-            )
-        )
-
-        st.markdown(
-            "#### "
-            + t("import.history.operations_title")
-        )
-
-        if selected_transactions.empty:
-            st.info(
-                t("import.history.operations_empty")
-            )
-        else:
-            transaction_view = (
-                selected_transactions.copy()
-            )
-
-            date_column = t(
-                "operations.columns.date"
-            )
-            amount_column = t(
-                "operations.columns.amount"
-            )
-            counterparty_column = t(
-                "operations.columns.counterparty"
-            )
-            description_column = t(
-                "operations.columns.description"
-            )
-            purpose_column = t(
-                "operations.columns.payment_purpose"
-            )
-            classification_column = t(
-                "operations.columns.classification"
-            )
-
-            transaction_view[date_column] = (
-                pd.to_datetime(
-                    transaction_view["posted_at"],
-                    errors="coerce",
-                ).dt.strftime("%d.%m.%Y")
-            )
-
-            transaction_view[amount_column] = (
-                pd.to_numeric(
-                    transaction_view[
-                        "signed_amount_kopecks"
+                st.dataframe(
+                    visible_occurrences[
+                        occurrence_columns
                     ],
-                    errors="coerce",
-                ) / 100
-            )
-
-            transaction_view = (
-                transaction_view.rename(
-                    columns={
-                        "id": id_column,
-                        "counterparty_name":
-                            counterparty_column,
-                        "description":
-                            description_column,
-                        "payment_purpose":
-                            purpose_column,
-                        "classification_status":
-                            classification_column,
-                    }
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        amount_column:
+                            st.column_config.NumberColumn(
+                                amount_column,
+                                format="%.2f",
+                            ),
+                    },
                 )
+
+if import_tab.open:
+    with import_tab:
+        st.subheader(t("import.title"))
+
+        uploaded_file = st.file_uploader(
+            t("import.upload"),
+            type=["csv"],
+            help=t("import.upload_help"),
+        )
+
+        if uploaded_file is None:
+            st.info(t("import.select_file"))
+        else:
+            uploaded_bytes = uploaded_file.getvalue()
+
+            source_sha256 = hashlib.sha256(
+                uploaded_bytes
+            ).hexdigest()
+
+            try:
+                result = read_tbank_csv(
+                    BytesIO(uploaded_bytes)
+                )
+            except BankStatementError as exc:
+                st.error(str(exc))
+                st.stop()
+            except Exception as exc:
+                st.exception(exc)
+                st.stop()
+
+            imported_transactions = result.transactions
+
+            file_info_columns = st.columns(3)
+
+            file_info_columns[0].metric(
+                t("import.file.name"),
+                uploaded_file.name,
             )
 
-            transaction_columns = [
+            file_info_columns[1].metric(
+                t("import.file.size"),
+                t(
+                    "import.file.size_kb",
+                    size=len(uploaded_bytes) / 1024,
+                ),
+            )
+
+            file_info_columns[2].metric(
+                "SHA-256",
+                source_sha256[:12] + "…",
+                help=source_sha256,
+            )
+
+            for warning in result.warnings:
+                st.warning(warning)
+
+            show_metrics(imported_transactions)
+
+            st.subheader(t("import.preview"))
+
+            st.dataframe(
+                prepare_visible_table(imported_transactions),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            if st.button(
+                t("import.save_button"),
+                type="primary",
+                use_container_width=True,
+            ):
+                try:
+                    save_result = save_transactions(
+                        imported_transactions,
+                        source_filename=uploaded_file.name,
+                        source_size_bytes=len(
+                            uploaded_bytes
+                        ),
+                        source_sha256=source_sha256,
+                        warnings=result.warnings,
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state[
+                        "last_import_message"
+                    ] = t(
+                        "import.messages.saved",
+                        batch_id=(
+                            save_result.import_batch_id
+                        ),
+                        received=save_result.received,
+                        inserted=save_result.inserted,
+                        duplicates=save_result.duplicates,
+                    )
+
+                    st.rerun()
+
+        st.divider()
+        st.subheader(t("import.management.title"))
+
+        import_batches = get_import_batches_dataframe()
+        untracked_count = get_untracked_transaction_count()
+        total_transaction_count = len(
+            get_transactions_dataframe()
+        )
+
+        management_metrics = st.columns(3)
+
+        management_metrics[0].metric(
+            t("import.management.logged_batches"),
+            len(import_batches),
+        )
+
+        management_metrics[1].metric(
+            t("import.management.untracked"),
+            untracked_count,
+        )
+
+        management_metrics[2].metric(
+            t("import.management.total"),
+            total_transaction_count,
+        )
+
+        st.caption(t("import.management.caption"))
+
+        if import_batches.empty:
+            st.info(t("import.history.empty"))
+        else:
+            st.markdown(
+                "#### " + t("import.history.title")
+            )
+
+            import_history = import_batches.copy()
+
+            id_column = t("common.id")
+            file_column = t("import.history.file")
+            imported_column = t(
+                "import.history.imported_at"
+            )
+            size_column = t("import.history.size_kb")
+            received_column = t(
+                "import.history.received"
+            )
+            inserted_column = t(
+                "import.history.inserted"
+            )
+            duplicates_column = t(
+                "import.history.duplicates"
+            )
+            linked_column = t("import.history.linked")
+
+            import_history[imported_column] = (
+                pd.to_datetime(
+                    import_history["imported_at"],
+                    errors="coerce",
+                ).dt.strftime("%d.%m.%Y %H:%M")
+            )
+
+            import_history[size_column] = (
+                pd.to_numeric(
+                    import_history["source_size_bytes"],
+                    errors="coerce",
+                ) / 1024
+            )
+
+            import_history = import_history.rename(
+                columns={
+                    "id": id_column,
+                    "source_filename": file_column,
+                    "received_count": received_column,
+                    "inserted_count": inserted_column,
+                    "duplicate_count": duplicates_column,
+                    "linked_transaction_count":
+                        linked_column,
+                }
+            )
+
+            history_columns = [
                 id_column,
-                date_column,
-                amount_column,
-                counterparty_column,
-                description_column,
-                purpose_column,
-                classification_column,
+                file_column,
+                imported_column,
+                size_column,
+                received_column,
+                inserted_column,
+                duplicates_column,
+                linked_column,
             ]
 
             st.dataframe(
-                transaction_view[
-                    transaction_columns
-                ],
+                import_history[history_columns],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
@@ -5843,156 +5741,313 @@ with import_tab:
                             id_column,
                             format="%d",
                         ),
-                    amount_column:
+                    size_column:
                         st.column_config.NumberColumn(
-                            amount_column,
-                            format="%.2f",
+                            size_column,
+                            format="%.1f",
                         ),
                 },
             )
 
-        st.markdown(
-            "#### "
-            + t("import.history.delete_title")
-        )
+            batch_ids = (
+                import_batches["id"]
+                .astype(int)
+                .tolist()
+            )
 
-        st.caption(
-            t("import.history.delete_caption")
-        )
+            batch_labels: dict[int, str] = {}
 
-        delete_batch_phrase = t(
-            "import.history.delete_phrase",
-            batch_id=selected_batch_id,
-        )
+            for _, batch_row in (
+                import_batches.iterrows()
+            ):
+                batch_id = int(batch_row["id"])
 
-        delete_batch_confirmation = st.text_input(
-            t("import.history.delete_confirmation"),
-            placeholder=delete_batch_phrase,
-            key=(
-                "delete_import_batch_confirmation_"
-                f"{selected_batch_id}"
-            ),
-        )
+                imported_at = pd.to_datetime(
+                    batch_row["imported_at"],
+                    errors="coerce",
+                )
 
-        if st.button(
-            t("import.history.delete_button"),
-            disabled=(
-                delete_batch_confirmation.strip()
-                != delete_batch_phrase
-            ),
-            key=(
-                "delete_import_batch_button_"
-                f"{selected_batch_id}"
-            ),
-            use_container_width=True,
-        ):
-            try:
-                delete_result = delete_import_batch(
+                if pd.isna(imported_at):
+                    imported_at_text = t(
+                        "common.unknown_date"
+                    )
+                else:
+                    imported_at_text = (
+                        imported_at.strftime(
+                            "%d.%m.%Y %H:%M"
+                        )
+                    )
+
+                batch_labels[batch_id] = (
+                    f"#{batch_id} — "
+                    f"{batch_row['source_filename']} — "
+                    f"{imported_at_text}"
+                )
+
+            selected_batch_id = st.selectbox(
+                t("import.history.select"),
+                options=batch_ids,
+                format_func=lambda value: (
+                    batch_labels[int(value)]
+                ),
+                key="selected_import_batch_id",
+            )
+
+            selected_batch = import_batches.loc[
+                import_batches["id"].astype(int)
+                == int(selected_batch_id)
+            ].iloc[0]
+
+            selected_warnings = text_or_empty(
+                selected_batch["warnings"]
+            )
+
+            if selected_warnings:
+                st.warning(selected_warnings)
+
+            selected_transactions = (
+                get_import_batch_transactions_dataframe(
                     int(selected_batch_id)
                 )
-            except ValueError as exc:
-                st.error(str(exc))
+            )
+
+            st.markdown(
+                "#### "
+                + t("import.history.operations_title")
+            )
+
+            if selected_transactions.empty:
+                st.info(
+                    t("import.history.operations_empty")
+                )
             else:
+                transaction_view = (
+                    selected_transactions.copy()
+                )
+
+                date_column = t(
+                    "operations.columns.date"
+                )
+                amount_column = t(
+                    "operations.columns.amount"
+                )
+                counterparty_column = t(
+                    "operations.columns.counterparty"
+                )
+                description_column = t(
+                    "operations.columns.description"
+                )
+                purpose_column = t(
+                    "operations.columns.payment_purpose"
+                )
+                classification_column = t(
+                    "operations.columns.classification"
+                )
+
+                transaction_view[date_column] = (
+                    pd.to_datetime(
+                        transaction_view["posted_at"],
+                        errors="coerce",
+                    ).dt.strftime("%d.%m.%Y")
+                )
+
+                transaction_view[amount_column] = (
+                    pd.to_numeric(
+                        transaction_view[
+                            "signed_amount_kopecks"
+                        ],
+                        errors="coerce",
+                    ) / 100
+                )
+
+                transaction_view = (
+                    transaction_view.rename(
+                        columns={
+                            "id": id_column,
+                            "counterparty_name":
+                                counterparty_column,
+                            "description":
+                                description_column,
+                            "payment_purpose":
+                                purpose_column,
+                            "classification_status":
+                                classification_column,
+                        }
+                    )
+                )
+
+                transaction_columns = [
+                    id_column,
+                    date_column,
+                    amount_column,
+                    counterparty_column,
+                    description_column,
+                    purpose_column,
+                    classification_column,
+                ]
+
+                st.dataframe(
+                    transaction_view[
+                        transaction_columns
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        id_column:
+                            st.column_config.NumberColumn(
+                                id_column,
+                                format="%d",
+                            ),
+                        amount_column:
+                            st.column_config.NumberColumn(
+                                amount_column,
+                                format="%.2f",
+                            ),
+                    },
+                )
+
+            st.markdown(
+                "#### "
+                + t("import.history.delete_title")
+            )
+
+            st.caption(
+                t("import.history.delete_caption")
+            )
+
+            delete_batch_phrase = t(
+                "import.history.delete_phrase",
+                batch_id=selected_batch_id,
+            )
+
+            delete_batch_confirmation = st.text_input(
+                t("import.history.delete_confirmation"),
+                placeholder=delete_batch_phrase,
+                key=(
+                    "delete_import_batch_confirmation_"
+                    f"{selected_batch_id}"
+                ),
+            )
+
+            if st.button(
+                t("import.history.delete_button"),
+                disabled=(
+                    delete_batch_confirmation.strip()
+                    != delete_batch_phrase
+                ),
+                key=(
+                    "delete_import_batch_button_"
+                    f"{selected_batch_id}"
+                ),
+                use_container_width=True,
+            ):
+                try:
+                    delete_result = delete_import_batch(
+                        int(selected_batch_id)
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state[
+                        "last_import_message"
+                    ] = t(
+                        "import.messages.batch_deleted",
+                        batch_id=(
+                            delete_result.import_batch_id
+                        ),
+                        links=delete_result.links_deleted,
+                        transactions=(
+                            delete_result.transactions_deleted
+                        ),
+                    )
+
+                    st.rerun()
+
+        if untracked_count > 0:
+            st.divider()
+            st.markdown(
+                "#### " + t("import.untracked.title")
+            )
+
+            st.warning(
+                t(
+                    "import.untracked.warning",
+                    count=untracked_count,
+                )
+            )
+
+            delete_untracked_phrase = t(
+                "import.untracked.phrase"
+            )
+
+            delete_untracked_confirmation = (
+                st.text_input(
+                    t("import.untracked.confirmation"),
+                    placeholder=delete_untracked_phrase,
+                    key="delete_untracked_confirmation",
+                )
+            )
+
+            if st.button(
+                t("import.untracked.delete_button"),
+                disabled=(
+                    delete_untracked_confirmation.strip()
+                    != delete_untracked_phrase
+                ),
+                key="delete_untracked_button",
+                use_container_width=True,
+            ):
+                deleted_count = (
+                    delete_untracked_transactions()
+                )
+
                 st.session_state[
                     "last_import_message"
                 ] = t(
-                    "import.messages.batch_deleted",
-                    batch_id=(
-                        delete_result.import_batch_id
-                    ),
-                    links=delete_result.links_deleted,
-                    transactions=(
-                        delete_result.transactions_deleted
-                    ),
+                    "import.messages.untracked_deleted",
+                    count=deleted_count,
                 )
 
                 st.rerun()
 
-    if untracked_count > 0:
         st.divider()
-        st.markdown(
-            "#### " + t("import.untracked.title")
-        )
 
-        st.warning(
-            t(
-                "import.untracked.warning",
-                count=untracked_count,
-            )
-        )
-
-        delete_untracked_phrase = t(
-            "import.untracked.phrase"
-        )
-
-        delete_untracked_confirmation = (
-            st.text_input(
-                t("import.untracked.confirmation"),
-                placeholder=delete_untracked_phrase,
-                key="delete_untracked_confirmation",
-            )
-        )
-
-        if st.button(
-            t("import.untracked.delete_button"),
-            disabled=(
-                delete_untracked_confirmation.strip()
-                != delete_untracked_phrase
-            ),
-            key="delete_untracked_button",
-            use_container_width=True,
+        with st.expander(
+            t("import.danger.title"),
+            expanded=False,
         ):
-            deleted_count = (
-                delete_untracked_transactions()
+            st.warning(t("import.danger.warning"))
+
+            clear_phrase = t("import.danger.phrase")
+
+            clear_confirmation = st.text_input(
+                t("import.danger.confirmation"),
+                placeholder=clear_phrase,
+                key="clear_bank_data_confirmation",
             )
 
-            st.session_state[
-                "last_import_message"
-            ] = t(
-                "import.messages.untracked_deleted",
-                count=deleted_count,
-            )
-
-            st.rerun()
-
-    st.divider()
-
-    with st.expander(
-        t("import.danger.title"),
-        expanded=False,
-    ):
-        st.warning(t("import.danger.warning"))
-
-        clear_phrase = t("import.danger.phrase")
-
-        clear_confirmation = st.text_input(
-            t("import.danger.confirmation"),
-            placeholder=clear_phrase,
-            key="clear_bank_data_confirmation",
-        )
-
-        if st.button(
-            t("import.danger.clear_button"),
-            disabled=(
-                clear_confirmation.strip()
-                != clear_phrase
-            ),
-            key="clear_bank_data_button",
-            use_container_width=True,
-        ):
-            clear_result = clear_bank_data()
-
-            st.session_state[
-                "last_import_message"
-            ] = t(
-                "import.messages.cleared",
-                batches=(
-                    clear_result.import_batches_deleted
+            if st.button(
+                t("import.danger.clear_button"),
+                disabled=(
+                    clear_confirmation.strip()
+                    != clear_phrase
                 ),
-                links=clear_result.links_deleted,
-                transactions=(
-                    clear_result.transactions_deleted
-                ),
-            )
+                key="clear_bank_data_button",
+                use_container_width=True,
+            ):
+                clear_result = clear_bank_data()
 
-            st.rerun()
+                st.session_state[
+                    "last_import_message"
+                ] = t(
+                    "import.messages.cleared",
+                    batches=(
+                        clear_result.import_batches_deleted
+                    ),
+                    links=clear_result.links_deleted,
+                    transactions=(
+                        clear_result.transactions_deleted
+                    ),
+                )
+
+                st.rerun()
