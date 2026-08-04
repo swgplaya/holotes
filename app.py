@@ -336,6 +336,130 @@ def format_rule_active_status(
         "rules.saved.values.inactive"
     )
 
+
+
+UNIT_COST_TYPE_TRANSLATION_KEYS = {
+    "fixed_per_unit": "unit.cost_type.fixed_per_unit",
+    "fixed_period": "unit.cost_type.fixed_period",
+    "percent_of_price": "unit.cost_type.percent_of_price",
+    "percent_of_revenue": "unit.cost_type.percent_of_revenue",
+}
+
+UNIT_PRICING_METHOD_TRANSLATION_KEYS = {
+    "not_set": "unit.pricing_method.not_set",
+    "manual": "unit.pricing_method.manual",
+    "markup": "unit.pricing_method.markup",
+    "target_margin": "unit.pricing_method.target_margin",
+}
+
+CALENDAR_DIRECTION_TRANSLATION_KEYS = {
+    "inflow": "calendar.direction.inflow",
+    "outflow": "calendar.direction.outflow",
+}
+
+CALENDAR_RECURRENCE_TRANSLATION_KEYS = {
+    "once": "calendar.recurrence.once",
+    "monthly": "calendar.recurrence.monthly",
+    "yearly": "calendar.recurrence.yearly",
+}
+
+UNIT_PRICING_ERROR_TRANSLATION_KEYS = {
+    "Способ ценообразования не выбран.":
+        "unit.pricing_error.not_set",
+    "Не указана ручная цена.":
+        "unit.pricing_error.manual_missing",
+    "Не указана наценка.":
+        "unit.pricing_error.markup_missing",
+    "Сумма процентных расходов должна быть меньше 100%.":
+        "unit.pricing_error.percentage_too_high",
+    "Не указана целевая маржинальность.":
+        "unit.pricing_error.margin_missing",
+    (
+        "Процентные расходы и целевая маржинальность "
+        "вместе должны быть меньше 100%."
+    ): "unit.pricing_error.margin_total_too_high",
+    "Неизвестный способ ценообразования.":
+        "unit.pricing_error.unknown_method",
+}
+
+
+def format_unit_cost_type(value: object) -> str:
+    """Возвращает локализованный тип затрат."""
+
+    return format_rule_option(
+        value,
+        translation_keys=(
+            UNIT_COST_TYPE_TRANSLATION_KEYS
+        ),
+        fallback_labels=COST_TYPE_LABELS,
+    )
+
+
+def format_unit_pricing_method(value: object) -> str:
+    """Возвращает локализованный способ ценообразования."""
+
+    return format_rule_option(
+        value,
+        translation_keys=(
+            UNIT_PRICING_METHOD_TRANSLATION_KEYS
+        ),
+        fallback_labels=PRICING_METHOD_LABELS,
+    )
+
+
+def format_calendar_direction(value: object) -> str:
+    """Возвращает локализованное направление платежа."""
+
+    return format_rule_option(
+        value,
+        translation_keys=(
+            CALENDAR_DIRECTION_TRANSLATION_KEYS
+        ),
+        fallback_labels=DIRECTION_LABELS,
+    )
+
+
+def format_calendar_recurrence(value: object) -> str:
+    """Возвращает локализованную периодичность."""
+
+    return format_rule_option(
+        value,
+        translation_keys=(
+            CALENDAR_RECURRENCE_TRANSLATION_KEYS
+        ),
+        fallback_labels=RECURRENCE_LABELS,
+    )
+
+
+def format_boolean_status(value: object) -> str:
+    """Возвращает локализованный логический статус."""
+
+    if (
+        value is not None
+        and not pd.isna(value)
+        and bool(value)
+    ):
+        return t("common.yes")
+
+    return t("common.no")
+
+
+def localize_unit_pricing_error(value: object) -> str:
+    """Локализует известную ошибку расчёта цены."""
+
+    message = text_or_empty(value)
+    translation_key = (
+        UNIT_PRICING_ERROR_TRANSLATION_KEYS.get(
+            message
+        )
+    )
+
+    if translation_key is not None:
+        return t(translation_key)
+
+    return message
+
+
 def text_or_empty(value: object) -> str:
     """Преобразует пустое значение базы в пустую строку."""
 
@@ -3823,46 +3947,44 @@ with cash_flow_tab:
     )
 
 with unit_economics_tab:
-    st.subheader("Unit Economics")
+    st.subheader(t("unit.title"))
 
-    st.caption(
-        "Затраты «на единицу» умножаются на плановое "
-        "количество. Затраты «за период» вычитаются "
-        "из общей маржи продукта."
-    )
+    st.caption(t("unit.caption"))
 
     with st.expander(
-            "Добавить продукт",
-            expanded=True,
+        t("unit.product.add_title"),
+        expanded=True,
     ):
         with st.form(
-                "create_unit_economics_product_form",
-                clear_on_submit=True,
+            "create_unit_economics_product_form",
+            clear_on_submit=True,
         ):
             product_name = st.text_input(
-                "Название продукта",
-                placeholder="Например: футболка Core",
+                t("unit.product.name"),
+                placeholder=t(
+                    "unit.product.name_placeholder"
+                ),
             )
 
             planned_units = st.number_input(
-                "Плановое количество",
+                t("unit.product.planned_units"),
                 min_value=1,
                 value=100,
                 step=1,
             )
 
             product_is_active = st.checkbox(
-                "Продукт активен",
+                t("unit.product.active"),
                 value=True,
             )
 
             product_comment = st.text_area(
-                "Комментарий к продукту",
+                t("unit.product.comment"),
                 max_chars=500,
             )
 
             product_submitted = st.form_submit_button(
-                "Добавить продукт",
+                t("unit.product.add_button"),
                 type="primary",
                 use_container_width=True,
             )
@@ -3884,8 +4006,9 @@ with unit_economics_tab:
                 else:
                     st.session_state[
                         "unit_economics_message"
-                    ] = (
-                        f"Продукт #{product_id} добавлен."
+                    ] = t(
+                        "unit.product.added",
+                        product_id=product_id,
                     )
 
                     st.rerun()
@@ -3899,10 +4022,7 @@ with unit_economics_tab:
     )
 
     if products.empty:
-        st.info(
-            "Добавь первый продукт для расчёта "
-            "Unit Economics."
-        )
+        st.info(t("unit.product.empty"))
     else:
         product_options = {
             (
@@ -3913,7 +4033,7 @@ with unit_economics_tab:
         }
 
         selected_product_label = st.selectbox(
-            "Выберите продукт",
+            t("unit.product.select"),
             options=list(product_options),
             key="unit_economics_selected_product",
         )
@@ -3927,26 +4047,28 @@ with unit_economics_tab:
         ].iloc[0]
 
         st.subheader(
-            f"Затраты: {selected_product['name']}"
+            t(
+                "unit.costs.title",
+                product_name=selected_product["name"],
+            )
         )
 
         with st.form(
-                f"create_cost_item_form_"
-                f"{selected_product_id}",
-                clear_on_submit=True,
+            f"create_cost_item_form_"
+            f"{selected_product_id}",
+            clear_on_submit=True,
         ):
             cost_name = st.text_input(
-                "Название статьи затрат",
-                placeholder=(
-                    "Например: ткань, упаковка, "
-                    "эквайринг или налог"
+                t("unit.cost.name"),
+                placeholder=t(
+                    "unit.cost.name_placeholder"
                 ),
             )
 
             calculation_type = st.selectbox(
-                "Тип затрат",
+                t("unit.cost.type"),
                 options=list(COST_TYPE_LABELS),
-                format_func=COST_TYPE_LABELS.get,
+                format_func=format_unit_cost_type,
             )
 
             cost_amount_rubles: float | None
@@ -3957,7 +4079,7 @@ with unit_economics_tab:
                 "fixed_period",
             }:
                 cost_amount_rubles = st.number_input(
-                    "Сумма, ₽",
+                    t("common.amount_rub"),
                     min_value=0.00,
                     value=100.00,
                     step=10.00,
@@ -3968,7 +4090,7 @@ with unit_economics_tab:
 
             else:
                 percentage_value = st.number_input(
-                    "Процент, %",
+                    t("common.percent"),
                     min_value=0.00,
                     max_value=99.99,
                     value=2.50,
@@ -3979,17 +4101,17 @@ with unit_economics_tab:
                 cost_amount_rubles = None
 
             cost_is_active = st.checkbox(
-                "Строка затрат активна",
+                t("unit.cost.active"),
                 value=True,
             )
 
             cost_comment = st.text_area(
-                "Комментарий к затратам",
+                t("unit.cost.comment"),
                 max_chars=500,
             )
 
             cost_submitted = st.form_submit_button(
-                "Добавить строку затрат",
+                t("unit.cost.add_button"),
                 type="primary",
                 use_container_width=True,
             )
@@ -4006,7 +4128,7 @@ with unit_economics_tab:
                                     cost_amount_rubles
                                 )
                                 if cost_amount_rubles
-                                   is not None
+                                is not None
                                 else None
                             ),
                             percentage_bp=(
@@ -4014,7 +4136,7 @@ with unit_economics_tab:
                                     percentage_value
                                 )
                                 if percentage_value
-                                   is not None
+                                is not None
                                 else None
                             ),
                             is_active=cost_is_active,
@@ -4026,9 +4148,9 @@ with unit_economics_tab:
                 else:
                     st.session_state[
                         "unit_economics_message"
-                    ] = (
-                        f"Строка затрат "
-                        f"#{cost_item_id} добавлена."
+                    ] = t(
+                        "unit.cost.added",
+                        cost_id=cost_item_id,
                     )
 
                     st.rerun()
@@ -4039,65 +4161,87 @@ with unit_economics_tab:
         ].copy()
 
         if selected_cost_items.empty:
-            st.info(
-                "У этого продукта пока нет "
-                "строк затрат."
-            )
+            st.info(t("unit.cost.empty"))
         else:
-            visible_cost_items = selected_cost_items.copy()
+            visible_cost_items = (
+                selected_cost_items.copy()
+            )
 
-            visible_cost_items["Тип"] = (
+            id_column = t("common.id")
+            item_column = t(
+                "unit.cost.item_column"
+            )
+            type_column = t("unit.cost.type")
+            amount_column = t("common.amount_rub")
+            percent_column = t("common.percent")
+            active_column = t("common.active")
+            comment_column = t("common.comment")
+
+            visible_cost_items[type_column] = (
                 visible_cost_items[
                     "calculation_type"
-                ].map(COST_TYPE_LABELS)
+                ].apply(format_unit_cost_type)
             )
 
-            visible_cost_items["Сумма, ₽"] = (
-                    pd.to_numeric(
-                        visible_cost_items["amount_kopecks"],
-                        errors="coerce",
-                    ) / 100
+            visible_cost_items[amount_column] = (
+                pd.to_numeric(
+                    visible_cost_items[
+                        "amount_kopecks"
+                    ],
+                    errors="coerce",
+                ) / 100
             )
 
-            visible_cost_items["Процент, %"] = (
-                    pd.to_numeric(
-                        visible_cost_items["percentage_bp"],
-                        errors="coerce",
-                    ) / 100
+            visible_cost_items[percent_column] = (
+                pd.to_numeric(
+                    visible_cost_items[
+                        "percentage_bp"
+                    ],
+                    errors="coerce",
+                ) / 100
             )
 
-            visible_cost_items = visible_cost_items.rename(
-                columns={
-                    "id": "ID",
-                    "name": "Статья затрат",
-                    "is_active": "Активна",
-                    "comment": "Комментарий",
-                }
+            visible_cost_items[active_column] = (
+                visible_cost_items[
+                    "is_active"
+                ].apply(format_boolean_status)
+            )
+
+            visible_cost_items = (
+                visible_cost_items.rename(
+                    columns={
+                        "id": id_column,
+                        "name": item_column,
+                        "comment": comment_column,
+                    }
+                )
             )
 
             st.dataframe(
                 visible_cost_items[
                     [
-                        "ID",
-                        "Статья затрат",
-                        "Тип",
-                        "Сумма, ₽",
-                        "Процент, %",
-                        "Активна",
-                        "Комментарий",
+                        id_column,
+                        item_column,
+                        type_column,
+                        amount_column,
+                        percent_column,
+                        active_column,
+                        comment_column,
                     ]
                 ],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Сумма, ₽": st.column_config.NumberColumn(
-                        "Сумма, ₽",
-                        format="%.2f",
-                    ),
-                    "Процент, %": st.column_config.NumberColumn(
-                        "Процент, %",
-                        format="%.2f%%",
-                    ),
+                    amount_column:
+                        st.column_config.NumberColumn(
+                            amount_column,
+                            format="%.2f",
+                        ),
+                    percent_column:
+                        st.column_config.NumberColumn(
+                            percent_column,
+                            format="%.2f%%",
+                        ),
                 },
             )
 
@@ -4112,8 +4256,7 @@ with unit_economics_tab:
 
             selected_cost_item_label = (
                 st.selectbox(
-                    "Выберите строку затрат "
-                    "для управления",
+                    t("unit.cost.select_manage"),
                     options=list(cost_item_options),
                     key=(
                         "selected_unit_cost_item_"
@@ -4137,7 +4280,7 @@ with unit_economics_tab:
 
             selected_cost_item_active = (
                 st.checkbox(
-                    "Строка затрат активна",
+                    t("unit.cost.active"),
                     value=bool(
                         selected_cost_item[
                             "is_active"
@@ -4156,7 +4299,7 @@ with unit_economics_tab:
 
             with cost_active_column:
                 if st.button(
-                    "Сохранить активность статьи",
+                    t("unit.cost.save_activity"),
                     use_container_width=True,
                     key=(
                         "save_unit_cost_activity_"
@@ -4174,15 +4317,14 @@ with unit_economics_tab:
 
                     st.session_state[
                         "unit_economics_message"
-                    ] = (
-                        "Состояние статьи затрат "
-                        "обновлено."
+                    ] = t(
+                        "unit.cost.activity_updated"
                     )
                     st.rerun()
 
             with cost_delete_column:
                 if st.button(
-                    "Удалить статью затрат",
+                    t("unit.cost.delete"),
                     use_container_width=True,
                     key=(
                         "delete_unit_cost_"
@@ -4195,12 +4337,10 @@ with unit_economics_tab:
 
                     st.session_state[
                         "unit_economics_message"
-                    ] = (
-                        "Статья затрат удалена."
-                    )
+                    ] = t("unit.cost.deleted")
                     st.rerun()
 
-        st.subheader("Ценообразование")
+        st.subheader(t("unit.pricing.title"))
 
         pricing_options = [
             "manual",
@@ -4219,10 +4359,10 @@ with unit_economics_tab:
         )
 
         pricing_method = st.selectbox(
-            "Способ формирования цены",
+            t("unit.pricing.method"),
             options=pricing_options,
             index=default_pricing_index,
-            format_func=PRICING_METHOD_LABELS.get,
+            format_func=format_unit_pricing_method,
             key=f"pricing_method_{selected_product_id}",
         )
 
@@ -4237,7 +4377,7 @@ with unit_economics_tab:
             )
 
             manual_price_rubles = st.number_input(
-                "Цена продажи, ₽",
+                t("unit.pricing.manual_price"),
                 min_value=0.01,
                 value=(
                     float(stored_manual_price) / 100
@@ -4256,9 +4396,11 @@ with unit_economics_tab:
 
             pricing_percent = st.number_input(
                 (
-                    "Наценка, %"
+                    t("unit.pricing.markup")
                     if pricing_method == "markup"
-                    else "Целевая маржинальность, %"
+                    else t(
+                        "unit.pricing.target_margin"
+                    )
                 ),
                 min_value=0.00,
                 max_value=99.99,
@@ -4277,7 +4419,7 @@ with unit_economics_tab:
         )
 
         rounding_step_rubles = st.number_input(
-            "Округлять цену вверх до, ₽",
+            t("unit.pricing.rounding"),
             min_value=1.00,
             value=float(stored_rounding_step) / 100,
             step=10.00,
@@ -4286,10 +4428,10 @@ with unit_economics_tab:
         )
 
         if st.button(
-                "Сохранить настройки цены",
-                type="primary",
-                use_container_width=True,
-                key=f"save_pricing_{selected_product_id}",
+            t("unit.pricing.save"),
+            type="primary",
+            use_container_width=True,
+            key=f"save_pricing_{selected_product_id}",
         ):
             try:
                 update_unit_economics_pricing(
@@ -4320,12 +4462,12 @@ with unit_economics_tab:
             else:
                 st.session_state[
                     "unit_economics_message"
-                ] = "Настройки ценообразования сохранены."
+                ] = t("unit.pricing.saved")
 
                 st.rerun()
 
         st.divider()
-        st.subheader("Расчёт")
+        st.subheader(t("unit.calculation.title"))
 
         summary = build_unit_economics_summary(
             products=products,
@@ -4334,27 +4476,26 @@ with unit_economics_tab:
 
         selected_summary = summary.loc[
             summary["product_id"] == selected_product_id
-            ]
+        ]
 
         if selected_summary.empty:
             st.warning(
-                "Продукт выключен и не участвует в расчёте."
+                t("unit.calculation.inactive")
             )
         else:
             result = selected_summary.iloc[0]
 
-            # Эти показатели доступны даже до формирования цены.
             base_metrics = st.columns(4)
 
             base_metrics[0].metric(
-                "Затраты на единицу",
+                t("unit.metrics.fixed_per_unit"),
                 format_rubles(
                     int(result["fixed_per_unit_kopecks"])
                 ),
             )
 
             base_metrics[1].metric(
-                "Затраты периода на единицу",
+                t("unit.metrics.allocated_period"),
                 format_rubles(
                     int(
                         result[
@@ -4365,7 +4506,7 @@ with unit_economics_tab:
             )
 
             base_metrics[2].metric(
-                "Базовая себестоимость",
+                t("unit.metrics.base_cost"),
                 format_rubles(
                     int(
                         result[
@@ -4376,7 +4517,7 @@ with unit_economics_tab:
             )
 
             base_metrics[3].metric(
-                "Процентные расходы",
+                t("unit.metrics.percentage_rate"),
                 (
                     f"{float(result['percentage_cost_rate']):.2f}%"
                 ),
@@ -4385,15 +4526,18 @@ with unit_economics_tab:
             pricing_error = result["pricing_error"]
 
             if (
-                    pricing_error is not None
-                    and not pd.isna(pricing_error)
-                    and str(pricing_error).strip()
+                pricing_error is not None
+                and not pd.isna(pricing_error)
+                and str(pricing_error).strip()
             ):
-                st.warning(str(pricing_error))
+                st.warning(
+                    localize_unit_pricing_error(
+                        pricing_error
+                    )
+                )
 
                 st.info(
-                    "Добавь статьи затрат и настрой способ "
-                    "формирования цены в блоке «Ценообразование»."
+                    t("unit.calculation.setup_hint")
                 )
 
             else:
@@ -4418,34 +4562,38 @@ with unit_economics_tab:
                 price_metrics = st.columns(4)
 
                 price_metrics[0].metric(
-                    "Цена продажи",
+                    t("unit.metrics.selling_price"),
                     format_rubles(selling_price),
                 )
 
                 price_metrics[1].metric(
-                    "Процентные расходы на единицу",
+                    t(
+                        "unit.metrics.percentage_per_unit"
+                    ),
                     format_rubles(
                         percentage_cost_per_unit
                     ),
                 )
 
                 price_metrics[2].metric(
-                    "Полная себестоимость",
+                    t("unit.metrics.total_cost"),
                     format_rubles(total_cost_per_unit),
                 )
 
                 price_metrics[3].metric(
-                    "Прибыль на единицу",
+                    t("unit.metrics.profit_per_unit"),
                     format_rubles(profit_per_unit),
                 )
 
                 margin_percent = result["margin_percent"]
 
                 if (
-                        margin_percent is None
-                        or pd.isna(margin_percent)
+                    margin_percent is None
+                    or pd.isna(margin_percent)
                 ):
-                    margin_text = "не рассчитывается"
+                    margin_text = t(
+                        "common.not_calculated"
+                    )
                 else:
                     margin_text = (
                         f"{float(margin_percent):.1f}%"
@@ -4456,56 +4604,65 @@ with unit_economics_tab:
                 ]
 
                 if (
-                        break_even_units is None
-                        or pd.isna(break_even_units)
+                    break_even_units is None
+                    or pd.isna(break_even_units)
                 ):
-                    break_even_text = (
-                        "не рассчитывается"
+                    break_even_text = t(
+                        "common.not_calculated"
                     )
                 else:
-                    break_even_text = (
-                        f"{int(break_even_units)} шт."
+                    break_even_text = t(
+                        "common.units_short",
+                        count=int(break_even_units),
                     )
 
                 st.write(
-                    f"**План продаж:** "
-                    f"{int(result['planned_units'])} шт."
+                    f"**{t('unit.details.sales_plan')}:** "
+                    + t(
+                        "common.units_short",
+                        count=int(result["planned_units"]),
+                    )
                 )
 
                 st.write(
-                    f"**Выручка:** "
+                    f"**{t('unit.details.revenue')}:** "
                     f"{format_rubles(int(result['revenue_kopecks']))}"
                 )
 
                 st.write(
-                    f"**Полные затраты на тираж:** "
+                    f"**{t('unit.details.total_batch_cost')}:** "
                     f"{format_rubles(int(result['total_cost_kopecks']))}"
                 )
 
                 st.write(
-                    f"**Результат на тираж:** "
+                    f"**{t('unit.details.batch_result')}:** "
                     f"{format_rubles(int(result['operating_result_kopecks']))}"
                 )
 
                 st.write(
-                    f"**Фактическая маржинальность:** "
+                    f"**{t('unit.details.margin')}:** "
                     f"{margin_text}"
                 )
 
                 st.write(
-                    f"**Точка безубыточности:** "
+                    f"**{t('unit.details.break_even')}:** "
                     f"{break_even_text}"
                 )
 
+                metric_column = t("unit.chart.metric")
+                amount_column = t("common.amount_rub")
+
                 chart_data = pd.DataFrame(
                     {
-                        "Показатель": [
-                            "Цена продажи",
-                            "Базовая себестоимость",
-                            "Процентные расходы",
-                            "Прибыль",
+                        metric_column: [
+                            t("unit.chart.price"),
+                            t("unit.chart.base_cost"),
+                            t(
+                                "unit.chart.percentage_cost"
+                            ),
+                            t("unit.chart.profit"),
                         ],
-                        "Сумма, ₽": [
+                        amount_column: [
                             selling_price / 100,
                             int(
                                 result[
@@ -4520,14 +4677,14 @@ with unit_economics_tab:
 
                 unit_chart = px.bar(
                     chart_data,
-                    x="Показатель",
-                    y="Сумма, ₽",
+                    x=metric_column,
+                    y=amount_column,
                     text_auto=".2s",
                 )
 
                 unit_chart.update_layout(
                     xaxis_title="",
-                    yaxis_title="Сумма, ₽",
+                    yaxis_title=amount_column,
                 )
 
                 st.plotly_chart(
@@ -4536,10 +4693,10 @@ with unit_economics_tab:
                 )
 
         st.divider()
-        st.subheader("Управление продуктом")
+        st.subheader(t("unit.management.title"))
 
         selected_product_active = st.checkbox(
-            "Продукт активен",
+            t("unit.product.active"),
             value=bool(
                 selected_product["is_active"]
             ),
@@ -4555,7 +4712,7 @@ with unit_economics_tab:
 
         with product_active_column:
             if st.button(
-                "Сохранить активность продукта",
+                t("unit.management.save_activity"),
                 use_container_width=True,
                 key=(
                     "save_unit_product_activity_"
@@ -4569,14 +4726,14 @@ with unit_economics_tab:
 
                 st.session_state[
                     "unit_economics_message"
-                ] = (
-                    "Состояние продукта обновлено."
+                ] = t(
+                    "unit.management.activity_updated"
                 )
                 st.rerun()
 
         with product_delete_column:
             if st.button(
-                "Удалить продукт",
+                t("unit.management.delete"),
                 use_container_width=True,
                 key=(
                     "delete_unit_product_"
@@ -4589,62 +4746,94 @@ with unit_economics_tab:
 
                 st.session_state[
                     "unit_economics_message"
-                ] = (
-                    "Продукт и его строки "
-                    "затрат удалены."
-                )
+                ] = t("unit.management.deleted")
                 st.rerun()
 
         st.divider()
-        st.subheader("Сводка по продуктам")
+        st.subheader(t("unit.summary.title"))
 
         if summary.empty:
-            st.info(
-                "Нет активных продуктов для сводного расчёта."
-            )
+            st.info(t("unit.summary.empty"))
         else:
             visible_summary = summary.copy()
 
-            visible_summary["Способ цены"] = (
-                visible_summary["pricing_method"]
-                .map(PRICING_METHOD_LABELS)
-                .fillna(
-                    visible_summary["pricing_method"]
-                )
+            product_column = t("unit.summary.product")
+            plan_column = t("unit.summary.plan_units")
+            pricing_method_column = t(
+                "unit.summary.pricing_method"
+            )
+            fixed_column = t(
+                "unit.summary.fixed_per_unit"
+            )
+            period_column = t(
+                "unit.summary.allocated_period"
+            )
+            base_cost_column = t(
+                "unit.summary.base_cost"
+            )
+            percentage_rate_column = t(
+                "unit.summary.percentage_rate"
+            )
+            selling_price_column = t(
+                "unit.summary.selling_price"
+            )
+            percentage_unit_column = t(
+                "unit.summary.percentage_per_unit"
+            )
+            total_cost_column = t(
+                "unit.summary.total_cost"
+            )
+            profit_column = t(
+                "unit.summary.profit_per_unit"
+            )
+            margin_column = t("unit.summary.margin")
+            revenue_column = t("unit.summary.revenue")
+            batch_result_column = t(
+                "unit.summary.batch_result"
+            )
+            break_even_column = t(
+                "unit.summary.break_even"
+            )
+            status_column = t("unit.summary.status")
+
+            visible_summary[pricing_method_column] = (
+                visible_summary[
+                    "pricing_method"
+                ].apply(format_unit_pricing_method)
             )
 
             money_columns = {
                 "fixed_per_unit_kopecks":
-                    "Фиксированные затраты на единицу, ₽",
+                    fixed_column,
                 "allocated_period_per_unit_kopecks":
-                    "Затраты периода на единицу, ₽",
+                    period_column,
                 "base_cost_per_unit_kopecks":
-                    "Базовая себестоимость, ₽",
+                    base_cost_column,
                 "selling_price_kopecks":
-                    "Цена продажи, ₽",
+                    selling_price_column,
                 "percentage_cost_per_unit_kopecks":
-                    "Процентные расходы на единицу, ₽",
+                    percentage_unit_column,
                 "total_cost_per_unit_kopecks":
-                    "Полная себестоимость, ₽",
+                    total_cost_column,
                 "profit_per_unit_kopecks":
-                    "Прибыль на единицу, ₽",
+                    profit_column,
                 "revenue_kopecks":
-                    "Выручка, ₽",
+                    revenue_column,
                 "operating_result_kopecks":
-                    "Результат на тираж, ₽",
+                    batch_result_column,
             }
 
             for source_column, visible_column in (
-                    money_columns.items()
+                money_columns.items()
             ):
                 visible_summary[visible_column] = (
-                        pd.to_numeric(
-                            visible_summary[source_column],
-                            errors="coerce",
-                        ) / 100
+                    pd.to_numeric(
+                        visible_summary[source_column],
+                        errors="coerce",
+                    ) / 100
                 )
 
-            visible_summary["Маржинальность, %"] = (
+            visible_summary[margin_column] = (
                 pd.to_numeric(
                     visible_summary["margin_percent"],
                     errors="coerce",
@@ -4652,124 +4841,129 @@ with unit_economics_tab:
             )
 
             visible_summary[
-                "Процентные расходы, %"
+                percentage_rate_column
             ] = pd.to_numeric(
-                visible_summary["percentage_cost_rate"],
+                visible_summary[
+                    "percentage_cost_rate"
+                ],
                 errors="coerce",
             )
 
             visible_summary[
-                "Точка безубыточности, шт."
+                break_even_column
             ] = pd.to_numeric(
                 visible_summary["break_even_units"],
                 errors="coerce",
             )
 
-            visible_summary["Статус расчёта"] = (
+            visible_summary[status_column] = (
                 visible_summary["pricing_error"]
-                .fillna("Расчёт выполнен")
-                .replace("", "Расчёт выполнен")
+                .apply(
+                    lambda value: (
+                        t("unit.summary.status_ok")
+                        if not text_or_empty(value)
+                        else localize_unit_pricing_error(
+                            value
+                        )
+                    )
+                )
             )
 
             visible_summary = visible_summary.rename(
                 columns={
-                    "product_name": "Продукт",
-                    "planned_units": "План, шт.",
+                    "product_name": product_column,
+                    "planned_units": plan_column,
                 }
             )
 
+            summary_columns = [
+                product_column,
+                plan_column,
+                pricing_method_column,
+                fixed_column,
+                period_column,
+                base_cost_column,
+                percentage_rate_column,
+                selling_price_column,
+                total_cost_column,
+                profit_column,
+                margin_column,
+                revenue_column,
+                batch_result_column,
+                break_even_column,
+                status_column,
+            ]
+
             st.dataframe(
-                visible_summary[
-                    [
-                        "Продукт",
-                        "План, шт.",
-                        "Способ цены",
-                        "Фиксированные затраты на единицу, ₽",
-                        "Затраты периода на единицу, ₽",
-                        "Базовая себестоимость, ₽",
-                        "Процентные расходы, %",
-                        "Цена продажи, ₽",
-                        "Полная себестоимость, ₽",
-                        "Прибыль на единицу, ₽",
-                        "Маржинальность, %",
-                        "Выручка, ₽",
-                        "Результат на тираж, ₽",
-                        "Точка безубыточности, шт.",
-                        "Статус расчёта",
-                    ]
-                ],
+                visible_summary[summary_columns],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Фиксированные затраты на единицу, ₽":
+                    fixed_column:
                         st.column_config.NumberColumn(
-                            "Фиксированные затраты на единицу, ₽",
+                            fixed_column,
                             format="%.2f",
                         ),
-                    "Затраты периода на единицу, ₽":
+                    period_column:
                         st.column_config.NumberColumn(
-                            "Затраты периода на единицу, ₽",
+                            period_column,
                             format="%.2f",
                         ),
-                    "Базовая себестоимость, ₽":
+                    base_cost_column:
                         st.column_config.NumberColumn(
-                            "Базовая себестоимость, ₽",
+                            base_cost_column,
                             format="%.2f",
                         ),
-                    "Процентные расходы, %":
+                    percentage_rate_column:
                         st.column_config.NumberColumn(
-                            "Процентные расходы, %",
+                            percentage_rate_column,
                             format="%.2f%%",
                         ),
-                    "Цена продажи, ₽":
+                    selling_price_column:
                         st.column_config.NumberColumn(
-                            "Цена продажи, ₽",
+                            selling_price_column,
                             format="%.2f",
                         ),
-                    "Полная себестоимость, ₽":
+                    total_cost_column:
                         st.column_config.NumberColumn(
-                            "Полная себестоимость, ₽",
+                            total_cost_column,
                             format="%.2f",
                         ),
-                    "Прибыль на единицу, ₽":
+                    profit_column:
                         st.column_config.NumberColumn(
-                            "Прибыль на единицу, ₽",
+                            profit_column,
                             format="%.2f",
                         ),
-                    "Маржинальность, %":
+                    margin_column:
                         st.column_config.NumberColumn(
-                            "Маржинальность, %",
+                            margin_column,
                             format="%.1f%%",
                         ),
-                    "Выручка, ₽":
+                    revenue_column:
                         st.column_config.NumberColumn(
-                            "Выручка, ₽",
+                            revenue_column,
                             format="%.2f",
                         ),
-                    "Результат на тираж, ₽":
+                    batch_result_column:
                         st.column_config.NumberColumn(
-                            "Результат на тираж, ₽",
+                            batch_result_column,
                             format="%.2f",
                         ),
-                    "Точка безубыточности, шт.":
+                    break_even_column:
                         st.column_config.NumberColumn(
-                            "Точка безубыточности, шт.",
+                            break_even_column,
                             format="%d",
                         ),
                 },
             )
 
 with payment_calendar_tab:
-    st.subheader("Платёжный календарь")
+    st.subheader(t("calendar.title"))
 
-    st.caption(
-        "Добавляй будущие платежи и поступления. "
-        "Система рассчитает прогноз остатка "
-        "и предупредит о кассовом разрыве."
-    )
+    st.caption(t("calendar.caption"))
 
     with st.expander(
-        "Добавить плановую операцию",
+        t("calendar.add_title"),
         expanded=True,
     ):
         with st.form(
@@ -4777,21 +4971,20 @@ with payment_calendar_tab:
             clear_on_submit=True,
         ):
             plan_name = st.text_input(
-                "Название",
-                placeholder=(
-                    "Например: аренда офиса "
-                    "или поступление от клиента"
+                t("calendar.fields.name"),
+                placeholder=t(
+                    "calendar.placeholders.name"
                 ),
             )
 
             direction = st.selectbox(
-                "Тип операции",
+                t("calendar.fields.direction"),
                 options=list(DIRECTION_LABELS),
-                format_func=DIRECTION_LABELS.get,
+                format_func=format_calendar_direction,
             )
 
             amount_rubles = st.number_input(
-                "Сумма, ₽",
+                t("calendar.fields.amount"),
                 min_value=0.01,
                 value=1_000.00,
                 step=100.00,
@@ -4799,33 +4992,33 @@ with payment_calendar_tab:
             )
 
             category = st.selectbox(
-                "Категория Cash Flow",
+                t("calendar.fields.category"),
                 options=list(CF_CATEGORIES),
             )
 
             counterparty = st.text_input(
-                "Контрагент",
+                t("calendar.fields.counterparty"),
             )
 
             start_date = st.date_input(
-                "Дата первой операции",
+                t("calendar.fields.start_date"),
                 value=date.today(),
                 format="DD.MM.YYYY",
             )
 
             recurrence = st.selectbox(
-                "Повторение",
+                t("calendar.fields.recurrence"),
                 options=list(RECURRENCE_LABELS),
-                format_func=RECURRENCE_LABELS.get,
+                format_func=format_calendar_recurrence,
             )
 
             use_end_date = st.checkbox(
-                "Ограничить повторение датой окончания",
+                t("calendar.fields.use_end_date"),
                 value=False,
             )
 
             selected_end_date = st.date_input(
-                "Дата окончания повторения",
+                t("calendar.fields.end_date"),
                 value=(
                     date.today()
                     + timedelta(days=365)
@@ -4834,18 +5027,18 @@ with payment_calendar_tab:
             )
 
             is_active = st.checkbox(
-                "Операция активна",
+                t("calendar.fields.active"),
                 value=True,
             )
 
             comment = st.text_area(
-                "Комментарий",
+                t("calendar.fields.comment"),
                 max_chars=500,
             )
 
             create_plan_submitted = (
                 st.form_submit_button(
-                    "Добавить в календарь",
+                    t("calendar.add_button"),
                     type="primary",
                     use_container_width=True,
                 )
@@ -4880,37 +5073,51 @@ with payment_calendar_tab:
                 else:
                     st.session_state[
                         "calendar_message"
-                    ] = (
-                        f"Плановая операция "
-                        f"#{new_plan_id} добавлена."
+                    ] = t(
+                        "calendar.messages.added",
+                        plan_id=new_plan_id,
                     )
                     st.rerun()
 
     plans = get_planned_cash_flows_dataframe()
 
-    st.subheader("Плановые операции")
+    st.subheader(t("calendar.plans.title"))
 
     if plans.empty:
-        st.info(
-            "Платёжный календарь пока пуст."
-        )
+        st.info(t("calendar.plans.empty"))
     else:
         visible_plans = plans.copy()
 
-        visible_plans["Тип"] = (
+        id_column = t("common.id")
+        name_column = t("common.name")
+        type_column = t("calendar.columns.type")
+        amount_column = t("common.amount_rub")
+        category_column = t("common.category")
+        counterparty_column = t(
+            "common.counterparty"
+        )
+        start_column = t("calendar.columns.start")
+        recurrence_column = t(
+            "calendar.columns.recurrence"
+        )
+        end_column = t("calendar.columns.end")
+        active_column = t("common.active")
+        comment_column = t("common.comment")
+
+        visible_plans[type_column] = (
             visible_plans["direction"]
-            .map(DIRECTION_LABELS)
+            .apply(format_calendar_direction)
         )
 
-        visible_plans["Сумма, ₽"] = (
+        visible_plans[amount_column] = (
             visible_plans["amount_kopecks"] / 100
         )
 
-        visible_plans["Начало"] = pd.to_datetime(
+        visible_plans[start_column] = pd.to_datetime(
             visible_plans["start_date"]
         ).dt.strftime("%d.%m.%Y")
 
-        visible_plans["Окончание"] = (
+        visible_plans[end_column] = (
             pd.to_datetime(
                 visible_plans["end_date"],
                 errors="coerce",
@@ -4919,47 +5126,48 @@ with payment_calendar_tab:
             .fillna("")
         )
 
-        visible_plans["Повторение"] = (
+        visible_plans[recurrence_column] = (
             visible_plans["recurrence"]
-            .map(RECURRENCE_LABELS)
+            .apply(format_calendar_recurrence)
         )
 
-        visible_plans["Активно"] = (
+        visible_plans[active_column] = (
             visible_plans["is_active"]
+            .apply(format_boolean_status)
         )
 
         visible_plans = visible_plans.rename(
             columns={
-                "id": "ID",
-                "name": "Название",
-                "category": "Категория",
-                "counterparty": "Контрагент",
-                "comment": "Комментарий",
+                "id": id_column,
+                "name": name_column,
+                "category": category_column,
+                "counterparty": counterparty_column,
+                "comment": comment_column,
             }
         )
 
+        plan_columns = [
+            id_column,
+            name_column,
+            type_column,
+            amount_column,
+            category_column,
+            counterparty_column,
+            start_column,
+            recurrence_column,
+            end_column,
+            active_column,
+            comment_column,
+        ]
+
         st.dataframe(
-            visible_plans[
-                [
-                    "ID",
-                    "Название",
-                    "Тип",
-                    "Сумма, ₽",
-                    "Категория",
-                    "Контрагент",
-                    "Начало",
-                    "Повторение",
-                    "Окончание",
-                    "Активно",
-                    "Комментарий",
-                ]
-            ],
+            visible_plans[plan_columns],
             use_container_width=True,
             hide_index=True,
             column_config={
-                "Сумма, ₽":
+                amount_column:
                     st.column_config.NumberColumn(
-                        "Сумма, ₽",
+                        amount_column,
                         format="%.2f",
                     ),
             },
@@ -4974,7 +5182,7 @@ with payment_calendar_tab:
         }
 
         selected_plan_label = st.selectbox(
-            "Выберите операцию для управления",
+            t("calendar.select_manage"),
             options=list(plan_options),
         )
 
@@ -4987,7 +5195,7 @@ with payment_calendar_tab:
         ].iloc[0]
 
         selected_plan_active = st.checkbox(
-            "Операция активна",
+            t("calendar.fields.active"),
             value=bool(
                 selected_plan["is_active"]
             ),
@@ -4997,13 +5205,18 @@ with payment_calendar_tab:
             ),
         )
 
-        active_column, delete_column = st.columns(2)
+        active_action_column, delete_column = (
+            st.columns(2)
+        )
 
-        with active_column:
+        with active_action_column:
             if st.button(
-                    "Сохранить активность",
-                    use_container_width=True,
-                    key=f"save_plan_activity_{selected_plan_id}",
+                t("calendar.save_activity"),
+                use_container_width=True,
+                key=(
+                    f"save_plan_activity_"
+                    f"{selected_plan_id}"
+                ),
             ):
                 set_planned_cash_flow_active(
                     plan_id=selected_plan_id,
@@ -5012,17 +5225,19 @@ with payment_calendar_tab:
 
                 st.session_state[
                     "calendar_message"
-                ] = (
-                    "Состояние плановой "
-                    "операции обновлено."
+                ] = t(
+                    "calendar.messages.activity_updated"
                 )
                 st.rerun()
 
         with delete_column:
             if st.button(
-                    "Удалить плановую операцию",
-                    use_container_width=True,
-                    key=f"delete_plan_{selected_plan_id}",
+                t("calendar.delete"),
+                use_container_width=True,
+                key=(
+                    f"delete_plan_"
+                    f"{selected_plan_id}"
+                ),
             ):
                 delete_planned_cash_flow(
                     selected_plan_id
@@ -5030,30 +5245,31 @@ with payment_calendar_tab:
 
                 st.session_state[
                     "calendar_message"
-                ] = (
-                    "Плановая операция удалена."
-                )
+                ] = t("calendar.messages.deleted")
                 st.rerun()
 
     st.divider()
-    st.subheader("Прогноз остатка")
+    st.subheader(t("calendar.forecast.title"))
 
     forecast_start = st.date_input(
-        "Начало прогноза",
+        t("calendar.forecast.start"),
         value=date.today(),
         format="DD.MM.YYYY",
         key="forecast_start",
     )
 
     forecast_horizon = st.selectbox(
-        "Горизонт прогноза",
+        t("calendar.forecast.horizon"),
         options=[30, 60, 90, 180, 365],
         index=2,
-        format_func=lambda days: f"{days} дней",
+        format_func=lambda days: t(
+            "common.days",
+            count=days,
+        ),
     )
 
     opening_balance_rubles = st.number_input(
-        "Остаток денежных средств на начало, ₽",
+        t("calendar.forecast.opening_balance"),
         value=0.00,
         step=1_000.00,
         format="%.2f",
@@ -5116,22 +5332,22 @@ with payment_calendar_tab:
     forecast_metrics = st.columns(4)
 
     forecast_metrics[0].metric(
-        "Плановые поступления",
+        t("calendar.forecast.inflows"),
         format_rubles(total_inflow),
     )
 
     forecast_metrics[1].metric(
-        "Плановые платежи",
+        t("calendar.forecast.outflows"),
         format_rubles(total_outflow),
     )
 
     forecast_metrics[2].metric(
-        "Остаток на конец",
+        t("calendar.forecast.ending_balance"),
         format_rubles(ending_balance),
     )
 
     forecast_metrics[3].metric(
-        "Минимальный остаток",
+        t("calendar.forecast.minimum_balance"),
         format_rubles(minimum_balance),
     )
 
@@ -5141,8 +5357,7 @@ with payment_calendar_tab:
 
     if cash_gap_rows.empty:
         st.success(
-            "На выбранном горизонте "
-            "кассовый разрыв не прогнозируется."
+            t("calendar.forecast.no_gap")
         )
     else:
         first_cash_gap = (
@@ -5158,20 +5373,29 @@ with payment_calendar_tab:
         )
 
         st.error(
-            "Прогнозируется кассовый разрыв. "
-            f"Первая дата: "
-            f"{first_cash_gap.strftime('%d.%m.%Y')}. "
-            f"Максимальный дефицит: "
-            f"{format_rubles(cash_gap_amount)}."
+            t(
+                "calendar.forecast.gap",
+                date=first_cash_gap.strftime(
+                    "%d.%m.%Y"
+                ),
+                amount=format_rubles(
+                    cash_gap_amount
+                ),
+            )
         )
 
     chart_data = forecast.copy()
 
-    chart_data["Дата"] = pd.to_datetime(
+    date_column = t("common.date")
+    balance_column = t(
+        "calendar.forecast.balance"
+    )
+
+    chart_data[date_column] = pd.to_datetime(
         chart_data["date"]
     )
 
-    chart_data["Остаток, ₽"] = (
+    chart_data[balance_column] = (
         chart_data[
             "closing_balance_kopecks"
         ] / 100
@@ -5179,15 +5403,15 @@ with payment_calendar_tab:
 
     balance_chart = px.line(
         chart_data,
-        x="Дата",
-        y="Остаток, ₽",
+        x=date_column,
+        y=balance_column,
     )
 
     balance_chart.add_hline(y=0)
 
     balance_chart.update_layout(
         xaxis_title="",
-        yaxis_title="Остаток, ₽",
+        yaxis_title=balance_column,
     )
 
     st.plotly_chart(
@@ -5196,26 +5420,33 @@ with payment_calendar_tab:
     )
 
     with st.expander(
-        "События платёжного календаря",
+        t("calendar.events.title"),
         expanded=False,
     ):
         if occurrences.empty:
             st.info(
-                "На выбранном горизонте "
-                "нет плановых операций."
+                t("calendar.events.empty")
             )
         else:
             visible_occurrences = (
                 occurrences.copy()
             )
 
-            visible_occurrences["Дата"] = (
+            name_column = t("common.name")
+            amount_column = t("common.amount_rub")
+            category_column = t("common.category")
+            counterparty_column = t(
+                "common.counterparty"
+            )
+            comment_column = t("common.comment")
+
+            visible_occurrences[date_column] = (
                 pd.to_datetime(
                     visible_occurrences["date"]
                 ).dt.strftime("%d.%m.%Y")
             )
 
-            visible_occurrences["Сумма, ₽"] = (
+            visible_occurrences[amount_column] = (
                 visible_occurrences[
                     "signed_amount_kopecks"
                 ] / 100
@@ -5224,53 +5455,50 @@ with payment_calendar_tab:
             visible_occurrences = (
                 visible_occurrences.rename(
                     columns={
-                        "name": "Название",
-                        "category": "Категория",
+                        "name": name_column,
+                        "category": category_column,
                         "counterparty":
-                            "Контрагент",
-                        "comment": "Комментарий",
+                            counterparty_column,
+                        "comment": comment_column,
                     }
                 )
             )
 
+            occurrence_columns = [
+                date_column,
+                name_column,
+                amount_column,
+                category_column,
+                counterparty_column,
+                comment_column,
+            ]
+
             st.dataframe(
                 visible_occurrences[
-                    [
-                        "Дата",
-                        "Название",
-                        "Сумма, ₽",
-                        "Категория",
-                        "Контрагент",
-                        "Комментарий",
-                    ]
+                    occurrence_columns
                 ],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Сумма, ₽":
+                    amount_column:
                         st.column_config.NumberColumn(
-                            "Сумма, ₽",
+                            amount_column,
                             format="%.2f",
                         ),
                 },
             )
 
 with import_tab:
-    st.subheader("Импорт банковской выписки")
+    st.subheader(t("import.title"))
 
     uploaded_file = st.file_uploader(
-        "Загрузите CSV-выписку Т-Бизнеса",
+        t("import.upload"),
         type=["csv"],
-        help=(
-            "Файл обрабатывается локально "
-            "и никуда не отправляется."
-        ),
+        help=t("import.upload_help"),
     )
 
     if uploaded_file is None:
-        st.info(
-            "Выберите CSV-файл для предварительной проверки."
-        )
+        st.info(t("import.select_file"))
     else:
         uploaded_bytes = uploaded_file.getvalue()
 
@@ -5294,14 +5522,15 @@ with import_tab:
         file_info_columns = st.columns(3)
 
         file_info_columns[0].metric(
-            "Имя файла",
+            t("import.file.name"),
             uploaded_file.name,
         )
 
         file_info_columns[1].metric(
-            "Размер",
-            (
-                f"{len(uploaded_bytes) / 1024:.1f} КБ"
+            t("import.file.size"),
+            t(
+                "import.file.size_kb",
+                size=len(uploaded_bytes) / 1024,
             ),
         )
 
@@ -5316,7 +5545,7 @@ with import_tab:
 
         show_metrics(imported_transactions)
 
-        st.subheader("Предварительный просмотр")
+        st.subheader(t("import.preview"))
 
         st.dataframe(
             prepare_visible_table(imported_transactions),
@@ -5325,7 +5554,7 @@ with import_tab:
         )
 
         if st.button(
-            "Сохранить новые операции в базу",
+            t("import.save_button"),
             type="primary",
             use_container_width=True,
         ):
@@ -5344,19 +5573,20 @@ with import_tab:
             else:
                 st.session_state[
                     "last_import_message"
-                ] = (
-                    f"Импорт #{save_result.import_batch_id}. "
-                    f"Получено операций: "
-                    f"{save_result.received}. "
-                    f"Добавлено новых: "
-                    f"{save_result.inserted}. "
-                    f"Пропущено дублей: "
-                    f"{save_result.duplicates}."
+                ] = t(
+                    "import.messages.saved",
+                    batch_id=(
+                        save_result.import_batch_id
+                    ),
+                    received=save_result.received,
+                    inserted=save_result.inserted,
+                    duplicates=save_result.duplicates,
                 )
 
                 st.rerun()
+
     st.divider()
-    st.subheader("Управление банковскими данными")
+    st.subheader(t("import.management.title"))
 
     import_batches = get_import_batches_dataframe()
     untracked_count = get_untracked_transaction_count()
@@ -5367,42 +5597,56 @@ with import_tab:
     management_metrics = st.columns(3)
 
     management_metrics[0].metric(
-        "Загрузок в журнале",
+        t("import.management.logged_batches"),
         len(import_batches),
     )
 
     management_metrics[1].metric(
-        "Операций без журнала",
+        t("import.management.untracked"),
         untracked_count,
     )
 
     management_metrics[2].metric(
-        "Всего банковских операций",
+        t("import.management.total"),
         total_transaction_count,
     )
 
-    st.caption(
-        "Операции без журнала были загружены до появления "
-        "учёта банковских импортов."
-    )
+    st.caption(t("import.management.caption"))
 
     if import_batches.empty:
-        st.info(
-            "В журнале пока нет сохранённых импортов."
-        )
+        st.info(t("import.history.empty"))
     else:
-        st.markdown("#### Журнал импортов")
+        st.markdown(
+            "#### " + t("import.history.title")
+        )
 
         import_history = import_batches.copy()
 
-        import_history["Импортирован"] = (
+        id_column = t("common.id")
+        file_column = t("import.history.file")
+        imported_column = t(
+            "import.history.imported_at"
+        )
+        size_column = t("import.history.size_kb")
+        received_column = t(
+            "import.history.received"
+        )
+        inserted_column = t(
+            "import.history.inserted"
+        )
+        duplicates_column = t(
+            "import.history.duplicates"
+        )
+        linked_column = t("import.history.linked")
+
+        import_history[imported_column] = (
             pd.to_datetime(
                 import_history["imported_at"],
                 errors="coerce",
             ).dt.strftime("%d.%m.%Y %H:%M")
         )
 
-        import_history["Размер, КБ"] = (
+        import_history[size_column] = (
             pd.to_numeric(
                 import_history["source_size_bytes"],
                 errors="coerce",
@@ -5411,39 +5655,40 @@ with import_tab:
 
         import_history = import_history.rename(
             columns={
-                "id": "ID",
-                "source_filename": "Файл",
-                "received_count": "Получено",
-                "inserted_count": "Добавлено",
-                "duplicate_count": "Дубли",
+                "id": id_column,
+                "source_filename": file_column,
+                "received_count": received_column,
+                "inserted_count": inserted_column,
+                "duplicate_count": duplicates_column,
                 "linked_transaction_count":
-                    "Связано операций",
+                    linked_column,
             }
         )
 
+        history_columns = [
+            id_column,
+            file_column,
+            imported_column,
+            size_column,
+            received_column,
+            inserted_column,
+            duplicates_column,
+            linked_column,
+        ]
+
         st.dataframe(
-            import_history[
-                [
-                    "ID",
-                    "Файл",
-                    "Импортирован",
-                    "Размер, КБ",
-                    "Получено",
-                    "Добавлено",
-                    "Дубли",
-                    "Связано операций",
-                ]
-            ],
+            import_history[history_columns],
             use_container_width=True,
             hide_index=True,
             column_config={
-                "ID": st.column_config.NumberColumn(
-                    "ID",
-                    format="%d",
-                ),
-                "Размер, КБ":
+                id_column:
                     st.column_config.NumberColumn(
-                        "Размер, КБ",
+                        id_column,
+                        format="%d",
+                    ),
+                size_column:
+                    st.column_config.NumberColumn(
+                        size_column,
                         format="%.1f",
                     ),
             },
@@ -5468,8 +5713,8 @@ with import_tab:
             )
 
             if pd.isna(imported_at):
-                imported_at_text = (
-                    "дата неизвестна"
+                imported_at_text = t(
+                    "common.unknown_date"
                 )
             else:
                 imported_at_text = (
@@ -5485,7 +5730,7 @@ with import_tab:
             )
 
         selected_batch_id = st.selectbox(
-            "Выберите импорт",
+            t("import.history.select"),
             options=batch_ids,
             format_func=lambda value: (
                 batch_labels[int(value)]
@@ -5512,26 +5757,46 @@ with import_tab:
         )
 
         st.markdown(
-            "#### Операции выбранного импорта"
+            "#### "
+            + t("import.history.operations_title")
         )
 
         if selected_transactions.empty:
             st.info(
-                "С выбранным импортом не связано операций."
+                t("import.history.operations_empty")
             )
         else:
             transaction_view = (
                 selected_transactions.copy()
             )
 
-            transaction_view["Дата"] = (
+            date_column = t(
+                "operations.columns.date"
+            )
+            amount_column = t(
+                "operations.columns.amount"
+            )
+            counterparty_column = t(
+                "operations.columns.counterparty"
+            )
+            description_column = t(
+                "operations.columns.description"
+            )
+            purpose_column = t(
+                "operations.columns.payment_purpose"
+            )
+            classification_column = t(
+                "operations.columns.classification"
+            )
+
+            transaction_view[date_column] = (
                 pd.to_datetime(
                     transaction_view["posted_at"],
                     errors="coerce",
                 ).dt.strftime("%d.%m.%Y")
             )
 
-            transaction_view["Сумма, ₽"] = (
+            transaction_view[amount_column] = (
                 pd.to_numeric(
                     transaction_view[
                         "signed_amount_kopecks"
@@ -5543,61 +5808,65 @@ with import_tab:
             transaction_view = (
                 transaction_view.rename(
                     columns={
-                        "id": "ID",
+                        "id": id_column,
                         "counterparty_name":
-                            "Контрагент",
-                        "description": "Описание",
+                            counterparty_column,
+                        "description":
+                            description_column,
                         "payment_purpose":
-                            "Назначение платежа",
+                            purpose_column,
                         "classification_status":
-                            "Классификация",
+                            classification_column,
                     }
                 )
             )
 
+            transaction_columns = [
+                id_column,
+                date_column,
+                amount_column,
+                counterparty_column,
+                description_column,
+                purpose_column,
+                classification_column,
+            ]
+
             st.dataframe(
                 transaction_view[
-                    [
-                        "ID",
-                        "Дата",
-                        "Сумма, ₽",
-                        "Контрагент",
-                        "Описание",
-                        "Назначение платежа",
-                        "Классификация",
-                    ]
+                    transaction_columns
                 ],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "ID":
+                    id_column:
                         st.column_config.NumberColumn(
-                            "ID",
+                            id_column,
                             format="%d",
                         ),
-                    "Сумма, ₽":
+                    amount_column:
                         st.column_config.NumberColumn(
-                            "Сумма, ₽",
+                            amount_column,
                             format="%.2f",
                         ),
                 },
             )
 
         st.markdown(
-            "#### Удаление выбранного импорта"
+            "#### "
+            + t("import.history.delete_title")
         )
 
         st.caption(
-            "Операции, связанные также с другой выпиской, "
-            "останутся в базе."
+            t("import.history.delete_caption")
         )
 
-        delete_batch_phrase = (
-            f"УДАЛИТЬ ИМПОРТ {selected_batch_id}"
+        delete_batch_phrase = t(
+            "import.history.delete_phrase",
+            batch_id=selected_batch_id,
         )
 
         delete_batch_confirmation = st.text_input(
-            "Для удаления введите:",
+            t("import.history.delete_confirmation"),
             placeholder=delete_batch_phrase,
             key=(
                 "delete_import_batch_confirmation_"
@@ -5606,7 +5875,7 @@ with import_tab:
         )
 
         if st.button(
-            "Удалить выбранный импорт",
+            t("import.history.delete_button"),
             disabled=(
                 delete_batch_confirmation.strip()
                 != delete_batch_phrase
@@ -5626,13 +5895,15 @@ with import_tab:
             else:
                 st.session_state[
                     "last_import_message"
-                ] = (
-                    f"Импорт "
-                    f"#{delete_result.import_batch_id} "
-                    f"удалён. Удалено связей: "
-                    f"{delete_result.links_deleted}. "
-                    f"Удалено банковских операций: "
-                    f"{delete_result.transactions_deleted}."
+                ] = t(
+                    "import.messages.batch_deleted",
+                    batch_id=(
+                        delete_result.import_batch_id
+                    ),
+                    links=delete_result.links_deleted,
+                    transactions=(
+                        delete_result.transactions_deleted
+                    ),
                 )
 
                 st.rerun()
@@ -5640,29 +5911,30 @@ with import_tab:
     if untracked_count > 0:
         st.divider()
         st.markdown(
-            "#### Операции без журнала импорта"
+            "#### " + t("import.untracked.title")
         )
 
         st.warning(
-            f"Найдено операций, загруженных до появления "
-            f"журнала импортов: {untracked_count}. "
-            "Их можно удалить отдельно."
+            t(
+                "import.untracked.warning",
+                count=untracked_count,
+            )
         )
 
-        delete_untracked_phrase = (
-            "УДАЛИТЬ ОПЕРАЦИИ БЕЗ ЖУРНАЛА"
+        delete_untracked_phrase = t(
+            "import.untracked.phrase"
         )
 
         delete_untracked_confirmation = (
             st.text_input(
-                "Для удаления старых операций введите:",
+                t("import.untracked.confirmation"),
                 placeholder=delete_untracked_phrase,
                 key="delete_untracked_confirmation",
             )
         )
 
         if st.button(
-            "Удалить операции без журнала",
+            t("import.untracked.delete_button"),
             disabled=(
                 delete_untracked_confirmation.strip()
                 != delete_untracked_phrase
@@ -5676,9 +5948,9 @@ with import_tab:
 
             st.session_state[
                 "last_import_message"
-            ] = (
-                "Удалены операции без журнала импорта: "
-                f"{deleted_count}."
+            ] = t(
+                "import.messages.untracked_deleted",
+                count=deleted_count,
             )
 
             st.rerun()
@@ -5686,28 +5958,21 @@ with import_tab:
     st.divider()
 
     with st.expander(
-        "Опасная зона: полная очистка банковских данных",
+        t("import.danger.title"),
         expanded=False,
     ):
-        st.warning(
-            "Будут удалены все банковские операции, "
-            "журналы импортов и связи между ними. "
-            "Правила, платёжный календарь и "
-            "Unit Economics останутся."
-        )
+        st.warning(t("import.danger.warning"))
 
-        clear_phrase = (
-            "УДАЛИТЬ ВСЕ БАНКОВСКИЕ ДАННЫЕ"
-        )
+        clear_phrase = t("import.danger.phrase")
 
         clear_confirmation = st.text_input(
-            "Для полной очистки введите:",
+            t("import.danger.confirmation"),
             placeholder=clear_phrase,
             key="clear_bank_data_confirmation",
         )
 
         if st.button(
-            "Полностью очистить банковские данные",
+            t("import.danger.clear_button"),
             disabled=(
                 clear_confirmation.strip()
                 != clear_phrase
@@ -5719,14 +5984,15 @@ with import_tab:
 
             st.session_state[
                 "last_import_message"
-            ] = (
-                "Банковские данные очищены. "
-                f"Удалено импортов: "
-                f"{clear_result.import_batches_deleted}; "
-                f"связей: "
-                f"{clear_result.links_deleted}; "
-                f"операций: "
-                f"{clear_result.transactions_deleted}."
+            ] = t(
+                "import.messages.cleared",
+                batches=(
+                    clear_result.import_batches_deleted
+                ),
+                links=clear_result.links_deleted,
+                transactions=(
+                    clear_result.transactions_deleted
+                ),
             )
 
             st.rerun()

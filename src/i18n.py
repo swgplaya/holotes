@@ -3,1377 +3,1410 @@ from __future__ import annotations
 from typing import Any
 
 
-DEFAULT_LANGUAGE = "ru"
+DEFAULT_LANGUAGE = 'ru'
 
-SUPPORTED_LANGUAGES: dict[str, str] = {
-    "ru": "Русский",
-    "en": "English",
-    "zh-CN": "简体中文",
-}
+SUPPORTED_LANGUAGES: dict[str, str] = {'ru': 'Русский', 'en': 'English', 'zh-CN': '简体中文'}
 
 
-TRANSLATIONS: dict[str, dict[str, str]] = {
-    "ru": {
-        "language.selector": "Язык интерфейса",
-        "app.eyebrow":
-            "Управленческий финансовый учёт",
-        "app.description": (
-            "Локальная система для управления банковскими "
-            "операциями, финансовой отчётностью, правилами "
-            "классификации и денежными потоками бизнеса."
-        ),
-        "app.badge": "Локально · MVP",
-        "tabs.operations": "Операции в базе",
-        "tabs.classification": "Классификация",
-        "tabs.rules": "Правила",
-        "tabs.pnl": "P&L",
-        "tabs.cash_flow": "Cash Flow",
-        "tabs.unit_economics": "Unit Economics",
-        "tabs.payment_calendar":
-            "Платёжный календарь",
-        "tabs.import": "Импорт выписки",
-        "operations.empty_state": (
-            "В базе пока нет операций. "
-            "Загрузите первую выписку во вкладке импорта."
-        ),
-        "operations.saved_title":
-            "Сохранённые операции",
-        "operations.technical_info":
-            "Техническая информация",
-        "operations.sqlite_records":
-            "Записей в SQLite:",
-        "operations.metrics.count": "Операций",
-        "operations.metrics.inflow": "Поступления",
-        "operations.metrics.outflow": "Списания",
-        "operations.metrics.net": "Чистое движение",
-        "operations.columns.date": "Дата",
-        "operations.columns.amount": "Сумма, ₽",
-        "operations.columns.direction":
-            "Дебет/кредит",
-        "operations.columns.bank_category":
-            "Категория банка",
-        "operations.columns.status": "Статус",
-        "operations.columns.counterparty":
-            "Контрагент",
-        "operations.columns.tax_id": "ИНН",
-        "operations.columns.description":
-            "Описание",
-        "operations.columns.payment_purpose":
-            "Назначение платежа",
-        "operations.columns.classification":
-            "Классификация",
-        "classification.title":
-            "Классификация операций",
-        "classification.pending_title":
-            "Неклассифицированные операции",
-        "classification.metrics.inflow":
-            "Поступления",
-        "classification.metrics.outflow":
-            "Списания",
-        "classification.metrics.net":
-            "Чистая сумма",
-        "classification.metrics.count":
-            "Операций",
-        "classification.pending_caption": (
-            "Учитываются операции, для которых не завершена "
-            "классификация хотя бы в одном контуре: "
-            "P&L или Cash Flow."
-        ),
-        "classification.all_classified":
-            "Все операции классифицированы.",
-        "classification.empty_database":
-            "В базе пока нет операций для классификации.",
-        "classification.only_pending":
-            "Показывать только незавершённые",
-        "classification.filtered_empty":
-            "Все операции полностью классифицированы.",
-        "classification.instructions": (
-            "Для каждого отчёта выбери отдельное решение. "
-            "Операцию можно включить в Cash Flow, "
-            "но исключить из P&L, и наоборот."
-        ),
-        "classification.select_title":
-            "Выберите операцию",
-        "classification.select_caption": (
-            "Нажмите на строку или на маркер слева. "
-            "Редактирование выбранной операции "
-            "откроется ниже."
-        ),
-        "classification.columns.id": "ID",
-        "classification.columns.date": "Дата",
-        "classification.columns.amount": "Сумма, ₽",
-        "classification.columns.counterparty":
-            "Контрагент",
-        "classification.columns.description":
-            "Описание",
-        "classification.columns.payment_purpose":
-            "Назначение платежа",
-        "classification.columns.pnl_action":
-            "Решение P&L",
-        "classification.columns.pnl_category":
-            "Категория P&L",
-        "classification.columns.cf_action":
-            "Решение Cash Flow",
-        "classification.columns.cf_category":
-            "Категория Cash Flow",
-        "classification.columns.comment":
-            "Комментарий",
-        "classification.actions.include":
-            "Включить",
-        "classification.actions.exclude":
-            "Исключить",
-        "classification.actions.undefined":
-            "Не определено",
-        "classification.selected_title":
-            "Классификация выбранной операции",
-        "classification.details.date": "Дата",
-        "classification.details.amount": "Сумма",
-        "classification.details.position": "Операция",
-        "classification.details.position_value":
-            "{current} из {total}",
-        "classification.details.counterparty":
-            "Контрагент",
-        "classification.details.description":
-            "Описание",
-        "classification.details.payment_purpose":
-            "Назначение платежа",
-        "classification.details.not_specified":
-            "Не указано",
-        "classification.help.pnl_category": (
-            "Категория обязательна, "
-            "если операция включается в P&L."
-        ),
-        "classification.help.cf_category": (
-            "Категория обязательна, "
-            "если операция включается в Cash Flow."
-        ),
-        "classification.buttons.save":
-            "Сохранить",
-        "classification.buttons.save_next":
-            "Сохранить и перейти дальше",
-        "classification.buttons.exclude_both":
-            "Исключить из обоих",
-        "classification.errors.transaction_not_found": (
-            "Выбранная операция не найдена. "
-            "Обновите страницу."
-        ),
-        "classification.errors.pnl_category_required":
-            "Выберите категорию P&L.",
-        "classification.errors.cf_category_required":
-            "Выберите категорию Cash Flow.",
-        "classification.messages.excluded_both":
-            "Операция исключена из обоих отчётов.",
-        "classification.messages.saved":
-            "Классификация сохранена.",
-        "classification.messages.summary": (
-            "{action} Обновлено: {updated}. "
-            "Полностью классифицировано: {classified}. "
-            "Частично: {partial}."
-        ),
-        "rules.title":
-            "Правила автоматической классификации",
-        "rules.caption": (
-            "Правила применяются по убыванию приоритета. "
-            "Для каждой операции срабатывает только первое "
-            "совпадение. Ручные решения не перезаписываются."
-        ),
-        "rules.apply_button":
-            "Применить активные правила",
-        "rules.messages.applied": (
-            "Проверено операций: {checked}. "
-            "Классифицировано: {matched}. "
-            "Без совпадений: {unmatched}."
-        ),
-        "rules.create_title":
-            "Создать новое правило",
-        "rules.fields.name":
-            "Название правила",
-        "rules.placeholders.name":
-            "Например: банковские комиссии",
-        "rules.fields.priority":
-            "Приоритет",
-        "rules.help.priority": (
-            "Чем больше число, тем раньше "
-            "проверяется правило."
-        ),
-        "rules.fields.active":
-            "Правило активно",
-        "rules.fields.direction":
-            "Направление операции",
-        "rules.fields.match_field":
-            "Где искать",
-        "rules.fields.match_type":
-            "Условие",
-        "rules.fields.match_value":
-            "Искомое значение",
-        "rules.placeholders.match_value":
-            "Например: обслуживание счёта",
-        "rules.create_button":
-            "Создать правило",
-        "rules.messages.created":
-            "Правило #{rule_id} создано.",
-        "rules.errors.name_required":
-            "Укажите название правила.",
-        "rules.errors.match_value_required":
-            "Укажите значение для поиска.",
-        "rules.errors.decision_required": (
-            "Правило должно принимать решение "
-            "хотя бы для одного отчёта."
-        ),
-        "rules.errors.pnl_category_required":
-            "Для включения в P&L выберите категорию.",
-        "rules.errors.cf_category_required":
-            "Для включения в Cash Flow выберите категорию.",
-        "rules.options.direction.any":
-            "Любое движение",
-        "rules.options.direction.income":
-            "Только поступления",
-        "rules.options.direction.expense":
-            "Только списания",
-        "rules.options.field.all_text":
-            "Все текстовые поля",
-        "rules.options.field.counterparty_name":
-            "Контрагент",
-        "rules.options.field.counterparty_inn":
-            "ИНН контрагента",
-        "rules.options.field.bank_category":
-            "Категория банка",
-        "rules.options.field.description":
-            "Описание операции",
-        "rules.options.field.payment_purpose":
-            "Назначение платежа",
-        "rules.options.field.mcc":
-            "MCC",
-        "rules.options.field.tax_code":
-            "КБК",
-        "rules.options.match.contains":
-            "Содержит",
-        "rules.options.match.equals":
-            "Полностью совпадает",
-        "rules.options.match.starts_with":
-            "Начинается с",
-        "rules.transfer.title":
-            "Перенос конфигурации правил",
-        "rules.transfer.caption": (
-            "Правила можно сохранить в JSON и перенести "
-            "в другую установку Open MAS. "
-            "Локальные ID и даты базы не экспортируются."
-        ),
-        "rules.transfer.download":
-            "Скачать правила в JSON",
-        "rules.transfer.export_info": (
-            "Экспорт содержит текущие правила, "
-            "их приоритеты, условия, категории "
-            "и состояние активности."
-        ),
-        "rules.transfer.upload":
-            "Загрузить конфигурацию правил",
-        "rules.transfer.upload_help": (
-            "Сначала файл будет проверен. "
-            "База не изменится до подтверждения импорта."
-        ),
-        "rules.transfer.preview_title":
-            "Результат проверки файла",
-        "rules.transfer.metrics.received":
-            "Получено",
-        "rules.transfer.metrics.valid":
-            "Уникальных корректных",
-        "rules.transfer.metrics.file_duplicates":
-            "Дублей внутри файла",
-        "rules.transfer.metrics.database_duplicates":
-            "Уже есть в базе",
-        "rules.transfer.preview_caption": (
-            "Версия формата: {schema_version}. "
-            "Файл экспортирован: {exported_at}."
-        ),
-        "rules.transfer.errors.blocked": (
-            "Конфигурация содержит ошибки. "
-            "Импорт заблокирован."
-        ),
-        "rules.transfer.warnings.file_duplicates": (
-            "Повторяющиеся правила внутри файла "
-            "будут импортированы только один раз."
-        ),
-        "rules.transfer.info.database_duplicates": (
-            "В режиме добавления правила, которые уже "
-            "полностью совпадают с существующими, "
-            "будут пропущены."
-        ),
-        "rules.transfer.json_title":
-            "Просмотреть содержимое JSON",
-        "rules.transfer.import_title":
-            "Режим импорта",
-        "rules.transfer.import_action":
-            "Выберите действие",
-        "rules.transfer.import.merge":
-            "Добавить отсутствующие правила",
-        "rules.transfer.import.replace":
-            "Заменить все текущие правила",
-        "rules.transfer.import.merge_caption": (
-            "Текущие правила сохранятся. "
-            "Полностью совпадающие правила "
-            "будут пропущены."
-        ),
-        "rules.transfer.import.replace_warning": (
-            "Все текущие правила будут удалены "
-            "и заменены правилами из файла. "
-            "Операция выполняется одной транзакцией."
-        ),
-        "rules.transfer.import.replace_phrase":
-            "ЗАМЕНИТЬ ВСЕ ПРАВИЛА",
-        "rules.transfer.import.confirmation":
-            "Для замены введите:",
-        "rules.transfer.import.merge_button":
-            "Добавить правила",
-        "rules.transfer.import.replace_button":
-            "Заменить все правила",
-        "rules.transfer.messages.completed": (
-            "Импорт правил завершён. "
-            "Получено: {received}. "
-            "Добавлено: {inserted}. "
-            "Пропущено дублей: {skipped}. "
-            "Удалено прежних правил: {deleted}."
-        ),
-        "rules.saved.title":
-            "Сохранённые правила",
-        "rules.saved.empty":
-            "Правила пока не созданы.",
-        "rules.saved.columns.id": "ID",
-        "rules.saved.columns.name": "Название",
-        "rules.saved.columns.priority": "Приоритет",
-        "rules.saved.columns.active": "Активно",
-        "rules.saved.columns.direction": "Направление",
-        "rules.saved.columns.field": "Поле",
-        "rules.saved.columns.condition": "Условие",
-        "rules.saved.columns.value": "Значение",
-        "rules.saved.columns.pnl_action":
-            "Решение P&L",
-        "rules.saved.columns.pnl_category":
-            "Категория P&L",
-        "rules.saved.columns.cf_action":
-            "Решение Cash Flow",
-        "rules.saved.columns.cf_category":
-            "Категория Cash Flow",
-        "rules.saved.values.active": "Да",
-        "rules.saved.values.inactive": "Нет",
-        "rules.saved.manage":
-            "Выберите правило для управления",
-        "rules.saved.save_activity":
-            "Сохранить активность",
-        "rules.saved.delete":
-            "Удалить правило",
-        "rules.messages.activity_updated":
-            "Состояние правила обновлено.",
-        "rules.messages.deleted":
-            "Правило удалено.",
-        "reports.empty_database":
-            "В базе пока нет операций.",
-        "reports.invalid_dates":
-            "В базе не найдено корректных дат проведения.",
-        "reports.unknown_type":
-            "Неизвестный тип отчёта: {report_type}",
-        "reports.period.title": "Период отчёта",
-        "reports.period.start": "Начало периода",
-        "reports.period.end": "Конец периода",
-        "reports.period.compare": "Сравнить с",
-        "reports.period.synced": (
-            "Настройки периода синхронизированы "
-            "между P&L и Cash Flow."
-        ),
-        "reports.period.current":
-            "Период: {current}",
-        "reports.period.with_comparison": (
-            "Выбранный период: {current}. "
-            "Сравнение: {comparison}."
-        ),
-        "reports.comparison.none": "Без сравнения",
-        "reports.comparison.previous":
-            "Предыдущий период",
-        "reports.comparison.previous_year":
-            "Тот же период год назад",
-        "reports.metrics.included":
-            "Учтено операций",
-        "reports.current_summary": (
-            "{label}: исключено из отчёта — "
-            "{excluded}; не принято решение — {pending}."
-        ),
-        "reports.comparison_summary": (
-            "{label}: учтено — {included}; "
-            "исключено — {excluded}; "
-            "не принято решение — {pending}."
-        ),
-        "reports.pending_warning": (
-            "Часть операций выбранного периода "
-            "ещё не классифицирована для этого отчёта."
-        ),
-        "reports.empty_period": (
-            "В выбранном периоде нет операций, "
-            "включённых в этот отчёт."
-        ),
-        "reports.category_structure":
-            "Структура по категориям",
-        "reports.no_category_data": (
-            "Нет данных для построения "
-            "структуры по категориям."
-        ),
-        "reports.no_comparison_data": (
-            "В обоих периодах нет данных "
-            "для сравнения категорий."
-        ),
-        "reports.current_operations":
-            "Операции выбранного периода",
-        "reports.comparison_operations":
-            "Операции периода сравнения",
-        "reports.columns.category": "Категория",
-        "reports.columns.amount": "Сумма, ₽",
-        "reports.columns.no_category":
-            "Без категории",
-        "reports.columns.current_amount":
-            "Выбранный период, ₽",
-        "reports.columns.comparison_amount":
-            "Период сравнения, ₽",
-        "reports.columns.delta_amount":
-            "Изменение, ₽",
-        "reports.columns.delta_percent":
-            "Изменение, %",
-        "reports.columns.period": "Период",
-        "reports.percentage_point_delta":
-            "{value:+.1f} п.п.",
-        "reports.pnl.title": "P&L",
-        "reports.pnl.caption": (
-            "На текущем этапе отчёт строится "
-            "по банковским операциям кассовым методом."
-        ),
-        "reports.pnl.inflow": "Доходы",
-        "reports.pnl.outflow": "Расходы",
-        "reports.pnl.net": "Результат",
-        "reports.pnl.kpi_title": "KPI P&L",
-        "reports.pnl.kpi.profitability":
-            "Рентабельность продаж",
-        "reports.pnl.kpi.expense_share":
-            "Доля расходов в доходах",
-        "reports.pnl.kpi.expense_coverage":
-            "Покрытие расходов",
-        "reports.pnl.kpi.classification_rate":
-            "Обработано операций",
-        "reports.pnl.kpi.average_income":
-            "Среднее поступление",
-        "reports.pnl.kpi.average_expense":
-            "Среднее списание",
-        "reports.pnl.kpi.income_count":
-            "Доходных операций",
-        "reports.pnl.kpi.expense_count":
-            "Расходных операций",
-        "reports.pnl.kpi_caption": (
-            "KPI рассчитаны по включённым банковским "
-            "операциям. Это управленческий P&L "
-            "по кассовому методу, а не бухгалтерский "
-            "отчёт по методу начисления."
-        ),
-        "reports.cash_flow.title": "Cash Flow",
-        "reports.cash_flow.caption": (
-            "Отчёт показывает фактические движения "
-            "денежных средств по дате проведения."
-        ),
-        "reports.cash_flow.inflow": "Поступления",
-        "reports.cash_flow.outflow": "Платежи",
-        "reports.cash_flow.net":
-            "Чистый денежный поток",
-    },
-    "en": {
-        "language.selector": "Interface language",
-        "app.eyebrow": "Management accounting",
-        "app.description": (
-            "A local system for managing bank transactions, "
-            "financial reporting, classification rules, "
-            "and business cash flows."
-        ),
-        "app.badge": "Local-first · MVP",
-        "tabs.operations": "Transactions",
-        "tabs.classification": "Classification",
-        "tabs.rules": "Rules",
-        "tabs.pnl": "P&L",
-        "tabs.cash_flow": "Cash Flow",
-        "tabs.unit_economics": "Unit Economics",
-        "tabs.payment_calendar": "Payment calendar",
-        "tabs.import": "Import statement",
-        "operations.empty_state": (
-            "There are no transactions in the database yet. "
-            "Upload your first bank statement "
-            "in the import tab."
-        ),
-        "operations.saved_title":
-            "Saved transactions",
-        "operations.technical_info":
-            "Technical information",
-        "operations.sqlite_records":
-            "SQLite records:",
-        "operations.metrics.count": "Transactions",
-        "operations.metrics.inflow": "Inflows",
-        "operations.metrics.outflow": "Outflows",
-        "operations.metrics.net": "Net movement",
-        "operations.columns.date": "Date",
-        "operations.columns.amount": "Amount, ₽",
-        "operations.columns.direction":
-            "Debit/Credit",
-        "operations.columns.bank_category":
-            "Bank category",
-        "operations.columns.status": "Status",
-        "operations.columns.counterparty":
-            "Counterparty",
-        "operations.columns.tax_id": "Tax ID",
-        "operations.columns.description":
-            "Description",
-        "operations.columns.payment_purpose":
-            "Payment purpose",
-        "operations.columns.classification":
-            "Classification",
-        "classification.title":
-            "Transaction classification",
-        "classification.pending_title":
-            "Unclassified transactions",
-        "classification.metrics.inflow":
-            "Inflows",
-        "classification.metrics.outflow":
-            "Outflows",
-        "classification.metrics.net":
-            "Net amount",
-        "classification.metrics.count":
-            "Transactions",
-        "classification.pending_caption": (
-            "Includes transactions whose classification "
-            "is incomplete in at least one reporting area: "
-            "P&L or Cash Flow."
-        ),
-        "classification.all_classified":
-            "All transactions are classified.",
-        "classification.empty_database":
-            "There are no transactions to classify yet.",
-        "classification.only_pending":
-            "Show incomplete only",
-        "classification.filtered_empty":
-            "All transactions are fully classified.",
-        "classification.instructions": (
-            "Choose a separate decision for each report. "
-            "A transaction may be included in Cash Flow "
-            "but excluded from P&L, and vice versa."
-        ),
-        "classification.select_title":
-            "Select a transaction",
-        "classification.select_caption": (
-            "Click a row or the marker on the left. "
-            "The selected transaction editor "
-            "will open below."
-        ),
-        "classification.columns.id": "ID",
-        "classification.columns.date": "Date",
-        "classification.columns.amount": "Amount, ₽",
-        "classification.columns.counterparty":
-            "Counterparty",
-        "classification.columns.description":
-            "Description",
-        "classification.columns.payment_purpose":
-            "Payment purpose",
-        "classification.columns.pnl_action":
-            "P&L decision",
-        "classification.columns.pnl_category":
-            "P&L category",
-        "classification.columns.cf_action":
-            "Cash Flow decision",
-        "classification.columns.cf_category":
-            "Cash Flow category",
-        "classification.columns.comment":
-            "Comment",
-        "classification.actions.include":
-            "Include",
-        "classification.actions.exclude":
-            "Exclude",
-        "classification.actions.undefined":
-            "Not decided",
-        "classification.selected_title":
-            "Selected transaction classification",
-        "classification.details.date": "Date",
-        "classification.details.amount": "Amount",
-        "classification.details.position":
-            "Transaction",
-        "classification.details.position_value":
-            "{current} of {total}",
-        "classification.details.counterparty":
-            "Counterparty",
-        "classification.details.description":
-            "Description",
-        "classification.details.payment_purpose":
-            "Payment purpose",
-        "classification.details.not_specified":
-            "Not specified",
-        "classification.help.pnl_category": (
-            "A category is required when the transaction "
-            "is included in P&L."
-        ),
-        "classification.help.cf_category": (
-            "A category is required when the transaction "
-            "is included in Cash Flow."
-        ),
-        "classification.buttons.save":
-            "Save",
-        "classification.buttons.save_next":
-            "Save and continue",
-        "classification.buttons.exclude_both":
-            "Exclude from both",
-        "classification.errors.transaction_not_found": (
-            "The selected transaction was not found. "
-            "Refresh the page."
-        ),
-        "classification.errors.pnl_category_required":
-            "Select a P&L category.",
-        "classification.errors.cf_category_required":
-            "Select a Cash Flow category.",
-        "classification.messages.excluded_both":
-            "The transaction was excluded from both reports.",
-        "classification.messages.saved":
-            "Classification saved.",
-        "classification.messages.summary": (
-            "{action} Updated: {updated}. "
-            "Fully classified: {classified}. "
-            "Partially classified: {partial}."
-        ),
-        "rules.title":
-            "Automatic classification rules",
-        "rules.caption": (
-            "Rules are applied from highest to lowest priority. "
-            "Only the first matching rule is applied to each "
-            "transaction. Manual decisions are not overwritten."
-        ),
-        "rules.apply_button":
-            "Apply active rules",
-        "rules.messages.applied": (
-            "Transactions checked: {checked}. "
-            "Classified: {matched}. "
-            "No match: {unmatched}."
-        ),
-        "rules.create_title":
-            "Create a new rule",
-        "rules.fields.name":
-            "Rule name",
-        "rules.placeholders.name":
-            "For example: bank fees",
-        "rules.fields.priority":
-            "Priority",
-        "rules.help.priority": (
-            "A higher number means that the rule "
-            "is checked earlier."
-        ),
-        "rules.fields.active":
-            "Rule is active",
-        "rules.fields.direction":
-            "Transaction direction",
-        "rules.fields.match_field":
-            "Search field",
-        "rules.fields.match_type":
-            "Condition",
-        "rules.fields.match_value":
-            "Search value",
-        "rules.placeholders.match_value":
-            "For example: account service fee",
-        "rules.create_button":
-            "Create rule",
-        "rules.messages.created":
-            "Rule #{rule_id} created.",
-        "rules.errors.name_required":
-            "Enter a rule name.",
-        "rules.errors.match_value_required":
-            "Enter a search value.",
-        "rules.errors.decision_required": (
-            "The rule must make a decision "
-            "for at least one report."
-        ),
-        "rules.errors.pnl_category_required":
-            "Select a category when including in P&L.",
-        "rules.errors.cf_category_required":
-            "Select a category when including in Cash Flow.",
-        "rules.options.direction.any":
-            "Any direction",
-        "rules.options.direction.income":
-            "Inflows only",
-        "rules.options.direction.expense":
-            "Outflows only",
-        "rules.options.field.all_text":
-            "All text fields",
-        "rules.options.field.counterparty_name":
-            "Counterparty",
-        "rules.options.field.counterparty_inn":
-            "Counterparty tax ID",
-        "rules.options.field.bank_category":
-            "Bank category",
-        "rules.options.field.description":
-            "Transaction description",
-        "rules.options.field.payment_purpose":
-            "Payment purpose",
-        "rules.options.field.mcc":
-            "MCC",
-        "rules.options.field.tax_code":
-            "Budget classification code",
-        "rules.options.match.contains":
-            "Contains",
-        "rules.options.match.equals":
-            "Exact match",
-        "rules.options.match.starts_with":
-            "Starts with",
-        "rules.transfer.title":
-            "Rule configuration transfer",
-        "rules.transfer.caption": (
-            "Rules can be saved as JSON and transferred "
-            "to another Open MAS installation. "
-            "Local database IDs and dates are not exported."
-        ),
-        "rules.transfer.download":
-            "Download rules as JSON",
-        "rules.transfer.export_info": (
-            "The export contains the current rules, "
-            "their priorities, conditions, categories "
-            "and active status."
-        ),
-        "rules.transfer.upload":
-            "Upload rule configuration",
-        "rules.transfer.upload_help": (
-            "The file will be validated first. "
-            "The database will not change until import "
-            "is confirmed."
-        ),
-        "rules.transfer.preview_title":
-            "File validation result",
-        "rules.transfer.metrics.received":
-            "Received",
-        "rules.transfer.metrics.valid":
-            "Unique and valid",
-        "rules.transfer.metrics.file_duplicates":
-            "Duplicates in file",
-        "rules.transfer.metrics.database_duplicates":
-            "Already in database",
-        "rules.transfer.preview_caption": (
-            "Schema version: {schema_version}. "
-            "Exported at: {exported_at}."
-        ),
-        "rules.transfer.errors.blocked": (
-            "The configuration contains errors. "
-            "Import is blocked."
-        ),
-        "rules.transfer.warnings.file_duplicates": (
-            "Duplicate rules within the file "
-            "will be imported only once."
-        ),
-        "rules.transfer.info.database_duplicates": (
-            "In merge mode, rules that fully match "
-            "existing rules will be skipped."
-        ),
-        "rules.transfer.json_title":
-            "View JSON contents",
-        "rules.transfer.import_title":
-            "Import mode",
-        "rules.transfer.import_action":
-            "Select an action",
-        "rules.transfer.import.merge":
-            "Add missing rules",
-        "rules.transfer.import.replace":
-            "Replace all current rules",
-        "rules.transfer.import.merge_caption": (
-            "Current rules will be preserved. "
-            "Exact duplicates will be skipped."
-        ),
-        "rules.transfer.import.replace_warning": (
-            "All current rules will be deleted and replaced "
-            "with the rules from the file. "
-            "The operation is performed in one transaction."
-        ),
-        "rules.transfer.import.replace_phrase":
-            "REPLACE ALL RULES",
-        "rules.transfer.import.confirmation":
-            "To replace the rules, enter:",
-        "rules.transfer.import.merge_button":
-            "Add rules",
-        "rules.transfer.import.replace_button":
-            "Replace all rules",
-        "rules.transfer.messages.completed": (
-            "Rule import completed. "
-            "Received: {received}. "
-            "Added: {inserted}. "
-            "Duplicates skipped: {skipped}. "
-            "Previous rules deleted: {deleted}."
-        ),
-        "rules.saved.title":
-            "Saved rules",
-        "rules.saved.empty":
-            "No rules have been created yet.",
-        "rules.saved.columns.id": "ID",
-        "rules.saved.columns.name": "Name",
-        "rules.saved.columns.priority": "Priority",
-        "rules.saved.columns.active": "Active",
-        "rules.saved.columns.direction": "Direction",
-        "rules.saved.columns.field": "Field",
-        "rules.saved.columns.condition": "Condition",
-        "rules.saved.columns.value": "Value",
-        "rules.saved.columns.pnl_action":
-            "P&L decision",
-        "rules.saved.columns.pnl_category":
-            "P&L category",
-        "rules.saved.columns.cf_action":
-            "Cash Flow decision",
-        "rules.saved.columns.cf_category":
-            "Cash Flow category",
-        "rules.saved.values.active": "Yes",
-        "rules.saved.values.inactive": "No",
-        "rules.saved.manage":
-            "Select a rule to manage",
-        "rules.saved.save_activity":
-            "Save active status",
-        "rules.saved.delete":
-            "Delete rule",
-        "rules.messages.activity_updated":
-            "Rule status updated.",
-        "rules.messages.deleted":
-            "Rule deleted.",
-        "reports.empty_database":
-            "There are no transactions in the database yet.",
-        "reports.invalid_dates":
-            "No valid transaction dates were found.",
-        "reports.unknown_type":
-            "Unknown report type: {report_type}",
-        "reports.period.title": "Report period",
-        "reports.period.start": "Start date",
-        "reports.period.end": "End date",
-        "reports.period.compare": "Compare with",
-        "reports.period.synced": (
-            "Period settings are synchronized "
-            "between P&L and Cash Flow."
-        ),
-        "reports.period.current":
-            "Period: {current}",
-        "reports.period.with_comparison": (
-            "Selected period: {current}. "
-            "Comparison: {comparison}."
-        ),
-        "reports.comparison.none": "No comparison",
-        "reports.comparison.previous":
-            "Previous period",
-        "reports.comparison.previous_year":
-            "Same period last year",
-        "reports.metrics.included":
-            "Included transactions",
-        "reports.current_summary": (
-            "{label}: excluded — {excluded}; "
-            "pending decision — {pending}."
-        ),
-        "reports.comparison_summary": (
-            "{label}: included — {included}; "
-            "excluded — {excluded}; "
-            "pending decision — {pending}."
-        ),
-        "reports.pending_warning": (
-            "Some transactions in the selected period "
-            "have not yet been classified for this report."
-        ),
-        "reports.empty_period": (
-            "There are no transactions included "
-            "in this report for the selected period."
-        ),
-        "reports.category_structure":
-            "Category structure",
-        "reports.no_category_data": (
-            "There is no data available "
-            "for the category structure."
-        ),
-        "reports.no_comparison_data": (
-            "Neither period contains data "
-            "for category comparison."
-        ),
-        "reports.current_operations":
-            "Selected-period transactions",
-        "reports.comparison_operations":
-            "Comparison-period transactions",
-        "reports.columns.category": "Category",
-        "reports.columns.amount": "Amount, ₽",
-        "reports.columns.no_category":
-            "Uncategorized",
-        "reports.columns.current_amount":
-            "Selected period, ₽",
-        "reports.columns.comparison_amount":
-            "Comparison period, ₽",
-        "reports.columns.delta_amount":
-            "Change, ₽",
-        "reports.columns.delta_percent":
-            "Change, %",
-        "reports.columns.period": "Period",
-        "reports.percentage_point_delta":
-            "{value:+.1f} pp",
-        "reports.pnl.title": "P&L",
-        "reports.pnl.caption": (
-            "At the current stage, the report is built "
-            "from bank transactions on a cash basis."
-        ),
-        "reports.pnl.inflow": "Income",
-        "reports.pnl.outflow": "Expenses",
-        "reports.pnl.net": "Result",
-        "reports.pnl.kpi_title": "P&L KPIs",
-        "reports.pnl.kpi.profitability":
-            "Profit margin",
-        "reports.pnl.kpi.expense_share":
-            "Expenses as a share of income",
-        "reports.pnl.kpi.expense_coverage":
-            "Expense coverage",
-        "reports.pnl.kpi.classification_rate":
-            "Transactions processed",
-        "reports.pnl.kpi.average_income":
-            "Average inflow",
-        "reports.pnl.kpi.average_expense":
-            "Average outflow",
-        "reports.pnl.kpi.income_count":
-            "Income transactions",
-        "reports.pnl.kpi.expense_count":
-            "Expense transactions",
-        "reports.pnl.kpi_caption": (
-            "KPIs are calculated from included bank "
-            "transactions. This is a cash-basis management "
-            "P&L, not an accrual-basis accounting statement."
-        ),
-        "reports.cash_flow.title": "Cash Flow",
-        "reports.cash_flow.caption": (
-            "The report shows actual cash movements "
-            "by transaction date."
-        ),
-        "reports.cash_flow.inflow": "Inflows",
-        "reports.cash_flow.outflow": "Payments",
-        "reports.cash_flow.net": "Net cash flow",
-    },
-    "zh-CN": {
-        "language.selector": "界面语言",
-        "app.eyebrow": "管理会计",
-        "app.description": (
-            "用于管理银行交易、财务报表、分类规则"
-            "和企业现金流的本地系统。"
-        ),
-        "app.badge": "本地优先 · MVP",
-        "tabs.operations": "交易记录",
-        "tabs.classification": "分类",
-        "tabs.rules": "规则",
-        "tabs.pnl": "损益表",
-        "tabs.cash_flow": "现金流",
-        "tabs.unit_economics": "单位经济模型",
-        "tabs.payment_calendar": "付款日历",
-        "tabs.import": "导入银行流水",
-        "operations.empty_state": (
-            "数据库中暂无交易。"
-            "请在导入银行流水选项卡中上传第一份银行流水。"
-        ),
-        "operations.saved_title": "已保存的交易",
-        "operations.technical_info": "技术信息",
-        "operations.sqlite_records":
-            "SQLite 记录数：",
-        "operations.metrics.count": "交易笔数",
-        "operations.metrics.inflow": "资金流入",
-        "operations.metrics.outflow": "资金流出",
-        "operations.metrics.net": "净现金变动",
-        "operations.columns.date": "日期",
-        "operations.columns.amount": "金额，₽",
-        "operations.columns.direction":
-            "借方/贷方",
-        "operations.columns.bank_category":
-            "银行类别",
-        "operations.columns.status": "状态",
-        "operations.columns.counterparty":
-            "交易对方",
-        "operations.columns.tax_id":
-            "纳税人识别号",
-        "operations.columns.description": "描述",
-        "operations.columns.payment_purpose":
-            "付款用途",
-        "operations.columns.classification":
-            "分类状态",
-        "classification.title": "交易分类",
-        "classification.pending_title":
-            "未完成分类的交易",
-        "classification.metrics.inflow":
-            "资金流入",
-        "classification.metrics.outflow":
-            "资金流出",
-        "classification.metrics.net":
-            "净额",
-        "classification.metrics.count":
-            "交易笔数",
-        "classification.pending_caption": (
-            "统计至少在一个报表维度中尚未完成分类的交易："
-            "损益表或现金流量表。"
-        ),
-        "classification.all_classified":
-            "所有交易均已分类。",
-        "classification.empty_database":
-            "数据库中暂无可分类的交易。",
-        "classification.only_pending":
-            "仅显示未完成分类的交易",
-        "classification.filtered_empty":
-            "所有交易均已完成分类。",
-        "classification.instructions": (
-            "请分别为每张报表选择处理方式。"
-            "交易可纳入现金流量表而排除在损益表之外，"
-            "反之亦然。"
-        ),
-        "classification.select_title":
-            "选择交易",
-        "classification.select_caption": (
-            "点击一行或左侧标记。"
-            "下方将打开所选交易的编辑区域。"
-        ),
-        "classification.columns.id": "ID",
-        "classification.columns.date": "日期",
-        "classification.columns.amount": "金额，₽",
-        "classification.columns.counterparty":
-            "交易对方",
-        "classification.columns.description":
-            "描述",
-        "classification.columns.payment_purpose":
-            "付款用途",
-        "classification.columns.pnl_action":
-            "损益表处理方式",
-        "classification.columns.pnl_category":
-            "损益表类别",
-        "classification.columns.cf_action":
-            "现金流处理方式",
-        "classification.columns.cf_category":
-            "现金流类别",
-        "classification.columns.comment":
-            "备注",
-        "classification.actions.include":
-            "纳入",
-        "classification.actions.exclude":
-            "排除",
-        "classification.actions.undefined":
-            "未决定",
-        "classification.selected_title":
-            "所选交易分类",
-        "classification.details.date": "日期",
-        "classification.details.amount": "金额",
-        "classification.details.position": "交易",
-        "classification.details.position_value":
-            "{current} / {total}",
-        "classification.details.counterparty":
-            "交易对方",
-        "classification.details.description":
-            "描述",
-        "classification.details.payment_purpose":
-            "付款用途",
-        "classification.details.not_specified":
-            "未填写",
-        "classification.help.pnl_category": (
-            "交易纳入损益表时必须选择类别。"
-        ),
-        "classification.help.cf_category": (
-            "交易纳入现金流量表时必须选择类别。"
-        ),
-        "classification.buttons.save": "保存",
-        "classification.buttons.save_next":
-            "保存并继续",
-        "classification.buttons.exclude_both":
-            "从两张报表中排除",
-        "classification.errors.transaction_not_found": (
-            "未找到所选交易，请刷新页面。"
-        ),
-        "classification.errors.pnl_category_required":
-            "请选择损益表类别。",
-        "classification.errors.cf_category_required":
-            "请选择现金流量表类别。",
-        "classification.messages.excluded_both":
-            "该交易已从两张报表中排除。",
-        "classification.messages.saved":
-            "分类已保存。",
-        "classification.messages.summary": (
-            "{action} 已更新：{updated}。"
-            "完全分类：{classified}。"
-            "部分分类：{partial}。"
-        ),
-        "rules.title":
-            "自动分类规则",
-        "rules.caption": (
-            "规则按优先级从高到低应用。"
-            "每笔交易只应用第一个匹配规则。"
-            "手动分类不会被覆盖。"
-        ),
-        "rules.apply_button":
-            "应用启用的规则",
-        "rules.messages.applied": (
-            "已检查交易：{checked}。"
-            "已分类：{matched}。"
-            "未匹配：{unmatched}。"
-        ),
-        "rules.create_title":
-            "创建新规则",
-        "rules.fields.name":
-            "规则名称",
-        "rules.placeholders.name":
-            "例如：银行手续费",
-        "rules.fields.priority":
-            "优先级",
-        "rules.help.priority":
-            "数值越大，规则越早检查。",
-        "rules.fields.active":
-            "启用规则",
-        "rules.fields.direction":
-            "交易方向",
-        "rules.fields.match_field":
-            "搜索字段",
-        "rules.fields.match_type":
-            "匹配条件",
-        "rules.fields.match_value":
-            "搜索值",
-        "rules.placeholders.match_value":
-            "例如：账户服务费",
-        "rules.create_button":
-            "创建规则",
-        "rules.messages.created":
-            "规则 #{rule_id} 已创建。",
-        "rules.errors.name_required":
-            "请输入规则名称。",
-        "rules.errors.match_value_required":
-            "请输入搜索值。",
-        "rules.errors.decision_required":
-            "规则必须至少为一张报表作出处理决定。",
-        "rules.errors.pnl_category_required":
-            "纳入损益表时请选择类别。",
-        "rules.errors.cf_category_required":
-            "纳入现金流量表时请选择类别。",
-        "rules.options.direction.any":
-            "任意方向",
-        "rules.options.direction.income":
-            "仅资金流入",
-        "rules.options.direction.expense":
-            "仅资金流出",
-        "rules.options.field.all_text":
-            "所有文本字段",
-        "rules.options.field.counterparty_name":
-            "交易对方",
-        "rules.options.field.counterparty_inn":
-            "交易对方税号",
-        "rules.options.field.bank_category":
-            "银行类别",
-        "rules.options.field.description":
-            "交易描述",
-        "rules.options.field.payment_purpose":
-            "付款用途",
-        "rules.options.field.mcc":
-            "MCC",
-        "rules.options.field.tax_code":
-            "预算分类代码",
-        "rules.options.match.contains":
-            "包含",
-        "rules.options.match.equals":
-            "完全匹配",
-        "rules.options.match.starts_with":
-            "开头为",
-        "rules.transfer.title":
-            "规则配置迁移",
-        "rules.transfer.caption": (
-            "规则可以保存为 JSON，并迁移到其他 Open MAS "
-            "安装中。本地数据库 ID 和日期不会导出。"
-        ),
-        "rules.transfer.download":
-            "下载 JSON 规则",
-        "rules.transfer.export_info": (
-            "导出文件包含当前规则、优先级、"
-            "匹配条件、类别和启用状态。"
-        ),
-        "rules.transfer.upload":
-            "上传规则配置",
-        "rules.transfer.upload_help": (
-            "文件将首先接受验证。"
-            "确认导入前，数据库不会发生变化。"
-        ),
-        "rules.transfer.preview_title":
-            "文件验证结果",
-        "rules.transfer.metrics.received":
-            "收到",
-        "rules.transfer.metrics.valid":
-            "有效且唯一",
-        "rules.transfer.metrics.file_duplicates":
-            "文件内重复",
-        "rules.transfer.metrics.database_duplicates":
-            "数据库中已存在",
-        "rules.transfer.preview_caption": (
-            "格式版本：{schema_version}。"
-            "导出时间：{exported_at}。"
-        ),
-        "rules.transfer.errors.blocked":
-            "配置中存在错误，导入已被阻止。",
-        "rules.transfer.warnings.file_duplicates": (
-            "文件中的重复规则只会导入一次。"
-        ),
-        "rules.transfer.info.database_duplicates": (
-            "在添加模式下，与现有规则完全相同的规则"
-            "将被跳过。"
-        ),
-        "rules.transfer.json_title":
-            "查看 JSON 内容",
-        "rules.transfer.import_title":
-            "导入模式",
-        "rules.transfer.import_action":
-            "选择操作",
-        "rules.transfer.import.merge":
-            "添加缺少的规则",
-        "rules.transfer.import.replace":
-            "替换所有当前规则",
-        "rules.transfer.import.merge_caption": (
-            "当前规则将被保留，完全相同的规则将被跳过。"
-        ),
-        "rules.transfer.import.replace_warning": (
-            "所有当前规则都将被删除，并由文件中的规则替换。"
-            "该操作将在一个事务中完成。"
-        ),
-        "rules.transfer.import.replace_phrase":
-            "替换所有规则",
-        "rules.transfer.import.confirmation":
-            "请输入以下文字以确认替换：",
-        "rules.transfer.import.merge_button":
-            "添加规则",
-        "rules.transfer.import.replace_button":
-            "替换所有规则",
-        "rules.transfer.messages.completed": (
-            "规则导入完成。"
-            "收到：{received}。"
-            "已添加：{inserted}。"
-            "跳过重复项：{skipped}。"
-            "已删除原有规则：{deleted}。"
-        ),
-        "rules.saved.title":
-            "已保存的规则",
-        "rules.saved.empty":
-            "尚未创建任何规则。",
-        "rules.saved.columns.id": "ID",
-        "rules.saved.columns.name": "名称",
-        "rules.saved.columns.priority": "优先级",
-        "rules.saved.columns.active": "已启用",
-        "rules.saved.columns.direction": "方向",
-        "rules.saved.columns.field": "字段",
-        "rules.saved.columns.condition": "条件",
-        "rules.saved.columns.value": "值",
-        "rules.saved.columns.pnl_action":
-            "损益表处理方式",
-        "rules.saved.columns.pnl_category":
-            "损益表类别",
-        "rules.saved.columns.cf_action":
-            "现金流处理方式",
-        "rules.saved.columns.cf_category":
-            "现金流类别",
-        "rules.saved.values.active": "是",
-        "rules.saved.values.inactive": "否",
-        "rules.saved.manage":
-            "选择要管理的规则",
-        "rules.saved.save_activity":
-            "保存启用状态",
-        "rules.saved.delete":
-            "删除规则",
-        "rules.messages.activity_updated":
-            "规则状态已更新。",
-        "rules.messages.deleted":
-            "规则已删除。",
-        "reports.empty_database":
-            "数据库中暂无交易。",
-        "reports.invalid_dates":
-            "数据库中未找到有效的交易日期。",
-        "reports.unknown_type":
-            "未知报表类型：{report_type}",
-        "reports.period.title": "报表期间",
-        "reports.period.start": "开始日期",
-        "reports.period.end": "结束日期",
-        "reports.period.compare": "对比",
-        "reports.period.synced": (
-            "期间设置已在损益表和现金流量表之间同步。"
-        ),
-        "reports.period.current":
-            "期间：{current}",
-        "reports.period.with_comparison": (
-            "所选期间：{current}。"
-            "对比期间：{comparison}。"
-        ),
-        "reports.comparison.none": "不对比",
-        "reports.comparison.previous": "上一期间",
-        "reports.comparison.previous_year":
-            "去年同期",
-        "reports.metrics.included": "纳入交易",
-        "reports.current_summary": (
-            "{label}：排除 {excluded} 笔；"
-            "待处理 {pending} 笔。"
-        ),
-        "reports.comparison_summary": (
-            "{label}：纳入 {included} 笔；"
-            "排除 {excluded} 笔；"
-            "待处理 {pending} 笔。"
-        ),
-        "reports.pending_warning": (
-            "所选期间的部分交易尚未完成该报表的分类。"
-        ),
-        "reports.empty_period": (
-            "所选期间内没有纳入该报表的交易。"
-        ),
-        "reports.category_structure": "按类别构成",
-        "reports.no_category_data": (
-            "没有可用于生成类别构成的数据。"
-        ),
-        "reports.no_comparison_data": (
-            "两个期间均无可用于类别对比的数据。"
-        ),
-        "reports.current_operations":
-            "所选期间的交易",
-        "reports.comparison_operations":
-            "对比期间的交易",
-        "reports.columns.category": "类别",
-        "reports.columns.amount": "金额，₽",
-        "reports.columns.no_category": "未分类",
-        "reports.columns.current_amount":
-            "所选期间，₽",
-        "reports.columns.comparison_amount":
-            "对比期间，₽",
-        "reports.columns.delta_amount":
-            "变化额，₽",
-        "reports.columns.delta_percent":
-            "变化，%",
-        "reports.columns.period": "期间",
-        "reports.percentage_point_delta":
-            "{value:+.1f} 个百分点",
-        "reports.pnl.title": "损益表",
-        "reports.pnl.caption": (
-            "当前阶段，报表按银行交易并采用收付实现制生成。"
-        ),
-        "reports.pnl.inflow": "收入",
-        "reports.pnl.outflow": "费用",
-        "reports.pnl.net": "结果",
-        "reports.pnl.kpi_title": "损益表 KPI",
-        "reports.pnl.kpi.profitability":
-            "销售利润率",
-        "reports.pnl.kpi.expense_share":
-            "费用占收入比",
-        "reports.pnl.kpi.expense_coverage":
-            "费用覆盖率",
-        "reports.pnl.kpi.classification_rate":
-            "已处理交易",
-        "reports.pnl.kpi.average_income":
-            "平均收入",
-        "reports.pnl.kpi.average_expense":
-            "平均支出",
-        "reports.pnl.kpi.income_count":
-            "收入交易笔数",
-        "reports.pnl.kpi.expense_count":
-            "支出交易笔数",
-        "reports.pnl.kpi_caption": (
-            "KPI 根据已纳入的银行交易计算。"
-            "这是采用收付实现制的管理损益表，"
-            "并非采用权责发生制的会计报表。"
-        ),
-        "reports.cash_flow.title": "现金流量表",
-        "reports.cash_flow.caption": (
-            "该报表按交易日期显示实际现金流动。"
-        ),
-        "reports.cash_flow.inflow": "现金流入",
-        "reports.cash_flow.outflow": "现金流出",
-        "reports.cash_flow.net": "净现金流",
-    },
-}
+TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык интерфейса',
+        'app.eyebrow': 'Управленческий финансовый учёт',
+        'app.description': 'Локальная система для управления банковскими операциями, '
+                           'финансовой отчётностью, правилами классификации и '
+                           'денежными потоками бизнеса.',
+        'app.badge': 'Локально · MVP',
+        'tabs.operations': 'Операции в базе',
+        'tabs.classification': 'Классификация',
+        'tabs.rules': 'Правила',
+        'tabs.pnl': 'P&L',
+        'tabs.cash_flow': 'Cash Flow',
+        'tabs.unit_economics': 'Unit Economics',
+        'tabs.payment_calendar': 'Платёжный календарь',
+        'tabs.import': 'Импорт выписки',
+        'operations.empty_state': 'В базе пока нет операций. Загрузите первую выписку '
+                                  'во вкладке импорта.',
+        'operations.saved_title': 'Сохранённые операции',
+        'operations.technical_info': 'Техническая информация',
+        'operations.sqlite_records': 'Записей в SQLite:',
+        'operations.metrics.count': 'Операций',
+        'operations.metrics.inflow': 'Поступления',
+        'operations.metrics.outflow': 'Списания',
+        'operations.metrics.net': 'Чистое движение',
+        'operations.columns.date': 'Дата',
+        'operations.columns.amount': 'Сумма, ₽',
+        'operations.columns.direction': 'Дебет/кредит',
+        'operations.columns.bank_category': 'Категория банка',
+        'operations.columns.status': 'Статус',
+        'operations.columns.counterparty': 'Контрагент',
+        'operations.columns.tax_id': 'ИНН',
+        'operations.columns.description': 'Описание',
+        'operations.columns.payment_purpose': 'Назначение платежа',
+        'operations.columns.classification': 'Классификация',
+        'classification.title': 'Классификация операций',
+        'classification.pending_title': 'Неклассифицированные операции',
+        'classification.metrics.inflow': 'Поступления',
+        'classification.metrics.outflow': 'Списания',
+        'classification.metrics.net': 'Чистая сумма',
+        'classification.metrics.count': 'Операций',
+        'classification.pending_caption': 'Учитываются операции, для которых не '
+                                          'завершена классификация хотя бы в одном '
+                                          'контуре: P&L или Cash Flow.',
+        'classification.all_classified': 'Все операции классифицированы.',
+        'classification.empty_database': 'В базе пока нет операций для классификации.',
+        'classification.only_pending': 'Показывать только незавершённые',
+        'classification.filtered_empty': 'Все операции полностью классифицированы.',
+        'classification.instructions': 'Для каждого отчёта выбери отдельное решение. '
+                                       'Операцию можно включить в Cash Flow, но '
+                                       'исключить из P&L, и наоборот.',
+        'classification.select_title': 'Выберите операцию',
+        'classification.select_caption': 'Нажмите на строку или на маркер слева. '
+                                         'Редактирование выбранной операции откроется '
+                                         'ниже.',
+        'classification.columns.id': 'ID',
+        'classification.columns.date': 'Дата',
+        'classification.columns.amount': 'Сумма, ₽',
+        'classification.columns.counterparty': 'Контрагент',
+        'classification.columns.description': 'Описание',
+        'classification.columns.payment_purpose': 'Назначение платежа',
+        'classification.columns.pnl_action': 'Решение P&L',
+        'classification.columns.pnl_category': 'Категория P&L',
+        'classification.columns.cf_action': 'Решение Cash Flow',
+        'classification.columns.cf_category': 'Категория Cash Flow',
+        'classification.columns.comment': 'Комментарий',
+        'classification.actions.include': 'Включить',
+        'classification.actions.exclude': 'Исключить',
+        'classification.actions.undefined': 'Не определено',
+        'classification.selected_title': 'Классификация выбранной операции',
+        'classification.details.date': 'Дата',
+        'classification.details.amount': 'Сумма',
+        'classification.details.position': 'Операция',
+        'classification.details.position_value': '{current} из {total}',
+        'classification.details.counterparty': 'Контрагент',
+        'classification.details.description': 'Описание',
+        'classification.details.payment_purpose': 'Назначение платежа',
+        'classification.details.not_specified': 'Не указано',
+        'classification.help.pnl_category': 'Категория обязательна, если операция '
+                                            'включается в P&L.',
+        'classification.help.cf_category': 'Категория обязательна, если операция '
+                                           'включается в Cash Flow.',
+        'classification.buttons.save': 'Сохранить',
+        'classification.buttons.save_next': 'Сохранить и перейти дальше',
+        'classification.buttons.exclude_both': 'Исключить из обоих',
+        'classification.errors.transaction_not_found': 'Выбранная операция не найдена. '
+                                                       'Обновите страницу.',
+        'classification.errors.pnl_category_required': 'Выберите категорию P&L.',
+        'classification.errors.cf_category_required': 'Выберите категорию Cash Flow.',
+        'classification.messages.excluded_both': 'Операция исключена из обоих отчётов.',
+        'classification.messages.saved': 'Классификация сохранена.',
+        'classification.messages.summary': '{action} Обновлено: {updated}. Полностью '
+                                           'классифицировано: {classified}. Частично: '
+                                           '{partial}.',
+        'rules.title': 'Правила автоматической классификации',
+        'rules.caption': 'Правила применяются по убыванию приоритета. Для каждой '
+                         'операции срабатывает только первое совпадение. Ручные '
+                         'решения не перезаписываются.',
+        'rules.apply_button': 'Применить активные правила',
+        'rules.messages.applied': 'Проверено операций: {checked}. Классифицировано: '
+                                  '{matched}. Без совпадений: {unmatched}.',
+        'rules.create_title': 'Создать новое правило',
+        'rules.fields.name': 'Название правила',
+        'rules.placeholders.name': 'Например: банковские комиссии',
+        'rules.fields.priority': 'Приоритет',
+        'rules.help.priority': 'Чем больше число, тем раньше проверяется правило.',
+        'rules.fields.active': 'Правило активно',
+        'rules.fields.direction': 'Направление операции',
+        'rules.fields.match_field': 'Где искать',
+        'rules.fields.match_type': 'Условие',
+        'rules.fields.match_value': 'Искомое значение',
+        'rules.placeholders.match_value': 'Например: обслуживание счёта',
+        'rules.create_button': 'Создать правило',
+        'rules.messages.created': 'Правило #{rule_id} создано.',
+        'rules.errors.name_required': 'Укажите название правила.',
+        'rules.errors.match_value_required': 'Укажите значение для поиска.',
+        'rules.errors.decision_required': 'Правило должно принимать решение хотя бы '
+                                          'для одного отчёта.',
+        'rules.errors.pnl_category_required': 'Для включения в P&L выберите категорию.',
+        'rules.errors.cf_category_required': 'Для включения в Cash Flow выберите '
+                                             'категорию.',
+        'rules.options.direction.any': 'Любое движение',
+        'rules.options.direction.income': 'Только поступления',
+        'rules.options.direction.expense': 'Только списания',
+        'rules.options.field.all_text': 'Все текстовые поля',
+        'rules.options.field.counterparty_name': 'Контрагент',
+        'rules.options.field.counterparty_inn': 'ИНН контрагента',
+        'rules.options.field.bank_category': 'Категория банка',
+        'rules.options.field.description': 'Описание операции',
+        'rules.options.field.payment_purpose': 'Назначение платежа',
+        'rules.options.field.mcc': 'MCC',
+        'rules.options.field.tax_code': 'КБК',
+        'rules.options.match.contains': 'Содержит',
+        'rules.options.match.equals': 'Полностью совпадает',
+        'rules.options.match.starts_with': 'Начинается с',
+        'rules.transfer.title': 'Перенос конфигурации правил',
+        'rules.transfer.caption': 'Правила можно сохранить в JSON и перенести в другую '
+                                  'установку Open MAS. Локальные ID и даты базы не '
+                                  'экспортируются.',
+        'rules.transfer.download': 'Скачать правила в JSON',
+        'rules.transfer.export_info': 'Экспорт содержит текущие правила, их '
+                                      'приоритеты, условия, категории и состояние '
+                                      'активности.',
+        'rules.transfer.upload': 'Загрузить конфигурацию правил',
+        'rules.transfer.upload_help': 'Сначала файл будет проверен. База не изменится '
+                                      'до подтверждения импорта.',
+        'rules.transfer.preview_title': 'Результат проверки файла',
+        'rules.transfer.metrics.received': 'Получено',
+        'rules.transfer.metrics.valid': 'Уникальных корректных',
+        'rules.transfer.metrics.file_duplicates': 'Дублей внутри файла',
+        'rules.transfer.metrics.database_duplicates': 'Уже есть в базе',
+        'rules.transfer.preview_caption': 'Версия формата: {schema_version}. Файл '
+                                          'экспортирован: {exported_at}.',
+        'rules.transfer.errors.blocked': 'Конфигурация содержит ошибки. Импорт '
+                                         'заблокирован.',
+        'rules.transfer.warnings.file_duplicates': 'Повторяющиеся правила внутри файла '
+                                                   'будут импортированы только один '
+                                                   'раз.',
+        'rules.transfer.info.database_duplicates': 'В режиме добавления правила, '
+                                                   'которые уже полностью совпадают с '
+                                                   'существующими, будут пропущены.',
+        'rules.transfer.json_title': 'Просмотреть содержимое JSON',
+        'rules.transfer.import_title': 'Режим импорта',
+        'rules.transfer.import_action': 'Выберите действие',
+        'rules.transfer.import.merge': 'Добавить отсутствующие правила',
+        'rules.transfer.import.replace': 'Заменить все текущие правила',
+        'rules.transfer.import.merge_caption': 'Текущие правила сохранятся. Полностью '
+                                               'совпадающие правила будут пропущены.',
+        'rules.transfer.import.replace_warning': 'Все текущие правила будут удалены и '
+                                                 'заменены правилами из файла. '
+                                                 'Операция выполняется одной '
+                                                 'транзакцией.',
+        'rules.transfer.import.replace_phrase': 'ЗАМЕНИТЬ ВСЕ ПРАВИЛА',
+        'rules.transfer.import.confirmation': 'Для замены введите:',
+        'rules.transfer.import.merge_button': 'Добавить правила',
+        'rules.transfer.import.replace_button': 'Заменить все правила',
+        'rules.transfer.messages.completed': 'Импорт правил завершён. Получено: '
+                                             '{received}. Добавлено: {inserted}. '
+                                             'Пропущено дублей: {skipped}. Удалено '
+                                             'прежних правил: {deleted}.',
+        'rules.saved.title': 'Сохранённые правила',
+        'rules.saved.empty': 'Правила пока не созданы.',
+        'rules.saved.columns.id': 'ID',
+        'rules.saved.columns.name': 'Название',
+        'rules.saved.columns.priority': 'Приоритет',
+        'rules.saved.columns.active': 'Активно',
+        'rules.saved.columns.direction': 'Направление',
+        'rules.saved.columns.field': 'Поле',
+        'rules.saved.columns.condition': 'Условие',
+        'rules.saved.columns.value': 'Значение',
+        'rules.saved.columns.pnl_action': 'Решение P&L',
+        'rules.saved.columns.pnl_category': 'Категория P&L',
+        'rules.saved.columns.cf_action': 'Решение Cash Flow',
+        'rules.saved.columns.cf_category': 'Категория Cash Flow',
+        'rules.saved.values.active': 'Да',
+        'rules.saved.values.inactive': 'Нет',
+        'rules.saved.manage': 'Выберите правило для управления',
+        'rules.saved.save_activity': 'Сохранить активность',
+        'rules.saved.delete': 'Удалить правило',
+        'rules.messages.activity_updated': 'Состояние правила обновлено.',
+        'rules.messages.deleted': 'Правило удалено.',
+        'reports.empty_database': 'В базе пока нет операций.',
+        'reports.invalid_dates': 'В базе не найдено корректных дат проведения.',
+        'reports.unknown_type': 'Неизвестный тип отчёта: {report_type}',
+        'reports.period.title': 'Период отчёта',
+        'reports.period.start': 'Начало периода',
+        'reports.period.end': 'Конец периода',
+        'reports.period.compare': 'Сравнить с',
+        'reports.period.synced': 'Настройки периода синхронизированы между P&L и Cash '
+                                 'Flow.',
+        'reports.period.current': 'Период: {current}',
+        'reports.period.with_comparison': 'Выбранный период: {current}. Сравнение: '
+                                          '{comparison}.',
+        'reports.comparison.none': 'Без сравнения',
+        'reports.comparison.previous': 'Предыдущий период',
+        'reports.comparison.previous_year': 'Тот же период год назад',
+        'reports.metrics.included': 'Учтено операций',
+        'reports.current_summary': '{label}: исключено из отчёта — {excluded}; не '
+                                   'принято решение — {pending}.',
+        'reports.comparison_summary': '{label}: учтено — {included}; исключено — '
+                                      '{excluded}; не принято решение — {pending}.',
+        'reports.pending_warning': 'Часть операций выбранного периода ещё не '
+                                   'классифицирована для этого отчёта.',
+        'reports.empty_period': 'В выбранном периоде нет операций, включённых в этот '
+                                'отчёт.',
+        'reports.category_structure': 'Структура по категориям',
+        'reports.no_category_data': 'Нет данных для построения структуры по '
+                                    'категориям.',
+        'reports.no_comparison_data': 'В обоих периодах нет данных для сравнения '
+                                      'категорий.',
+        'reports.current_operations': 'Операции выбранного периода',
+        'reports.comparison_operations': 'Операции периода сравнения',
+        'reports.columns.category': 'Категория',
+        'reports.columns.amount': 'Сумма, ₽',
+        'reports.columns.no_category': 'Без категории',
+        'reports.columns.current_amount': 'Выбранный период, ₽',
+        'reports.columns.comparison_amount': 'Период сравнения, ₽',
+        'reports.columns.delta_amount': 'Изменение, ₽',
+        'reports.columns.delta_percent': 'Изменение, %',
+        'reports.columns.period': 'Период',
+        'reports.percentage_point_delta': '{value:+.1f} п.п.',
+        'reports.pnl.title': 'P&L',
+        'reports.pnl.caption': 'На текущем этапе отчёт строится по банковским '
+                               'операциям кассовым методом.',
+        'reports.pnl.inflow': 'Доходы',
+        'reports.pnl.outflow': 'Расходы',
+        'reports.pnl.net': 'Результат',
+        'reports.pnl.kpi_title': 'KPI P&L',
+        'reports.pnl.kpi.profitability': 'Рентабельность продаж',
+        'reports.pnl.kpi.expense_share': 'Доля расходов в доходах',
+        'reports.pnl.kpi.expense_coverage': 'Покрытие расходов',
+        'reports.pnl.kpi.classification_rate': 'Обработано операций',
+        'reports.pnl.kpi.average_income': 'Среднее поступление',
+        'reports.pnl.kpi.average_expense': 'Среднее списание',
+        'reports.pnl.kpi.income_count': 'Доходных операций',
+        'reports.pnl.kpi.expense_count': 'Расходных операций',
+        'reports.pnl.kpi_caption': 'KPI рассчитаны по включённым банковским операциям. '
+                                   'Это управленческий P&L по кассовому методу, а не '
+                                   'бухгалтерский отчёт по методу начисления.',
+        'reports.cash_flow.title': 'Cash Flow',
+        'reports.cash_flow.caption': 'Отчёт показывает фактические движения денежных '
+                                     'средств по дате проведения.',
+        'reports.cash_flow.inflow': 'Поступления',
+        'reports.cash_flow.outflow': 'Платежи',
+        'reports.cash_flow.net': 'Чистый денежный поток',
+        'common.id': 'ID',
+        'common.name': 'Название',
+        'common.amount_rub': 'Сумма, ₽',
+        'common.percent': 'Процент, %',
+        'common.active': 'Активно',
+        'common.comment': 'Комментарий',
+        'common.category': 'Категория',
+        'common.counterparty': 'Контрагент',
+        'common.date': 'Дата',
+        'common.yes': 'Да',
+        'common.no': 'Нет',
+        'common.not_calculated': 'не рассчитывается',
+        'common.units_short': '{count} шт.',
+        'common.days': '{count} дней',
+        'common.unknown_date': 'дата неизвестна',
+        'unit.title': 'Unit Economics',
+        'unit.caption': 'Затраты «на единицу» умножаются на плановое количество. '
+                        'Затраты «за период» вычитаются из общей маржи продукта.',
+        'unit.product.add_title': 'Добавить продукт',
+        'unit.product.name': 'Название продукта',
+        'unit.product.name_placeholder': 'Например: футболка Core',
+        'unit.product.planned_units': 'Плановое количество',
+        'unit.product.active': 'Продукт активен',
+        'unit.product.comment': 'Комментарий к продукту',
+        'unit.product.add_button': 'Добавить продукт',
+        'unit.product.added': 'Продукт #{product_id} добавлен.',
+        'unit.product.empty': 'Добавь первый продукт для расчёта Unit Economics.',
+        'unit.product.select': 'Выберите продукт',
+        'unit.costs.title': 'Затраты: {product_name}',
+        'unit.cost.name': 'Название статьи затрат',
+        'unit.cost.name_placeholder': 'Например: ткань, упаковка, эквайринг или налог',
+        'unit.cost.type': 'Тип затрат',
+        'unit.cost.active': 'Строка затрат активна',
+        'unit.cost.comment': 'Комментарий к затратам',
+        'unit.cost.add_button': 'Добавить строку затрат',
+        'unit.cost.added': 'Строка затрат #{cost_id} добавлена.',
+        'unit.cost.empty': 'У этого продукта пока нет строк затрат.',
+        'unit.cost.item_column': 'Статья затрат',
+        'unit.cost.select_manage': 'Выберите строку затрат для управления',
+        'unit.cost.save_activity': 'Сохранить активность статьи',
+        'unit.cost.delete': 'Удалить статью затрат',
+        'unit.cost.activity_updated': 'Состояние статьи затрат обновлено.',
+        'unit.cost.deleted': 'Статья затрат удалена.',
+        'unit.cost_type.fixed_per_unit': 'Фиксированная сумма на единицу',
+        'unit.cost_type.fixed_period': 'Фиксированная сумма за период',
+        'unit.cost_type.percent_of_price': 'Процент от цены продажи',
+        'unit.cost_type.percent_of_revenue': 'Процент от выручки',
+        'unit.pricing.title': 'Ценообразование',
+        'unit.pricing.method': 'Способ формирования цены',
+        'unit.pricing.manual_price': 'Цена продажи, ₽',
+        'unit.pricing.markup': 'Наценка, %',
+        'unit.pricing.target_margin': 'Целевая маржинальность, %',
+        'unit.pricing.rounding': 'Округлять цену вверх до, ₽',
+        'unit.pricing.save': 'Сохранить настройки цены',
+        'unit.pricing.saved': 'Настройки ценообразования сохранены.',
+        'unit.pricing_method.not_set': 'Не задано',
+        'unit.pricing_method.manual': 'Цена вручную',
+        'unit.pricing_method.markup': 'Наценка на базовые затраты',
+        'unit.pricing_method.target_margin': 'Целевая маржинальность',
+        'unit.calculation.title': 'Расчёт',
+        'unit.calculation.inactive': 'Продукт выключен и не участвует в расчёте.',
+        'unit.calculation.setup_hint': 'Добавь статьи затрат и настрой способ '
+                                       'формирования цены в блоке «Ценообразование».',
+        'unit.metrics.fixed_per_unit': 'Затраты на единицу',
+        'unit.metrics.allocated_period': 'Затраты периода на единицу',
+        'unit.metrics.base_cost': 'Базовая себестоимость',
+        'unit.metrics.percentage_rate': 'Процентные расходы',
+        'unit.metrics.selling_price': 'Цена продажи',
+        'unit.metrics.percentage_per_unit': 'Процентные расходы на единицу',
+        'unit.metrics.total_cost': 'Полная себестоимость',
+        'unit.metrics.profit_per_unit': 'Прибыль на единицу',
+        'unit.details.sales_plan': 'План продаж',
+        'unit.details.revenue': 'Выручка',
+        'unit.details.total_batch_cost': 'Полные затраты на тираж',
+        'unit.details.batch_result': 'Результат на тираж',
+        'unit.details.margin': 'Фактическая маржинальность',
+        'unit.details.break_even': 'Точка безубыточности',
+        'unit.chart.metric': 'Показатель',
+        'unit.chart.price': 'Цена продажи',
+        'unit.chart.base_cost': 'Базовая себестоимость',
+        'unit.chart.percentage_cost': 'Процентные расходы',
+        'unit.chart.profit': 'Прибыль',
+        'unit.management.title': 'Управление продуктом',
+        'unit.management.save_activity': 'Сохранить активность продукта',
+        'unit.management.delete': 'Удалить продукт',
+        'unit.management.activity_updated': 'Состояние продукта обновлено.',
+        'unit.management.deleted': 'Продукт и его строки затрат удалены.',
+        'unit.summary.title': 'Сводка по продуктам',
+        'unit.summary.empty': 'Нет активных продуктов для сводного расчёта.',
+        'unit.summary.product': 'Продукт',
+        'unit.summary.plan_units': 'План, шт.',
+        'unit.summary.pricing_method': 'Способ цены',
+        'unit.summary.fixed_per_unit': 'Фиксированные затраты на единицу, ₽',
+        'unit.summary.allocated_period': 'Затраты периода на единицу, ₽',
+        'unit.summary.base_cost': 'Базовая себестоимость, ₽',
+        'unit.summary.percentage_rate': 'Процентные расходы, %',
+        'unit.summary.selling_price': 'Цена продажи, ₽',
+        'unit.summary.percentage_per_unit': 'Процентные расходы на единицу, ₽',
+        'unit.summary.total_cost': 'Полная себестоимость, ₽',
+        'unit.summary.profit_per_unit': 'Прибыль на единицу, ₽',
+        'unit.summary.margin': 'Маржинальность, %',
+        'unit.summary.revenue': 'Выручка, ₽',
+        'unit.summary.batch_result': 'Результат на тираж, ₽',
+        'unit.summary.break_even': 'Точка безубыточности, шт.',
+        'unit.summary.status': 'Статус расчёта',
+        'unit.summary.status_ok': 'Расчёт выполнен',
+        'unit.pricing_error.not_set': 'Способ ценообразования не выбран.',
+        'unit.pricing_error.manual_missing': 'Не указана ручная цена.',
+        'unit.pricing_error.markup_missing': 'Не указана наценка.',
+        'unit.pricing_error.percentage_too_high': 'Сумма процентных расходов должна '
+                                                  'быть меньше 100%.',
+        'unit.pricing_error.margin_missing': 'Не указана целевая маржинальность.',
+        'unit.pricing_error.margin_total_too_high': 'Процентные расходы и целевая '
+                                                    'маржинальность вместе должны быть '
+                                                    'меньше 100%.',
+        'unit.pricing_error.unknown_method': 'Неизвестный способ ценообразования.',
+        'calendar.title': 'Платёжный календарь',
+        'calendar.caption': 'Добавляй будущие платежи и поступления. Система '
+                            'рассчитает прогноз остатка и предупредит о кассовом '
+                            'разрыве.',
+        'calendar.add_title': 'Добавить плановую операцию',
+        'calendar.fields.name': 'Название',
+        'calendar.placeholders.name': 'Например: аренда офиса или поступление от '
+                                      'клиента',
+        'calendar.fields.direction': 'Тип операции',
+        'calendar.fields.amount': 'Сумма, ₽',
+        'calendar.fields.category': 'Категория Cash Flow',
+        'calendar.fields.counterparty': 'Контрагент',
+        'calendar.fields.start_date': 'Дата первой операции',
+        'calendar.fields.recurrence': 'Повторение',
+        'calendar.fields.use_end_date': 'Ограничить повторение датой окончания',
+        'calendar.fields.end_date': 'Дата окончания повторения',
+        'calendar.fields.active': 'Операция активна',
+        'calendar.fields.comment': 'Комментарий',
+        'calendar.add_button': 'Добавить в календарь',
+        'calendar.messages.added': 'Плановая операция #{plan_id} добавлена.',
+        'calendar.plans.title': 'Плановые операции',
+        'calendar.plans.empty': 'Платёжный календарь пока пуст.',
+        'calendar.columns.type': 'Тип',
+        'calendar.columns.start': 'Начало',
+        'calendar.columns.end': 'Окончание',
+        'calendar.columns.recurrence': 'Повторение',
+        'calendar.select_manage': 'Выберите операцию для управления',
+        'calendar.save_activity': 'Сохранить активность',
+        'calendar.delete': 'Удалить плановую операцию',
+        'calendar.messages.activity_updated': 'Состояние плановой операции обновлено.',
+        'calendar.messages.deleted': 'Плановая операция удалена.',
+        'calendar.direction.inflow': 'Поступление',
+        'calendar.direction.outflow': 'Платёж',
+        'calendar.recurrence.once': 'Однократно',
+        'calendar.recurrence.monthly': 'Ежемесячно',
+        'calendar.recurrence.yearly': 'Ежегодно',
+        'calendar.forecast.title': 'Прогноз остатка',
+        'calendar.forecast.start': 'Начало прогноза',
+        'calendar.forecast.horizon': 'Горизонт прогноза',
+        'calendar.forecast.opening_balance': 'Остаток денежных средств на начало, ₽',
+        'calendar.forecast.inflows': 'Плановые поступления',
+        'calendar.forecast.outflows': 'Плановые платежи',
+        'calendar.forecast.ending_balance': 'Остаток на конец',
+        'calendar.forecast.minimum_balance': 'Минимальный остаток',
+        'calendar.forecast.no_gap': 'На выбранном горизонте кассовый разрыв не '
+                                    'прогнозируется.',
+        'calendar.forecast.gap': 'Прогнозируется кассовый разрыв. Первая дата: {date}. '
+                                 'Максимальный дефицит: {amount}.',
+        'calendar.forecast.balance': 'Остаток, ₽',
+        'calendar.events.title': 'События платёжного календаря',
+        'calendar.events.empty': 'На выбранном горизонте нет плановых операций.',
+        'import.title': 'Импорт банковской выписки',
+        'import.upload': 'Загрузите CSV-выписку Т-Бизнеса',
+        'import.upload_help': 'Файл обрабатывается локально и никуда не отправляется.',
+        'import.select_file': 'Выберите CSV-файл для предварительной проверки.',
+        'import.file.name': 'Имя файла',
+        'import.file.size': 'Размер',
+        'import.file.size_kb': '{size:.1f} КБ',
+        'import.preview': 'Предварительный просмотр',
+        'import.save_button': 'Сохранить новые операции в базу',
+        'import.messages.saved': 'Импорт #{batch_id}. Получено операций: {received}. '
+                                 'Добавлено новых: {inserted}. Пропущено дублей: '
+                                 '{duplicates}.',
+        'import.management.title': 'Управление банковскими данными',
+        'import.management.logged_batches': 'Загрузок в журнале',
+        'import.management.untracked': 'Операций без журнала',
+        'import.management.total': 'Всего банковских операций',
+        'import.management.caption': 'Операции без журнала были загружены до появления '
+                                     'учёта банковских импортов.',
+        'import.history.empty': 'В журнале пока нет сохранённых импортов.',
+        'import.history.title': 'Журнал импортов',
+        'import.history.imported_at': 'Импортирован',
+        'import.history.size_kb': 'Размер, КБ',
+        'import.history.file': 'Файл',
+        'import.history.received': 'Получено',
+        'import.history.inserted': 'Добавлено',
+        'import.history.duplicates': 'Дубли',
+        'import.history.linked': 'Связано операций',
+        'import.history.select': 'Выберите импорт',
+        'import.history.operations_title': 'Операции выбранного импорта',
+        'import.history.operations_empty': 'С выбранным импортом не связано операций.',
+        'import.history.delete_title': 'Удаление выбранного импорта',
+        'import.history.delete_caption': 'Операции, связанные также с другой выпиской, '
+                                         'останутся в базе.',
+        'import.history.delete_phrase': 'УДАЛИТЬ ИМПОРТ {batch_id}',
+        'import.history.delete_confirmation': 'Для удаления введите:',
+        'import.history.delete_button': 'Удалить выбранный импорт',
+        'import.messages.batch_deleted': 'Импорт #{batch_id} удалён. Удалено связей: '
+                                         '{links}. Удалено банковских операций: '
+                                         '{transactions}.',
+        'import.untracked.title': 'Операции без журнала импорта',
+        'import.untracked.warning': 'Найдено операций, загруженных до появления '
+                                    'журнала импортов: {count}. Их можно удалить '
+                                    'отдельно.',
+        'import.untracked.phrase': 'УДАЛИТЬ ОПЕРАЦИИ БЕЗ ЖУРНАЛА',
+        'import.untracked.confirmation': 'Для удаления старых операций введите:',
+        'import.untracked.delete_button': 'Удалить операции без журнала',
+        'import.messages.untracked_deleted': 'Удалены операции без журнала импорта: '
+                                             '{count}.',
+        'import.danger.title': 'Опасная зона: полная очистка банковских данных',
+        'import.danger.warning': 'Будут удалены все банковские операции, журналы '
+                                 'импортов и связи между ними. Правила, платёжный '
+                                 'календарь и Unit Economics останутся.',
+        'import.danger.phrase': 'УДАЛИТЬ ВСЕ БАНКОВСКИЕ ДАННЫЕ',
+        'import.danger.confirmation': 'Для полной очистки введите:',
+        'import.danger.clear_button': 'Полностью очистить банковские данные',
+        'import.messages.cleared': 'Банковские данные очищены. Удалено импортов: '
+                                   '{batches}; связей: {links}; операций: '
+                                   '{transactions}.'},
+ 'en': {'language.selector': 'Interface language',
+        'app.eyebrow': 'Management accounting',
+        'app.description': 'A local system for managing bank transactions, financial '
+                           'reporting, classification rules, and business cash flows.',
+        'app.badge': 'Local-first · MVP',
+        'tabs.operations': 'Transactions',
+        'tabs.classification': 'Classification',
+        'tabs.rules': 'Rules',
+        'tabs.pnl': 'P&L',
+        'tabs.cash_flow': 'Cash Flow',
+        'tabs.unit_economics': 'Unit Economics',
+        'tabs.payment_calendar': 'Payment calendar',
+        'tabs.import': 'Import statement',
+        'operations.empty_state': 'There are no transactions in the database yet. '
+                                  'Upload your first bank statement in the import tab.',
+        'operations.saved_title': 'Saved transactions',
+        'operations.technical_info': 'Technical information',
+        'operations.sqlite_records': 'SQLite records:',
+        'operations.metrics.count': 'Transactions',
+        'operations.metrics.inflow': 'Inflows',
+        'operations.metrics.outflow': 'Outflows',
+        'operations.metrics.net': 'Net movement',
+        'operations.columns.date': 'Date',
+        'operations.columns.amount': 'Amount, ₽',
+        'operations.columns.direction': 'Debit/Credit',
+        'operations.columns.bank_category': 'Bank category',
+        'operations.columns.status': 'Status',
+        'operations.columns.counterparty': 'Counterparty',
+        'operations.columns.tax_id': 'Tax ID',
+        'operations.columns.description': 'Description',
+        'operations.columns.payment_purpose': 'Payment purpose',
+        'operations.columns.classification': 'Classification',
+        'classification.title': 'Transaction classification',
+        'classification.pending_title': 'Unclassified transactions',
+        'classification.metrics.inflow': 'Inflows',
+        'classification.metrics.outflow': 'Outflows',
+        'classification.metrics.net': 'Net amount',
+        'classification.metrics.count': 'Transactions',
+        'classification.pending_caption': 'Includes transactions whose classification '
+                                          'is incomplete in at least one reporting '
+                                          'area: P&L or Cash Flow.',
+        'classification.all_classified': 'All transactions are classified.',
+        'classification.empty_database': 'There are no transactions to classify yet.',
+        'classification.only_pending': 'Show incomplete only',
+        'classification.filtered_empty': 'All transactions are fully classified.',
+        'classification.instructions': 'Choose a separate decision for each report. A '
+                                       'transaction may be included in Cash Flow but '
+                                       'excluded from P&L, and vice versa.',
+        'classification.select_title': 'Select a transaction',
+        'classification.select_caption': 'Click a row or the marker on the left. The '
+                                         'selected transaction editor will open below.',
+        'classification.columns.id': 'ID',
+        'classification.columns.date': 'Date',
+        'classification.columns.amount': 'Amount, ₽',
+        'classification.columns.counterparty': 'Counterparty',
+        'classification.columns.description': 'Description',
+        'classification.columns.payment_purpose': 'Payment purpose',
+        'classification.columns.pnl_action': 'P&L decision',
+        'classification.columns.pnl_category': 'P&L category',
+        'classification.columns.cf_action': 'Cash Flow decision',
+        'classification.columns.cf_category': 'Cash Flow category',
+        'classification.columns.comment': 'Comment',
+        'classification.actions.include': 'Include',
+        'classification.actions.exclude': 'Exclude',
+        'classification.actions.undefined': 'Not decided',
+        'classification.selected_title': 'Selected transaction classification',
+        'classification.details.date': 'Date',
+        'classification.details.amount': 'Amount',
+        'classification.details.position': 'Transaction',
+        'classification.details.position_value': '{current} of {total}',
+        'classification.details.counterparty': 'Counterparty',
+        'classification.details.description': 'Description',
+        'classification.details.payment_purpose': 'Payment purpose',
+        'classification.details.not_specified': 'Not specified',
+        'classification.help.pnl_category': 'A category is required when the '
+                                            'transaction is included in P&L.',
+        'classification.help.cf_category': 'A category is required when the '
+                                           'transaction is included in Cash Flow.',
+        'classification.buttons.save': 'Save',
+        'classification.buttons.save_next': 'Save and continue',
+        'classification.buttons.exclude_both': 'Exclude from both',
+        'classification.errors.transaction_not_found': 'The selected transaction was '
+                                                       'not found. Refresh the page.',
+        'classification.errors.pnl_category_required': 'Select a P&L category.',
+        'classification.errors.cf_category_required': 'Select a Cash Flow category.',
+        'classification.messages.excluded_both': 'The transaction was excluded from '
+                                                 'both reports.',
+        'classification.messages.saved': 'Classification saved.',
+        'classification.messages.summary': '{action} Updated: {updated}. Fully '
+                                           'classified: {classified}. Partially '
+                                           'classified: {partial}.',
+        'rules.title': 'Automatic classification rules',
+        'rules.caption': 'Rules are applied from highest to lowest priority. Only the '
+                         'first matching rule is applied to each transaction. Manual '
+                         'decisions are not overwritten.',
+        'rules.apply_button': 'Apply active rules',
+        'rules.messages.applied': 'Transactions checked: {checked}. Classified: '
+                                  '{matched}. No match: {unmatched}.',
+        'rules.create_title': 'Create a new rule',
+        'rules.fields.name': 'Rule name',
+        'rules.placeholders.name': 'For example: bank fees',
+        'rules.fields.priority': 'Priority',
+        'rules.help.priority': 'A higher number means that the rule is checked '
+                               'earlier.',
+        'rules.fields.active': 'Rule is active',
+        'rules.fields.direction': 'Transaction direction',
+        'rules.fields.match_field': 'Search field',
+        'rules.fields.match_type': 'Condition',
+        'rules.fields.match_value': 'Search value',
+        'rules.placeholders.match_value': 'For example: account service fee',
+        'rules.create_button': 'Create rule',
+        'rules.messages.created': 'Rule #{rule_id} created.',
+        'rules.errors.name_required': 'Enter a rule name.',
+        'rules.errors.match_value_required': 'Enter a search value.',
+        'rules.errors.decision_required': 'The rule must make a decision for at least '
+                                          'one report.',
+        'rules.errors.pnl_category_required': 'Select a category when including in '
+                                              'P&L.',
+        'rules.errors.cf_category_required': 'Select a category when including in Cash '
+                                             'Flow.',
+        'rules.options.direction.any': 'Any direction',
+        'rules.options.direction.income': 'Inflows only',
+        'rules.options.direction.expense': 'Outflows only',
+        'rules.options.field.all_text': 'All text fields',
+        'rules.options.field.counterparty_name': 'Counterparty',
+        'rules.options.field.counterparty_inn': 'Counterparty tax ID',
+        'rules.options.field.bank_category': 'Bank category',
+        'rules.options.field.description': 'Transaction description',
+        'rules.options.field.payment_purpose': 'Payment purpose',
+        'rules.options.field.mcc': 'MCC',
+        'rules.options.field.tax_code': 'Budget classification code',
+        'rules.options.match.contains': 'Contains',
+        'rules.options.match.equals': 'Exact match',
+        'rules.options.match.starts_with': 'Starts with',
+        'rules.transfer.title': 'Rule configuration transfer',
+        'rules.transfer.caption': 'Rules can be saved as JSON and transferred to '
+                                  'another Open MAS installation. Local database IDs '
+                                  'and dates are not exported.',
+        'rules.transfer.download': 'Download rules as JSON',
+        'rules.transfer.export_info': 'The export contains the current rules, their '
+                                      'priorities, conditions, categories and active '
+                                      'status.',
+        'rules.transfer.upload': 'Upload rule configuration',
+        'rules.transfer.upload_help': 'The file will be validated first. The database '
+                                      'will not change until import is confirmed.',
+        'rules.transfer.preview_title': 'File validation result',
+        'rules.transfer.metrics.received': 'Received',
+        'rules.transfer.metrics.valid': 'Unique and valid',
+        'rules.transfer.metrics.file_duplicates': 'Duplicates in file',
+        'rules.transfer.metrics.database_duplicates': 'Already in database',
+        'rules.transfer.preview_caption': 'Schema version: {schema_version}. Exported '
+                                          'at: {exported_at}.',
+        'rules.transfer.errors.blocked': 'The configuration contains errors. Import is '
+                                         'blocked.',
+        'rules.transfer.warnings.file_duplicates': 'Duplicate rules within the file '
+                                                   'will be imported only once.',
+        'rules.transfer.info.database_duplicates': 'In merge mode, rules that fully '
+                                                   'match existing rules will be '
+                                                   'skipped.',
+        'rules.transfer.json_title': 'View JSON contents',
+        'rules.transfer.import_title': 'Import mode',
+        'rules.transfer.import_action': 'Select an action',
+        'rules.transfer.import.merge': 'Add missing rules',
+        'rules.transfer.import.replace': 'Replace all current rules',
+        'rules.transfer.import.merge_caption': 'Current rules will be preserved. Exact '
+                                               'duplicates will be skipped.',
+        'rules.transfer.import.replace_warning': 'All current rules will be deleted '
+                                                 'and replaced with the rules from the '
+                                                 'file. The operation is performed in '
+                                                 'one transaction.',
+        'rules.transfer.import.replace_phrase': 'REPLACE ALL RULES',
+        'rules.transfer.import.confirmation': 'To replace the rules, enter:',
+        'rules.transfer.import.merge_button': 'Add rules',
+        'rules.transfer.import.replace_button': 'Replace all rules',
+        'rules.transfer.messages.completed': 'Rule import completed. Received: '
+                                             '{received}. Added: {inserted}. '
+                                             'Duplicates skipped: {skipped}. Previous '
+                                             'rules deleted: {deleted}.',
+        'rules.saved.title': 'Saved rules',
+        'rules.saved.empty': 'No rules have been created yet.',
+        'rules.saved.columns.id': 'ID',
+        'rules.saved.columns.name': 'Name',
+        'rules.saved.columns.priority': 'Priority',
+        'rules.saved.columns.active': 'Active',
+        'rules.saved.columns.direction': 'Direction',
+        'rules.saved.columns.field': 'Field',
+        'rules.saved.columns.condition': 'Condition',
+        'rules.saved.columns.value': 'Value',
+        'rules.saved.columns.pnl_action': 'P&L decision',
+        'rules.saved.columns.pnl_category': 'P&L category',
+        'rules.saved.columns.cf_action': 'Cash Flow decision',
+        'rules.saved.columns.cf_category': 'Cash Flow category',
+        'rules.saved.values.active': 'Yes',
+        'rules.saved.values.inactive': 'No',
+        'rules.saved.manage': 'Select a rule to manage',
+        'rules.saved.save_activity': 'Save active status',
+        'rules.saved.delete': 'Delete rule',
+        'rules.messages.activity_updated': 'Rule status updated.',
+        'rules.messages.deleted': 'Rule deleted.',
+        'reports.empty_database': 'There are no transactions in the database yet.',
+        'reports.invalid_dates': 'No valid transaction dates were found.',
+        'reports.unknown_type': 'Unknown report type: {report_type}',
+        'reports.period.title': 'Report period',
+        'reports.period.start': 'Start date',
+        'reports.period.end': 'End date',
+        'reports.period.compare': 'Compare with',
+        'reports.period.synced': 'Period settings are synchronized between P&L and '
+                                 'Cash Flow.',
+        'reports.period.current': 'Period: {current}',
+        'reports.period.with_comparison': 'Selected period: {current}. Comparison: '
+                                          '{comparison}.',
+        'reports.comparison.none': 'No comparison',
+        'reports.comparison.previous': 'Previous period',
+        'reports.comparison.previous_year': 'Same period last year',
+        'reports.metrics.included': 'Included transactions',
+        'reports.current_summary': '{label}: excluded — {excluded}; pending decision — '
+                                   '{pending}.',
+        'reports.comparison_summary': '{label}: included — {included}; excluded — '
+                                      '{excluded}; pending decision — {pending}.',
+        'reports.pending_warning': 'Some transactions in the selected period have not '
+                                   'yet been classified for this report.',
+        'reports.empty_period': 'There are no transactions included in this report for '
+                                'the selected period.',
+        'reports.category_structure': 'Category structure',
+        'reports.no_category_data': 'There is no data available for the category '
+                                    'structure.',
+        'reports.no_comparison_data': 'Neither period contains data for category '
+                                      'comparison.',
+        'reports.current_operations': 'Selected-period transactions',
+        'reports.comparison_operations': 'Comparison-period transactions',
+        'reports.columns.category': 'Category',
+        'reports.columns.amount': 'Amount, ₽',
+        'reports.columns.no_category': 'Uncategorized',
+        'reports.columns.current_amount': 'Selected period, ₽',
+        'reports.columns.comparison_amount': 'Comparison period, ₽',
+        'reports.columns.delta_amount': 'Change, ₽',
+        'reports.columns.delta_percent': 'Change, %',
+        'reports.columns.period': 'Period',
+        'reports.percentage_point_delta': '{value:+.1f} pp',
+        'reports.pnl.title': 'P&L',
+        'reports.pnl.caption': 'At the current stage, the report is built from bank '
+                               'transactions on a cash basis.',
+        'reports.pnl.inflow': 'Income',
+        'reports.pnl.outflow': 'Expenses',
+        'reports.pnl.net': 'Result',
+        'reports.pnl.kpi_title': 'P&L KPIs',
+        'reports.pnl.kpi.profitability': 'Profit margin',
+        'reports.pnl.kpi.expense_share': 'Expenses as a share of income',
+        'reports.pnl.kpi.expense_coverage': 'Expense coverage',
+        'reports.pnl.kpi.classification_rate': 'Transactions processed',
+        'reports.pnl.kpi.average_income': 'Average inflow',
+        'reports.pnl.kpi.average_expense': 'Average outflow',
+        'reports.pnl.kpi.income_count': 'Income transactions',
+        'reports.pnl.kpi.expense_count': 'Expense transactions',
+        'reports.pnl.kpi_caption': 'KPIs are calculated from included bank '
+                                   'transactions. This is a cash-basis management P&L, '
+                                   'not an accrual-basis accounting statement.',
+        'reports.cash_flow.title': 'Cash Flow',
+        'reports.cash_flow.caption': 'The report shows actual cash movements by '
+                                     'transaction date.',
+        'reports.cash_flow.inflow': 'Inflows',
+        'reports.cash_flow.outflow': 'Payments',
+        'reports.cash_flow.net': 'Net cash flow',
+        'common.id': 'ID',
+        'common.name': 'Name',
+        'common.amount_rub': 'Amount, ₽',
+        'common.percent': 'Percent, %',
+        'common.active': 'Active',
+        'common.comment': 'Comment',
+        'common.category': 'Category',
+        'common.counterparty': 'Counterparty',
+        'common.date': 'Date',
+        'common.yes': 'Yes',
+        'common.no': 'No',
+        'common.not_calculated': 'not calculated',
+        'common.units_short': '{count} units',
+        'common.days': '{count} days',
+        'common.unknown_date': 'date unknown',
+        'unit.title': 'Unit Economics',
+        'unit.caption': 'Per-unit costs are multiplied by the planned quantity. Period '
+                        'costs are deducted from the product’s total margin.',
+        'unit.product.add_title': 'Add product',
+        'unit.product.name': 'Product name',
+        'unit.product.name_placeholder': 'For example: Core T-shirt',
+        'unit.product.planned_units': 'Planned quantity',
+        'unit.product.active': 'Product is active',
+        'unit.product.comment': 'Product comment',
+        'unit.product.add_button': 'Add product',
+        'unit.product.added': 'Product #{product_id} added.',
+        'unit.product.empty': 'Add the first product to calculate Unit Economics.',
+        'unit.product.select': 'Select a product',
+        'unit.costs.title': 'Costs: {product_name}',
+        'unit.cost.name': 'Cost item name',
+        'unit.cost.name_placeholder': 'For example: fabric, packaging, acquiring fee '
+                                      'or tax',
+        'unit.cost.type': 'Cost type',
+        'unit.cost.active': 'Cost item is active',
+        'unit.cost.comment': 'Cost comment',
+        'unit.cost.add_button': 'Add cost item',
+        'unit.cost.added': 'Cost item #{cost_id} added.',
+        'unit.cost.empty': 'This product has no cost items yet.',
+        'unit.cost.item_column': 'Cost item',
+        'unit.cost.select_manage': 'Select a cost item to manage',
+        'unit.cost.save_activity': 'Save cost item status',
+        'unit.cost.delete': 'Delete cost item',
+        'unit.cost.activity_updated': 'Cost item status updated.',
+        'unit.cost.deleted': 'Cost item deleted.',
+        'unit.cost_type.fixed_per_unit': 'Fixed amount per unit',
+        'unit.cost_type.fixed_period': 'Fixed amount per period',
+        'unit.cost_type.percent_of_price': 'Percent of selling price',
+        'unit.cost_type.percent_of_revenue': 'Percent of revenue',
+        'unit.pricing.title': 'Pricing',
+        'unit.pricing.method': 'Pricing method',
+        'unit.pricing.manual_price': 'Selling price, ₽',
+        'unit.pricing.markup': 'Markup, %',
+        'unit.pricing.target_margin': 'Target margin, %',
+        'unit.pricing.rounding': 'Round price up to, ₽',
+        'unit.pricing.save': 'Save pricing settings',
+        'unit.pricing.saved': 'Pricing settings saved.',
+        'unit.pricing_method.not_set': 'Not set',
+        'unit.pricing_method.manual': 'Manual price',
+        'unit.pricing_method.markup': 'Markup on base costs',
+        'unit.pricing_method.target_margin': 'Target margin',
+        'unit.calculation.title': 'Calculation',
+        'unit.calculation.inactive': 'The product is inactive and excluded from '
+                                     'calculation.',
+        'unit.calculation.setup_hint': 'Add cost items and configure a pricing method '
+                                       'in the Pricing section.',
+        'unit.metrics.fixed_per_unit': 'Cost per unit',
+        'unit.metrics.allocated_period': 'Period cost per unit',
+        'unit.metrics.base_cost': 'Base cost',
+        'unit.metrics.percentage_rate': 'Percentage costs',
+        'unit.metrics.selling_price': 'Selling price',
+        'unit.metrics.percentage_per_unit': 'Percentage costs per unit',
+        'unit.metrics.total_cost': 'Total cost',
+        'unit.metrics.profit_per_unit': 'Profit per unit',
+        'unit.details.sales_plan': 'Sales plan',
+        'unit.details.revenue': 'Revenue',
+        'unit.details.total_batch_cost': 'Total batch cost',
+        'unit.details.batch_result': 'Batch result',
+        'unit.details.margin': 'Actual margin',
+        'unit.details.break_even': 'Break-even point',
+        'unit.chart.metric': 'Metric',
+        'unit.chart.price': 'Selling price',
+        'unit.chart.base_cost': 'Base cost',
+        'unit.chart.percentage_cost': 'Percentage costs',
+        'unit.chart.profit': 'Profit',
+        'unit.management.title': 'Product management',
+        'unit.management.save_activity': 'Save product status',
+        'unit.management.delete': 'Delete product',
+        'unit.management.activity_updated': 'Product status updated.',
+        'unit.management.deleted': 'Product and its cost items deleted.',
+        'unit.summary.title': 'Product summary',
+        'unit.summary.empty': 'There are no active products for the summary '
+                              'calculation.',
+        'unit.summary.product': 'Product',
+        'unit.summary.plan_units': 'Plan, units',
+        'unit.summary.pricing_method': 'Pricing method',
+        'unit.summary.fixed_per_unit': 'Fixed cost per unit, ₽',
+        'unit.summary.allocated_period': 'Period cost per unit, ₽',
+        'unit.summary.base_cost': 'Base cost, ₽',
+        'unit.summary.percentage_rate': 'Percentage costs, %',
+        'unit.summary.selling_price': 'Selling price, ₽',
+        'unit.summary.percentage_per_unit': 'Percentage costs per unit, ₽',
+        'unit.summary.total_cost': 'Total cost, ₽',
+        'unit.summary.profit_per_unit': 'Profit per unit, ₽',
+        'unit.summary.margin': 'Margin, %',
+        'unit.summary.revenue': 'Revenue, ₽',
+        'unit.summary.batch_result': 'Batch result, ₽',
+        'unit.summary.break_even': 'Break-even point, units',
+        'unit.summary.status': 'Calculation status',
+        'unit.summary.status_ok': 'Calculation completed',
+        'unit.pricing_error.not_set': 'No pricing method selected.',
+        'unit.pricing_error.manual_missing': 'Manual price is not specified.',
+        'unit.pricing_error.markup_missing': 'Markup is not specified.',
+        'unit.pricing_error.percentage_too_high': 'The total percentage costs must be '
+                                                  'below 100%.',
+        'unit.pricing_error.margin_missing': 'Target margin is not specified.',
+        'unit.pricing_error.margin_total_too_high': 'Percentage costs and target '
+                                                    'margin combined must be below '
+                                                    '100%.',
+        'unit.pricing_error.unknown_method': 'Unknown pricing method.',
+        'calendar.title': 'Payment calendar',
+        'calendar.caption': 'Add future payments and inflows. The system will forecast '
+                            'the cash balance and warn about a cash shortfall.',
+        'calendar.add_title': 'Add planned transaction',
+        'calendar.fields.name': 'Name',
+        'calendar.placeholders.name': 'For example: office rent or customer payment',
+        'calendar.fields.direction': 'Transaction type',
+        'calendar.fields.amount': 'Amount, ₽',
+        'calendar.fields.category': 'Cash Flow category',
+        'calendar.fields.counterparty': 'Counterparty',
+        'calendar.fields.start_date': 'First transaction date',
+        'calendar.fields.recurrence': 'Recurrence',
+        'calendar.fields.use_end_date': 'Limit recurrence with an end date',
+        'calendar.fields.end_date': 'Recurrence end date',
+        'calendar.fields.active': 'Transaction is active',
+        'calendar.fields.comment': 'Comment',
+        'calendar.add_button': 'Add to calendar',
+        'calendar.messages.added': 'Planned transaction #{plan_id} added.',
+        'calendar.plans.title': 'Planned transactions',
+        'calendar.plans.empty': 'The payment calendar is empty.',
+        'calendar.columns.type': 'Type',
+        'calendar.columns.start': 'Start',
+        'calendar.columns.end': 'End',
+        'calendar.columns.recurrence': 'Recurrence',
+        'calendar.select_manage': 'Select a transaction to manage',
+        'calendar.save_activity': 'Save active status',
+        'calendar.delete': 'Delete planned transaction',
+        'calendar.messages.activity_updated': 'Planned transaction status updated.',
+        'calendar.messages.deleted': 'Planned transaction deleted.',
+        'calendar.direction.inflow': 'Inflow',
+        'calendar.direction.outflow': 'Payment',
+        'calendar.recurrence.once': 'Once',
+        'calendar.recurrence.monthly': 'Monthly',
+        'calendar.recurrence.yearly': 'Yearly',
+        'calendar.forecast.title': 'Balance forecast',
+        'calendar.forecast.start': 'Forecast start',
+        'calendar.forecast.horizon': 'Forecast horizon',
+        'calendar.forecast.opening_balance': 'Opening cash balance, ₽',
+        'calendar.forecast.inflows': 'Planned inflows',
+        'calendar.forecast.outflows': 'Planned payments',
+        'calendar.forecast.ending_balance': 'Ending balance',
+        'calendar.forecast.minimum_balance': 'Minimum balance',
+        'calendar.forecast.no_gap': 'No cash shortfall is forecast within the selected '
+                                    'horizon.',
+        'calendar.forecast.gap': 'A cash shortfall is forecast. First date: {date}. '
+                                 'Maximum deficit: {amount}.',
+        'calendar.forecast.balance': 'Balance, ₽',
+        'calendar.events.title': 'Payment calendar events',
+        'calendar.events.empty': 'There are no planned transactions in this horizon.',
+        'import.title': 'Import bank statement',
+        'import.upload': 'Upload a T-Business CSV statement',
+        'import.upload_help': 'The file is processed locally and is not sent anywhere.',
+        'import.select_file': 'Select a CSV file for validation and preview.',
+        'import.file.name': 'File name',
+        'import.file.size': 'Size',
+        'import.file.size_kb': '{size:.1f} KB',
+        'import.preview': 'Preview',
+        'import.save_button': 'Save new transactions to the database',
+        'import.messages.saved': 'Import #{batch_id}. Transactions received: '
+                                 '{received}. New transactions added: {inserted}. '
+                                 'Duplicates skipped: {duplicates}.',
+        'import.management.title': 'Bank data management',
+        'import.management.logged_batches': 'Logged imports',
+        'import.management.untracked': 'Transactions without import log',
+        'import.management.total': 'Total bank transactions',
+        'import.management.caption': 'Transactions without an import log were uploaded '
+                                     'before bank import tracking was introduced.',
+        'import.history.empty': 'There are no saved imports in the log yet.',
+        'import.history.title': 'Import log',
+        'import.history.imported_at': 'Imported at',
+        'import.history.size_kb': 'Size, KB',
+        'import.history.file': 'File',
+        'import.history.received': 'Received',
+        'import.history.inserted': 'Added',
+        'import.history.duplicates': 'Duplicates',
+        'import.history.linked': 'Linked transactions',
+        'import.history.select': 'Select an import',
+        'import.history.operations_title': 'Selected import transactions',
+        'import.history.operations_empty': 'No transactions are linked to this import.',
+        'import.history.delete_title': 'Delete selected import',
+        'import.history.delete_caption': 'Transactions also linked to another '
+                                         'statement will remain in the database.',
+        'import.history.delete_phrase': 'DELETE IMPORT {batch_id}',
+        'import.history.delete_confirmation': 'Enter the following to delete:',
+        'import.history.delete_button': 'Delete selected import',
+        'import.messages.batch_deleted': 'Import #{batch_id} deleted. Links deleted: '
+                                         '{links}. Bank transactions deleted: '
+                                         '{transactions}.',
+        'import.untracked.title': 'Transactions without an import log',
+        'import.untracked.warning': '{count} transactions uploaded before the import '
+                                    'log was introduced were found. They can be '
+                                    'deleted separately.',
+        'import.untracked.phrase': 'DELETE UNTRACKED TRANSACTIONS',
+        'import.untracked.confirmation': 'Enter the following to delete old '
+                                         'transactions:',
+        'import.untracked.delete_button': 'Delete untracked transactions',
+        'import.messages.untracked_deleted': 'Transactions without an import log '
+                                             'deleted: {count}.',
+        'import.danger.title': 'Danger zone: clear all bank data',
+        'import.danger.warning': 'All bank transactions, import logs and links between '
+                                 'them will be deleted. Rules, the payment calendar '
+                                 'and Unit Economics will remain.',
+        'import.danger.phrase': 'DELETE ALL BANK DATA',
+        'import.danger.confirmation': 'Enter the following to clear all data:',
+        'import.danger.clear_button': 'Clear all bank data',
+        'import.messages.cleared': 'Bank data cleared. Imports deleted: {batches}; '
+                                   'links: {links}; transactions: {transactions}.'},
+ 'zh-CN': {'language.selector': '界面语言',
+           'app.eyebrow': '管理会计',
+           'app.description': '用于管理银行交易、财务报表、分类规则和企业现金流的本地系统。',
+           'app.badge': '本地优先 · MVP',
+           'tabs.operations': '交易记录',
+           'tabs.classification': '分类',
+           'tabs.rules': '规则',
+           'tabs.pnl': '损益表',
+           'tabs.cash_flow': '现金流',
+           'tabs.unit_economics': '单位经济模型',
+           'tabs.payment_calendar': '付款日历',
+           'tabs.import': '导入银行流水',
+           'operations.empty_state': '数据库中暂无交易。请在导入银行流水选项卡中上传第一份银行流水。',
+           'operations.saved_title': '已保存的交易',
+           'operations.technical_info': '技术信息',
+           'operations.sqlite_records': 'SQLite 记录数：',
+           'operations.metrics.count': '交易笔数',
+           'operations.metrics.inflow': '资金流入',
+           'operations.metrics.outflow': '资金流出',
+           'operations.metrics.net': '净现金变动',
+           'operations.columns.date': '日期',
+           'operations.columns.amount': '金额，₽',
+           'operations.columns.direction': '借方/贷方',
+           'operations.columns.bank_category': '银行类别',
+           'operations.columns.status': '状态',
+           'operations.columns.counterparty': '交易对方',
+           'operations.columns.tax_id': '纳税人识别号',
+           'operations.columns.description': '描述',
+           'operations.columns.payment_purpose': '付款用途',
+           'operations.columns.classification': '分类状态',
+           'classification.title': '交易分类',
+           'classification.pending_title': '未完成分类的交易',
+           'classification.metrics.inflow': '资金流入',
+           'classification.metrics.outflow': '资金流出',
+           'classification.metrics.net': '净额',
+           'classification.metrics.count': '交易笔数',
+           'classification.pending_caption': '统计至少在一个报表维度中尚未完成分类的交易：损益表或现金流量表。',
+           'classification.all_classified': '所有交易均已分类。',
+           'classification.empty_database': '数据库中暂无可分类的交易。',
+           'classification.only_pending': '仅显示未完成分类的交易',
+           'classification.filtered_empty': '所有交易均已完成分类。',
+           'classification.instructions': '请分别为每张报表选择处理方式。交易可纳入现金流量表而排除在损益表之外，反之亦然。',
+           'classification.select_title': '选择交易',
+           'classification.select_caption': '点击一行或左侧标记。下方将打开所选交易的编辑区域。',
+           'classification.columns.id': 'ID',
+           'classification.columns.date': '日期',
+           'classification.columns.amount': '金额，₽',
+           'classification.columns.counterparty': '交易对方',
+           'classification.columns.description': '描述',
+           'classification.columns.payment_purpose': '付款用途',
+           'classification.columns.pnl_action': '损益表处理方式',
+           'classification.columns.pnl_category': '损益表类别',
+           'classification.columns.cf_action': '现金流处理方式',
+           'classification.columns.cf_category': '现金流类别',
+           'classification.columns.comment': '备注',
+           'classification.actions.include': '纳入',
+           'classification.actions.exclude': '排除',
+           'classification.actions.undefined': '未决定',
+           'classification.selected_title': '所选交易分类',
+           'classification.details.date': '日期',
+           'classification.details.amount': '金额',
+           'classification.details.position': '交易',
+           'classification.details.position_value': '{current} / {total}',
+           'classification.details.counterparty': '交易对方',
+           'classification.details.description': '描述',
+           'classification.details.payment_purpose': '付款用途',
+           'classification.details.not_specified': '未填写',
+           'classification.help.pnl_category': '交易纳入损益表时必须选择类别。',
+           'classification.help.cf_category': '交易纳入现金流量表时必须选择类别。',
+           'classification.buttons.save': '保存',
+           'classification.buttons.save_next': '保存并继续',
+           'classification.buttons.exclude_both': '从两张报表中排除',
+           'classification.errors.transaction_not_found': '未找到所选交易，请刷新页面。',
+           'classification.errors.pnl_category_required': '请选择损益表类别。',
+           'classification.errors.cf_category_required': '请选择现金流量表类别。',
+           'classification.messages.excluded_both': '该交易已从两张报表中排除。',
+           'classification.messages.saved': '分类已保存。',
+           'classification.messages.summary': '{action} '
+                                              '已更新：{updated}。完全分类：{classified}。部分分类：{partial}。',
+           'rules.title': '自动分类规则',
+           'rules.caption': '规则按优先级从高到低应用。每笔交易只应用第一个匹配规则。手动分类不会被覆盖。',
+           'rules.apply_button': '应用启用的规则',
+           'rules.messages.applied': '已检查交易：{checked}。已分类：{matched}。未匹配：{unmatched}。',
+           'rules.create_title': '创建新规则',
+           'rules.fields.name': '规则名称',
+           'rules.placeholders.name': '例如：银行手续费',
+           'rules.fields.priority': '优先级',
+           'rules.help.priority': '数值越大，规则越早检查。',
+           'rules.fields.active': '启用规则',
+           'rules.fields.direction': '交易方向',
+           'rules.fields.match_field': '搜索字段',
+           'rules.fields.match_type': '匹配条件',
+           'rules.fields.match_value': '搜索值',
+           'rules.placeholders.match_value': '例如：账户服务费',
+           'rules.create_button': '创建规则',
+           'rules.messages.created': '规则 #{rule_id} 已创建。',
+           'rules.errors.name_required': '请输入规则名称。',
+           'rules.errors.match_value_required': '请输入搜索值。',
+           'rules.errors.decision_required': '规则必须至少为一张报表作出处理决定。',
+           'rules.errors.pnl_category_required': '纳入损益表时请选择类别。',
+           'rules.errors.cf_category_required': '纳入现金流量表时请选择类别。',
+           'rules.options.direction.any': '任意方向',
+           'rules.options.direction.income': '仅资金流入',
+           'rules.options.direction.expense': '仅资金流出',
+           'rules.options.field.all_text': '所有文本字段',
+           'rules.options.field.counterparty_name': '交易对方',
+           'rules.options.field.counterparty_inn': '交易对方税号',
+           'rules.options.field.bank_category': '银行类别',
+           'rules.options.field.description': '交易描述',
+           'rules.options.field.payment_purpose': '付款用途',
+           'rules.options.field.mcc': 'MCC',
+           'rules.options.field.tax_code': '预算分类代码',
+           'rules.options.match.contains': '包含',
+           'rules.options.match.equals': '完全匹配',
+           'rules.options.match.starts_with': '开头为',
+           'rules.transfer.title': '规则配置迁移',
+           'rules.transfer.caption': '规则可以保存为 JSON，并迁移到其他 Open MAS 安装中。本地数据库 ID '
+                                     '和日期不会导出。',
+           'rules.transfer.download': '下载 JSON 规则',
+           'rules.transfer.export_info': '导出文件包含当前规则、优先级、匹配条件、类别和启用状态。',
+           'rules.transfer.upload': '上传规则配置',
+           'rules.transfer.upload_help': '文件将首先接受验证。确认导入前，数据库不会发生变化。',
+           'rules.transfer.preview_title': '文件验证结果',
+           'rules.transfer.metrics.received': '收到',
+           'rules.transfer.metrics.valid': '有效且唯一',
+           'rules.transfer.metrics.file_duplicates': '文件内重复',
+           'rules.transfer.metrics.database_duplicates': '数据库中已存在',
+           'rules.transfer.preview_caption': '格式版本：{schema_version}。导出时间：{exported_at}。',
+           'rules.transfer.errors.blocked': '配置中存在错误，导入已被阻止。',
+           'rules.transfer.warnings.file_duplicates': '文件中的重复规则只会导入一次。',
+           'rules.transfer.info.database_duplicates': '在添加模式下，与现有规则完全相同的规则将被跳过。',
+           'rules.transfer.json_title': '查看 JSON 内容',
+           'rules.transfer.import_title': '导入模式',
+           'rules.transfer.import_action': '选择操作',
+           'rules.transfer.import.merge': '添加缺少的规则',
+           'rules.transfer.import.replace': '替换所有当前规则',
+           'rules.transfer.import.merge_caption': '当前规则将被保留，完全相同的规则将被跳过。',
+           'rules.transfer.import.replace_warning': '所有当前规则都将被删除，并由文件中的规则替换。该操作将在一个事务中完成。',
+           'rules.transfer.import.replace_phrase': '替换所有规则',
+           'rules.transfer.import.confirmation': '请输入以下文字以确认替换：',
+           'rules.transfer.import.merge_button': '添加规则',
+           'rules.transfer.import.replace_button': '替换所有规则',
+           'rules.transfer.messages.completed': '规则导入完成。收到：{received}。已添加：{inserted}。跳过重复项：{skipped}。已删除原有规则：{deleted}。',
+           'rules.saved.title': '已保存的规则',
+           'rules.saved.empty': '尚未创建任何规则。',
+           'rules.saved.columns.id': 'ID',
+           'rules.saved.columns.name': '名称',
+           'rules.saved.columns.priority': '优先级',
+           'rules.saved.columns.active': '已启用',
+           'rules.saved.columns.direction': '方向',
+           'rules.saved.columns.field': '字段',
+           'rules.saved.columns.condition': '条件',
+           'rules.saved.columns.value': '值',
+           'rules.saved.columns.pnl_action': '损益表处理方式',
+           'rules.saved.columns.pnl_category': '损益表类别',
+           'rules.saved.columns.cf_action': '现金流处理方式',
+           'rules.saved.columns.cf_category': '现金流类别',
+           'rules.saved.values.active': '是',
+           'rules.saved.values.inactive': '否',
+           'rules.saved.manage': '选择要管理的规则',
+           'rules.saved.save_activity': '保存启用状态',
+           'rules.saved.delete': '删除规则',
+           'rules.messages.activity_updated': '规则状态已更新。',
+           'rules.messages.deleted': '规则已删除。',
+           'reports.empty_database': '数据库中暂无交易。',
+           'reports.invalid_dates': '数据库中未找到有效的交易日期。',
+           'reports.unknown_type': '未知报表类型：{report_type}',
+           'reports.period.title': '报表期间',
+           'reports.period.start': '开始日期',
+           'reports.period.end': '结束日期',
+           'reports.period.compare': '对比',
+           'reports.period.synced': '期间设置已在损益表和现金流量表之间同步。',
+           'reports.period.current': '期间：{current}',
+           'reports.period.with_comparison': '所选期间：{current}。对比期间：{comparison}。',
+           'reports.comparison.none': '不对比',
+           'reports.comparison.previous': '上一期间',
+           'reports.comparison.previous_year': '去年同期',
+           'reports.metrics.included': '纳入交易',
+           'reports.current_summary': '{label}：排除 {excluded} 笔；待处理 {pending} 笔。',
+           'reports.comparison_summary': '{label}：纳入 {included} 笔；排除 {excluded} 笔；待处理 '
+                                         '{pending} 笔。',
+           'reports.pending_warning': '所选期间的部分交易尚未完成该报表的分类。',
+           'reports.empty_period': '所选期间内没有纳入该报表的交易。',
+           'reports.category_structure': '按类别构成',
+           'reports.no_category_data': '没有可用于生成类别构成的数据。',
+           'reports.no_comparison_data': '两个期间均无可用于类别对比的数据。',
+           'reports.current_operations': '所选期间的交易',
+           'reports.comparison_operations': '对比期间的交易',
+           'reports.columns.category': '类别',
+           'reports.columns.amount': '金额，₽',
+           'reports.columns.no_category': '未分类',
+           'reports.columns.current_amount': '所选期间，₽',
+           'reports.columns.comparison_amount': '对比期间，₽',
+           'reports.columns.delta_amount': '变化额，₽',
+           'reports.columns.delta_percent': '变化，%',
+           'reports.columns.period': '期间',
+           'reports.percentage_point_delta': '{value:+.1f} 个百分点',
+           'reports.pnl.title': '损益表',
+           'reports.pnl.caption': '当前阶段，报表按银行交易并采用收付实现制生成。',
+           'reports.pnl.inflow': '收入',
+           'reports.pnl.outflow': '费用',
+           'reports.pnl.net': '结果',
+           'reports.pnl.kpi_title': '损益表 KPI',
+           'reports.pnl.kpi.profitability': '销售利润率',
+           'reports.pnl.kpi.expense_share': '费用占收入比',
+           'reports.pnl.kpi.expense_coverage': '费用覆盖率',
+           'reports.pnl.kpi.classification_rate': '已处理交易',
+           'reports.pnl.kpi.average_income': '平均收入',
+           'reports.pnl.kpi.average_expense': '平均支出',
+           'reports.pnl.kpi.income_count': '收入交易笔数',
+           'reports.pnl.kpi.expense_count': '支出交易笔数',
+           'reports.pnl.kpi_caption': 'KPI '
+                                      '根据已纳入的银行交易计算。这是采用收付实现制的管理损益表，并非采用权责发生制的会计报表。',
+           'reports.cash_flow.title': '现金流量表',
+           'reports.cash_flow.caption': '该报表按交易日期显示实际现金流动。',
+           'reports.cash_flow.inflow': '现金流入',
+           'reports.cash_flow.outflow': '现金流出',
+           'reports.cash_flow.net': '净现金流',
+           'common.id': 'ID',
+           'common.name': '名称',
+           'common.amount_rub': '金额，₽',
+           'common.percent': '百分比，%',
+           'common.active': '已启用',
+           'common.comment': '备注',
+           'common.category': '类别',
+           'common.counterparty': '交易对方',
+           'common.date': '日期',
+           'common.yes': '是',
+           'common.no': '否',
+           'common.not_calculated': '无法计算',
+           'common.units_short': '{count} 件',
+           'common.days': '{count} 天',
+           'common.unknown_date': '日期未知',
+           'unit.title': '单位经济模型',
+           'unit.caption': '“每单位”成本乘以计划数量；“每期间”成本从产品总毛利中扣除。',
+           'unit.product.add_title': '添加产品',
+           'unit.product.name': '产品名称',
+           'unit.product.name_placeholder': '例如：Core T恤',
+           'unit.product.planned_units': '计划数量',
+           'unit.product.active': '启用产品',
+           'unit.product.comment': '产品备注',
+           'unit.product.add_button': '添加产品',
+           'unit.product.added': '产品 #{product_id} 已添加。',
+           'unit.product.empty': '请添加第一个产品以计算单位经济模型。',
+           'unit.product.select': '选择产品',
+           'unit.costs.title': '成本：{product_name}',
+           'unit.cost.name': '成本项目名称',
+           'unit.cost.name_placeholder': '例如：面料、包装、收单手续费或税费',
+           'unit.cost.type': '成本类型',
+           'unit.cost.active': '启用成本项目',
+           'unit.cost.comment': '成本备注',
+           'unit.cost.add_button': '添加成本项目',
+           'unit.cost.added': '成本项目 #{cost_id} 已添加。',
+           'unit.cost.empty': '该产品尚无成本项目。',
+           'unit.cost.item_column': '成本项目',
+           'unit.cost.select_manage': '选择要管理的成本项目',
+           'unit.cost.save_activity': '保存成本项目状态',
+           'unit.cost.delete': '删除成本项目',
+           'unit.cost.activity_updated': '成本项目状态已更新。',
+           'unit.cost.deleted': '成本项目已删除。',
+           'unit.cost_type.fixed_per_unit': '每单位固定金额',
+           'unit.cost_type.fixed_period': '每期间固定金额',
+           'unit.cost_type.percent_of_price': '销售价格百分比',
+           'unit.cost_type.percent_of_revenue': '收入百分比',
+           'unit.pricing.title': '定价',
+           'unit.pricing.method': '定价方式',
+           'unit.pricing.manual_price': '销售价格，₽',
+           'unit.pricing.markup': '加价率，%',
+           'unit.pricing.target_margin': '目标利润率，%',
+           'unit.pricing.rounding': '价格向上取整至，₽',
+           'unit.pricing.save': '保存定价设置',
+           'unit.pricing.saved': '定价设置已保存。',
+           'unit.pricing_method.not_set': '未设置',
+           'unit.pricing_method.manual': '手动价格',
+           'unit.pricing_method.markup': '基于基础成本加价',
+           'unit.pricing_method.target_margin': '目标利润率',
+           'unit.calculation.title': '计算',
+           'unit.calculation.inactive': '产品已停用，不参与计算。',
+           'unit.calculation.setup_hint': '请添加成本项目并在“定价”区域设置定价方式。',
+           'unit.metrics.fixed_per_unit': '每单位成本',
+           'unit.metrics.allocated_period': '每单位期间成本',
+           'unit.metrics.base_cost': '基础成本',
+           'unit.metrics.percentage_rate': '百分比成本',
+           'unit.metrics.selling_price': '销售价格',
+           'unit.metrics.percentage_per_unit': '每单位百分比成本',
+           'unit.metrics.total_cost': '总成本',
+           'unit.metrics.profit_per_unit': '每单位利润',
+           'unit.details.sales_plan': '销售计划',
+           'unit.details.revenue': '收入',
+           'unit.details.total_batch_cost': '批次总成本',
+           'unit.details.batch_result': '批次结果',
+           'unit.details.margin': '实际利润率',
+           'unit.details.break_even': '盈亏平衡点',
+           'unit.chart.metric': '指标',
+           'unit.chart.price': '销售价格',
+           'unit.chart.base_cost': '基础成本',
+           'unit.chart.percentage_cost': '百分比成本',
+           'unit.chart.profit': '利润',
+           'unit.management.title': '产品管理',
+           'unit.management.save_activity': '保存产品状态',
+           'unit.management.delete': '删除产品',
+           'unit.management.activity_updated': '产品状态已更新。',
+           'unit.management.deleted': '产品及其成本项目已删除。',
+           'unit.summary.title': '产品汇总',
+           'unit.summary.empty': '没有可用于汇总计算的启用产品。',
+           'unit.summary.product': '产品',
+           'unit.summary.plan_units': '计划数量',
+           'unit.summary.pricing_method': '定价方式',
+           'unit.summary.fixed_per_unit': '每单位固定成本，₽',
+           'unit.summary.allocated_period': '每单位期间成本，₽',
+           'unit.summary.base_cost': '基础成本，₽',
+           'unit.summary.percentage_rate': '百分比成本，%',
+           'unit.summary.selling_price': '销售价格，₽',
+           'unit.summary.percentage_per_unit': '每单位百分比成本，₽',
+           'unit.summary.total_cost': '总成本，₽',
+           'unit.summary.profit_per_unit': '每单位利润，₽',
+           'unit.summary.margin': '利润率，%',
+           'unit.summary.revenue': '收入，₽',
+           'unit.summary.batch_result': '批次结果，₽',
+           'unit.summary.break_even': '盈亏平衡点，件',
+           'unit.summary.status': '计算状态',
+           'unit.summary.status_ok': '计算完成',
+           'unit.pricing_error.not_set': '尚未选择定价方式。',
+           'unit.pricing_error.manual_missing': '未填写手动价格。',
+           'unit.pricing_error.markup_missing': '未填写加价率。',
+           'unit.pricing_error.percentage_too_high': '百分比成本总和必须低于 100%。',
+           'unit.pricing_error.margin_missing': '未填写目标利润率。',
+           'unit.pricing_error.margin_total_too_high': '百分比成本与目标利润率之和必须低于 100%。',
+           'unit.pricing_error.unknown_method': '未知定价方式。',
+           'calendar.title': '付款日历',
+           'calendar.caption': '添加未来付款和收入。系统将预测现金余额并提示资金缺口。',
+           'calendar.add_title': '添加计划交易',
+           'calendar.fields.name': '名称',
+           'calendar.placeholders.name': '例如：办公室租金或客户付款',
+           'calendar.fields.direction': '交易类型',
+           'calendar.fields.amount': '金额，₽',
+           'calendar.fields.category': '现金流类别',
+           'calendar.fields.counterparty': '交易对方',
+           'calendar.fields.start_date': '首次交易日期',
+           'calendar.fields.recurrence': '重复周期',
+           'calendar.fields.use_end_date': '设置重复结束日期',
+           'calendar.fields.end_date': '重复结束日期',
+           'calendar.fields.active': '启用交易',
+           'calendar.fields.comment': '备注',
+           'calendar.add_button': '添加到日历',
+           'calendar.messages.added': '计划交易 #{plan_id} 已添加。',
+           'calendar.plans.title': '计划交易',
+           'calendar.plans.empty': '付款日历为空。',
+           'calendar.columns.type': '类型',
+           'calendar.columns.start': '开始',
+           'calendar.columns.end': '结束',
+           'calendar.columns.recurrence': '重复周期',
+           'calendar.select_manage': '选择要管理的交易',
+           'calendar.save_activity': '保存启用状态',
+           'calendar.delete': '删除计划交易',
+           'calendar.messages.activity_updated': '计划交易状态已更新。',
+           'calendar.messages.deleted': '计划交易已删除。',
+           'calendar.direction.inflow': '资金流入',
+           'calendar.direction.outflow': '付款',
+           'calendar.recurrence.once': '一次性',
+           'calendar.recurrence.monthly': '每月',
+           'calendar.recurrence.yearly': '每年',
+           'calendar.forecast.title': '余额预测',
+           'calendar.forecast.start': '预测开始日期',
+           'calendar.forecast.horizon': '预测周期',
+           'calendar.forecast.opening_balance': '期初现金余额，₽',
+           'calendar.forecast.inflows': '计划流入',
+           'calendar.forecast.outflows': '计划付款',
+           'calendar.forecast.ending_balance': '期末余额',
+           'calendar.forecast.minimum_balance': '最低余额',
+           'calendar.forecast.no_gap': '所选周期内预计不会出现资金缺口。',
+           'calendar.forecast.gap': '预计会出现资金缺口。首次日期：{date}。最大缺口：{amount}。',
+           'calendar.forecast.balance': '余额，₽',
+           'calendar.events.title': '付款日历事件',
+           'calendar.events.empty': '所选周期内没有计划交易。',
+           'import.title': '导入银行流水',
+           'import.upload': '上传 T-Business CSV 银行流水',
+           'import.upload_help': '文件仅在本地处理，不会发送到其他位置。',
+           'import.select_file': '请选择 CSV 文件进行验证和预览。',
+           'import.file.name': '文件名',
+           'import.file.size': '大小',
+           'import.file.size_kb': '{size:.1f} KB',
+           'import.preview': '预览',
+           'import.save_button': '将新交易保存到数据库',
+           'import.messages.saved': '导入 '
+                                    '#{batch_id}。收到交易：{received}。新增：{inserted}。跳过重复项：{duplicates}。',
+           'import.management.title': '银行数据管理',
+           'import.management.logged_batches': '已记录导入',
+           'import.management.untracked': '无导入日志的交易',
+           'import.management.total': '银行交易总数',
+           'import.management.caption': '无导入日志的交易是在启用银行导入跟踪前上传的。',
+           'import.history.empty': '导入日志中尚无已保存的记录。',
+           'import.history.title': '导入日志',
+           'import.history.imported_at': '导入时间',
+           'import.history.size_kb': '大小，KB',
+           'import.history.file': '文件',
+           'import.history.received': '收到',
+           'import.history.inserted': '新增',
+           'import.history.duplicates': '重复项',
+           'import.history.linked': '关联交易',
+           'import.history.select': '选择导入记录',
+           'import.history.operations_title': '所选导入的交易',
+           'import.history.operations_empty': '该导入记录没有关联交易。',
+           'import.history.delete_title': '删除所选导入',
+           'import.history.delete_caption': '同时关联其他流水的交易将保留在数据库中。',
+           'import.history.delete_phrase': '删除导入 {batch_id}',
+           'import.history.delete_confirmation': '请输入以下文字以确认删除：',
+           'import.history.delete_button': '删除所选导入',
+           'import.messages.batch_deleted': '导入 #{batch_id} '
+                                            '已删除。删除关联：{links}。删除银行交易：{transactions}。',
+           'import.untracked.title': '无导入日志的交易',
+           'import.untracked.warning': '发现 {count} 笔在启用导入日志前上传的交易，可单独删除。',
+           'import.untracked.phrase': '删除无日志交易',
+           'import.untracked.confirmation': '请输入以下文字以删除旧交易：',
+           'import.untracked.delete_button': '删除无日志交易',
+           'import.messages.untracked_deleted': '已删除无导入日志的交易：{count}。',
+           'import.danger.title': '危险区域：清空全部银行数据',
+           'import.danger.warning': '所有银行交易、导入日志及其关联都将被删除。规则、付款日历和单位经济模型将保留。',
+           'import.danger.phrase': '删除全部银行数据',
+           'import.danger.confirmation': '请输入以下文字以清空全部数据：',
+           'import.danger.clear_button': '清空全部银行数据',
+           'import.messages.cleared': '银行数据已清空。删除导入：{batches}；关联：{links}；交易：{transactions}。'}}
 
 
 def normalize_language(
@@ -1395,12 +1428,7 @@ def translate(
     language: object = DEFAULT_LANGUAGE,
     **values: Any,
 ) -> str:
-    """
-    Возвращает перевод по ключу.
-
-    При отсутствии перевода используется русский язык,
-    затем сам ключ.
-    """
+    """Возвращает перевод по ключу с русским fallback."""
 
     normalized_language = normalize_language(
         language
@@ -1441,8 +1469,8 @@ def find_translation_issues() -> tuple[str, ...]:
 
     all_keys: set[str] = set()
 
-    for translations in TRANSLATIONS.values():
-        all_keys.update(translations)
+    for language_translations in TRANSLATIONS.values():
+        all_keys.update(language_translations)
 
     issues: list[str] = []
 
