@@ -413,7 +413,10 @@ def build_cash_forecast(
     )
 
     forecast["net_cash_flow_kopecks"] = (
-        forecast["net_cash_flow_kopecks"]
+        pd.to_numeric(
+            forecast["net_cash_flow_kopecks"],
+            errors="coerce",
+        )
         .fillna(0)
         .astype("int64")
     )
