@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Any
 
 import pandas as pd
@@ -391,8 +391,56 @@ def get_transaction_count() -> int:
 
     return int(count or 0)
 
-def get_transactions_dataframe() -> pd.DataFrame:
-    """Возвращает все операции из SQLite как DataFrame."""
+def get_transaction_date_bounds(
+) -> tuple[date, date] | None:
+    """Возвращает первую и последнюю даты банковских операций."""
+
+    statement = select(
+        func.min(
+            BankTransaction.posted_at
+        ),
+        func.max(
+            BankTransaction.posted_at
+        ),
+    )
+
+    with SessionLocal() as session:
+        min_posted_at, max_posted_at = (
+            session.execute(statement).one()
+        )
+
+    if (
+        min_posted_at is None
+        or max_posted_at is None
+    ):
+        return None
+
+    return (
+        min_posted_at.date(),
+        max_posted_at.date(),
+    )
+
+def get_transactions_dataframe(
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> pd.DataFrame:
+    """
+    Возвращает банковские операции как DataFrame.
+
+    При передаче дат загружает только операции
+    внутри указанного включительного периода.
+    """
+
+    if (
+        start_date is not None
+        and end_date is not None
+        and start_date > end_date
+    ):
+        raise ValueError(
+            "Дата начала периода не может "
+            "быть позже даты окончания."
+        )
 
     columns = [
         "id",
@@ -418,7 +466,27 @@ def get_transactions_dataframe() -> pd.DataFrame:
 
     statement = select(
         BankTransaction
-    ).order_by(
+    )
+
+    if start_date is not None:
+        statement = statement.where(
+            BankTransaction.posted_at
+            >= datetime.combine(
+                start_date,
+                time.min,
+            )
+        )
+
+    if end_date is not None:
+        statement = statement.where(
+            BankTransaction.posted_at
+            <= datetime.combine(
+                end_date,
+                time.max,
+            )
+        )
+
+    statement = statement.order_by(
         BankTransaction.posted_at.desc(),
         BankTransaction.id.desc(),
     )

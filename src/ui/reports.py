@@ -13,7 +13,9 @@ from src.reporting import (
     filter_transactions_by_period,
     get_comparison_period,
 )
+
 from src.transaction_repository import (
+    get_transaction_date_bounds,
     get_transactions_dataframe,
 )
 
@@ -1220,31 +1222,22 @@ def _render_financial_report_tab(
             ] = comparison_mode
 
     def show_financial_report(
-        transactions: pd.DataFrame,
-        report_type: str,
-        key_prefix: str,
+            report_type: str,
+            key_prefix: str,
     ) -> None:
         """Показывает отчёт с общими финансовыми фильтрами."""
 
-        if transactions.empty:
+        date_bounds = (
+            get_transaction_date_bounds()
+        )
+
+        if date_bounds is None:
             st.info(
                 t("reports.empty_database")
             )
             return
 
-        posted_dates = pd.to_datetime(
-            transactions["posted_at"],
-            errors="coerce",
-        ).dropna()
-
-        if posted_dates.empty:
-            st.error(
-                t("reports.invalid_dates")
-            )
-            return
-
-        min_date = posted_dates.min().date()
-        max_date = posted_dates.max().date()
+        min_date, max_date = date_bounds
 
         try:
             _prepare_report_filter_state(
@@ -1330,14 +1323,6 @@ def _render_financial_report_tab(
             )
 
         try:
-            period_transactions = (
-                filter_transactions_by_period(
-                    transactions=transactions,
-                    start_date=start_date,
-                    end_date=end_date,
-                )
-            )
-
             comparison_dates = (
                 get_comparison_period(
                     start_date=start_date,
@@ -1348,6 +1333,39 @@ def _render_financial_report_tab(
         except ValueError as exc:
             st.error(str(exc))
             return
+
+        query_start = start_date
+        query_end = end_date
+
+        if comparison_dates is not None:
+            comparison_start, comparison_end = (
+                comparison_dates
+            )
+
+            query_start = min(
+                query_start,
+                comparison_start,
+            )
+
+            query_end = max(
+                query_end,
+                comparison_end,
+            )
+
+        transactions = (
+            get_transactions_dataframe(
+                start_date=query_start,
+                end_date=query_end,
+            )
+        )
+
+        period_transactions = (
+            filter_transactions_by_period(
+                transactions=transactions,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
 
         current_label = (
             f"{start_date.strftime('%d.%m.%Y')} — "
@@ -1468,12 +1486,7 @@ def _render_financial_report_tab(
         t(caption_key)
     )
 
-    transactions = (
-        get_transactions_dataframe()
-    )
-
     show_financial_report(
-        transactions=transactions,
         report_type=report_type,
         key_prefix=report_type,
     )

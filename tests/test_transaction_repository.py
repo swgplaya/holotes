@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
 import pytest
@@ -143,6 +143,146 @@ def test_empty_import_creates_nothing(
         .get_import_batches_dataframe()
         .empty
     )
+
+def test_transaction_date_bounds_follow_saved_data(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    assert (
+        transaction_repository
+        .get_transaction_date_bounds()
+        is None
+    )
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(
+                1,
+                posted_at=datetime(
+                    2026,
+                    2,
+                    10,
+                    12,
+                    0,
+                ),
+            ),
+            make_transaction(
+                2,
+                posted_at=datetime(
+                    2025,
+                    12,
+                    31,
+                    23,
+                    59,
+                ),
+            ),
+            make_transaction(
+                3,
+                posted_at=datetime(
+                    2026,
+                    1,
+                    15,
+                    8,
+                    30,
+                ),
+            ),
+        )
+    )
+
+    assert (
+        transaction_repository
+        .get_transaction_date_bounds()
+        == (
+            date(2025, 12, 31),
+            date(2026, 2, 10),
+        )
+    )
+
+
+def test_transactions_can_be_loaded_by_inclusive_period(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(
+                1,
+                posted_at=datetime(
+                    2026,
+                    1,
+                    1,
+                    0,
+                    0,
+                ),
+            ),
+            make_transaction(
+                2,
+                posted_at=datetime(
+                    2026,
+                    1,
+                    2,
+                    23,
+                    59,
+                    59,
+                ),
+            ),
+            make_transaction(
+                3,
+                posted_at=datetime(
+                    2026,
+                    1,
+                    3,
+                    12,
+                    0,
+                ),
+            ),
+            make_transaction(
+                4,
+                posted_at=datetime(
+                    2026,
+                    1,
+                    4,
+                    0,
+                    0,
+                ),
+            ),
+        )
+    )
+
+    result = (
+        transaction_repository
+        .get_transactions_dataframe(
+            start_date=date(2026, 1, 2),
+            end_date=date(2026, 1, 3),
+        )
+    )
+
+    assert result[
+        "source_hash"
+    ].tolist() == [
+        "3" * 64,
+        "2" * 64,
+    ]
+
+
+def test_transaction_period_rejects_inverted_dates(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    with pytest.raises(
+        ValueError,
+        match="Дата начала периода",
+    ):
+        (
+            transaction_repository
+            .get_transactions_dataframe(
+                start_date=date(2026, 2, 1),
+                end_date=date(2026, 1, 1),
+            )
+        )
 
 def test_transaction_count_tracks_saved_and_cleared_data(
     isolated_repository: sessionmaker,
