@@ -17,6 +17,9 @@ from src.models import (
     ImportBatch,
     ImportBatchTransaction,
 )
+from src.classification_summary import (
+    UnclassifiedSummary,
+)
 
 
 TRANSACTION_COLUMNS = [
@@ -41,6 +44,169 @@ TRANSACTION_COLUMNS = [
     "tax_code",
 ]
 
+
+def test_empty_pending_classification_summary(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    assert (
+        transaction_repository
+        .get_pending_classification_summary()
+        == UnclassifiedSummary(
+            inflow_kopecks=0,
+            outflow_kopecks=0,
+            net_kopecks=0,
+            operation_count=0,
+        )
+    )
+
+def test_pending_classification_query_matches_decisions(
+    isolated_repository: sessionmaker,
+) -> None:
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(1),
+            make_transaction(2),
+            make_transaction(3),
+            make_transaction(4),
+            make_transaction(5),
+        )
+    )
+
+    transactions = (
+        transaction_repository
+        .get_transactions_dataframe()
+        .set_index("source_hash")
+    )
+
+    transaction_repository.save_classifications(
+        pd.DataFrame(
+            [
+                {
+                    "id": int(
+                        transactions.loc[
+                            "1" * 64,
+                            "id",
+                        ]
+                    ),
+                    "pnl_action": UNDEFINED_ACTION,
+                    "pnl_category": "",
+                    "cf_action": UNDEFINED_ACTION,
+                    "cf_category": "",
+                    "comment": "",
+                },
+                {
+                    "id": int(
+                        transactions.loc[
+                            "2" * 64,
+                            "id",
+                        ]
+                    ),
+                    "pnl_action": INCLUDE_ACTION,
+                    "pnl_category": "Расходы",
+                    "cf_action": UNDEFINED_ACTION,
+                    "cf_category": "",
+                    "comment": "",
+                },
+                {
+                    "id": int(
+                        transactions.loc[
+                            "3" * 64,
+                            "id",
+                        ]
+                    ),
+                    "pnl_action": EXCLUDE_ACTION,
+                    "pnl_category": "",
+                    "cf_action": EXCLUDE_ACTION,
+                    "cf_category": "",
+                    "comment": "",
+                },
+                {
+                    "id": int(
+                        transactions.loc[
+                            "4" * 64,
+                            "id",
+                        ]
+                    ),
+                    "pnl_action": INCLUDE_ACTION,
+                    "pnl_category": "Расходы",
+                    "cf_action": INCLUDE_ACTION,
+                    "cf_category": "Платежи",
+                    "comment": "",
+                },
+                {
+                    "id": int(
+                        transactions.loc[
+                            "5" * 64,
+                            "id",
+                        ]
+                    ),
+                    "pnl_action": EXCLUDE_ACTION,
+                    "pnl_category": "",
+                    "cf_action": EXCLUDE_ACTION,
+                    "cf_category": "",
+                    "comment": "",
+                },
+            ]
+        )
+    )
+
+    with isolated_repository() as session:
+        damaged_transaction = session.scalar(
+            select(
+                BankTransaction
+            ).where(
+                BankTransaction.source_hash
+                == "5" * 64
+            )
+        )
+
+        assert damaged_transaction is not None
+
+        damaged_transaction.include_in_pnl = True
+        damaged_transaction.pnl_category = "   "
+        damaged_transaction.include_in_cf = False
+        damaged_transaction.cf_category = None
+
+        damaged_transaction.classification_status = (
+            "classified"
+        )
+
+        session.commit()
+
+    summary = (
+        transaction_repository
+        .get_pending_classification_summary()
+    )
+
+    assert summary == UnclassifiedSummary(
+        inflow_kopecks=60_000,
+        outflow_kopecks=20_000,
+        net_kopecks=40_000,
+        operation_count=3,
+    )
+
+    pending = (
+        transaction_repository
+        .get_transactions_dataframe(
+            pending_only=True
+        )
+    )
+
+    assert pending[
+        "source_hash"
+    ].tolist() == [
+        "5" * 64,
+        "2" * 64,
+        "1" * 64,
+    ]
+
+    assert (
+        transaction_repository
+        .get_transaction_count()
+        == 5
+    )
 
 def make_transaction(
     number: int,

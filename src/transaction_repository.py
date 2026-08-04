@@ -6,7 +6,14 @@ from datetime import date, datetime, time
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import (
+    and_,
+    case,
+    delete,
+    func,
+    or_,
+    select,
+)
 
 from src.database import SessionLocal
 from src.models import (
@@ -18,6 +25,10 @@ from src.categories import (
     EXCLUDE_ACTION,
     INCLUDE_ACTION,
     UNDEFINED_ACTION
+)
+
+from src.classification_summary import (
+    UnclassifiedSummary,
 )
 
 
@@ -49,6 +60,138 @@ def _optional_text(value: Any) -> str | None:
 
     return text or None
 
+def _pending_classification_condition():
+    """
+    Возвращает SQL-условие операции,
+    требующей ручной классификации.
+    """
+
+    pnl_pending = or_(
+        BankTransaction.include_in_pnl.is_(
+            None
+        ),
+        and_(
+            BankTransaction.include_in_pnl.is_(
+                True
+            ),
+            or_(
+                BankTransaction.pnl_category.is_(
+                    None
+                ),
+                func.trim(
+                    BankTransaction.pnl_category
+                )
+                == "",
+            ),
+        ),
+    )
+
+    cf_pending = or_(
+        BankTransaction.include_in_cf.is_(
+            None
+        ),
+        and_(
+            BankTransaction.include_in_cf.is_(
+                True
+            ),
+            or_(
+                BankTransaction.cf_category.is_(
+                    None
+                ),
+                func.trim(
+                    BankTransaction.cf_category
+                )
+                == "",
+            ),
+        ),
+    )
+
+    return or_(
+        pnl_pending,
+        cf_pending,
+    )
+
+def get_pending_classification_summary(
+) -> UnclassifiedSummary:
+    """
+    Возвращает показатели операций,
+    требующих классификации.
+    """
+
+    condition = (
+        _pending_classification_condition()
+    )
+
+    inflow_expression = case(
+        (
+            BankTransaction.signed_amount_kopecks
+            > 0,
+            BankTransaction.signed_amount_kopecks,
+        ),
+        else_=0,
+    )
+
+    outflow_expression = case(
+        (
+            BankTransaction.signed_amount_kopecks
+            < 0,
+            -BankTransaction.signed_amount_kopecks,
+        ),
+        else_=0,
+    )
+
+    statement = (
+        select(
+            func.count(
+                BankTransaction.id
+            ),
+            func.coalesce(
+                func.sum(
+                    inflow_expression
+                ),
+                0,
+            ),
+            func.coalesce(
+                func.sum(
+                    outflow_expression
+                ),
+                0,
+            ),
+            func.coalesce(
+                func.sum(
+                    BankTransaction
+                    .signed_amount_kopecks
+                ),
+                0,
+            ),
+        )
+        .where(condition)
+    )
+
+    with SessionLocal() as session:
+        (
+            operation_count,
+            inflow_kopecks,
+            outflow_kopecks,
+            net_kopecks,
+        ) = session.execute(
+            statement
+        ).one()
+
+    return UnclassifiedSummary(
+        inflow_kopecks=int(
+            inflow_kopecks or 0
+        ),
+        outflow_kopecks=int(
+            outflow_kopecks or 0
+        ),
+        net_kopecks=int(
+            net_kopecks or 0
+        ),
+        operation_count=int(
+            operation_count or 0
+        ),
+    )
 
 def _optional_datetime(value: Any) -> datetime | None:
     """Преобразует pandas Timestamp в стандартный datetime."""
@@ -501,6 +644,7 @@ def get_transactions_dataframe(
     end_date: date | None = None,
     limit: int | None = None,
     offset: int = 0,
+    pending_only: bool = False,
 ) -> pd.DataFrame:
     """
     Возвращает банковские операции как DataFrame.
@@ -556,6 +700,11 @@ def get_transactions_dataframe(
     statement = select(
         BankTransaction
     )
+
+    if pending_only:
+        statement = statement.where(
+            _pending_classification_condition()
+        )
 
     if start_date is not None:
         statement = statement.where(

@@ -11,10 +11,9 @@ from src.categories import (
     REPORT_ACTIONS,
     UNDEFINED_ACTION,
 )
-from src.classification_summary import (
-    build_unclassified_summary,
-)
 from src.transaction_repository import (
+    get_pending_classification_summary,
+    get_transaction_count,
     get_transactions_dataframe,
     save_classifications,
 )
@@ -218,14 +217,12 @@ def render_classification_tab(
         t("classification.title")
     )
 
-    classification_transactions = (
-        get_transactions_dataframe()
+    total_transaction_count = (
+        get_transaction_count()
     )
 
     classification_summary = (
-        build_unclassified_summary(
-            classification_transactions
-        )
+        get_pending_classification_summary()
     )
 
     st.markdown(
@@ -265,295 +262,334 @@ def render_classification_tab(
         t("classification.pending_caption")
     )
 
+    if total_transaction_count == 0:
+        st.info(
+            t("classification.empty_database")
+        )
+        return
+
     if classification_summary.operation_count == 0:
         st.success(
             t("classification.all_classified")
         )
 
+    only_pending = st.checkbox(
+        t("classification.only_pending"),
+        value=True,
+    )
+
+    classification_transactions = (
+        get_transactions_dataframe(
+            pending_only=only_pending,
+        )
+    )
+
     if classification_transactions.empty:
-        st.info(
-            t("classification.empty_database")
+        st.success(
+            t("classification.filtered_empty")
         )
+
     else:
-        only_pending = st.checkbox(
-            t("classification.only_pending"),
-            value=True,
+        st.caption(
+            t("classification.instructions")
         )
 
-        if only_pending:
-            classification_transactions = (
-                classification_transactions.loc[
-                    classification_transactions[
-                        "classification_status"
-                    ] != "classified"
-                ].copy()
+        selection_source = (
+            prepare_classification_editor(
+                classification_transactions,
+                t=t,
             )
+            .reset_index(drop=True)
+        )
 
-        if classification_transactions.empty:
-            st.success(
-                t("classification.filtered_empty")
-            )
-        else:
-            st.caption(
-                t("classification.instructions")
-            )
+        st.markdown(
+            "#### "
+            + t("classification.select_title")
+        )
 
-            selection_source = (
-                prepare_classification_editor(
-                    classification_transactions,
-                    t=t,
-                )
-                .reset_index(drop=True)
-            )
+        st.caption(
+            t("classification.select_caption")
+        )
 
-            st.markdown(
-                "#### "
-                + t("classification.select_title")
-            )
+        date_column = t(
+            "classification.columns.date"
+        )
+        amount_column = t(
+            "classification.columns.amount"
+        )
+        counterparty_column = t(
+            "classification.columns.counterparty"
+        )
+        description_column = t(
+            "classification.columns.description"
+        )
+        pnl_action_column = t(
+            "classification.columns.pnl_action"
+        )
+        pnl_category_column = t(
+            "classification.columns.pnl_category"
+        )
+        cf_action_column = t(
+            "classification.columns.cf_action"
+        )
+        cf_category_column = t(
+            "classification.columns.cf_category"
+        )
 
-            st.caption(
-                t("classification.select_caption")
-            )
+        selection_columns = [
+            "id",
+            date_column,
+            amount_column,
+            counterparty_column,
+            description_column,
+            pnl_action_column,
+            pnl_category_column,
+            cf_action_column,
+            cf_category_column,
+        ]
 
-            date_column = t(
-                "classification.columns.date"
+        classification_ui_version = int(
+            st.session_state.get(
+                "classification_ui_version",
+                0,
             )
-            amount_column = t(
-                "classification.columns.amount"
-            )
-            counterparty_column = t(
-                "classification.columns.counterparty"
-            )
-            description_column = t(
-                "classification.columns.description"
-            )
-            pnl_action_column = t(
-                "classification.columns.pnl_action"
-            )
-            pnl_category_column = t(
-                "classification.columns.pnl_category"
-            )
-            cf_action_column = t(
-                "classification.columns.cf_action"
-            )
-            cf_category_column = t(
-                "classification.columns.cf_category"
-            )
+        )
 
-            selection_columns = [
-                "id",
-                date_column,
-                amount_column,
-                counterparty_column,
-                description_column,
-                pnl_action_column,
-                pnl_category_column,
-                cf_action_column,
-                cf_category_column,
-            ]
-
-            classification_ui_version = int(
-                st.session_state.get(
-                    "classification_ui_version",
-                    0,
-                )
-            )
-
-            selection_event = st.dataframe(
-                selection_source[
-                    selection_columns
-                ],
-                use_container_width=True,
-                hide_index=True,
-                on_select="rerun",
-                selection_mode="single-row",
-                key=(
-                    "classification_selection_table_"
-                    f"{classification_ui_version}"
-                ),
-                column_config={
-                    "id":
-                        st.column_config.NumberColumn(
-                            t(
-                                "classification.columns.id"
-                            ),
-                            format="%d",
+        selection_event = st.dataframe(
+            selection_source[
+                selection_columns
+            ],
+            use_container_width=True,
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
+            key=(
+                "classification_selection_table_"
+                f"{classification_ui_version}"
+            ),
+            column_config={
+                "id":
+                    st.column_config.NumberColumn(
+                        t(
+                            "classification.columns.id"
                         ),
-                    amount_column:
-                        st.column_config.NumberColumn(
-                            amount_column,
-                            format="%.2f",
-                        ),
-                },
-            )
+                        format="%d",
+                    ),
+                amount_column:
+                    st.column_config.NumberColumn(
+                        amount_column,
+                        format="%.2f",
+                    ),
+            },
+        )
 
-            displayed_ids = (
-                selection_source["id"]
-                .astype(int)
-                .tolist()
-            )
+        displayed_ids = (
+            selection_source["id"]
+            .astype(int)
+            .tolist()
+        )
 
-            selected_rows = (
-                selection_event.selection.rows
-            )
+        selected_rows = (
+            selection_event.selection.rows
+        )
 
-            if selected_rows:
-                selected_position = int(
-                    selected_rows[0]
-                )
-
-                if (
-                        0
-                        <= selected_position
-                        < len(selection_source)
-                ):
-                    selected_from_table = int(
-                        selection_source.iloc[
-                            selected_position
-                        ]["id"]
-                    )
-
-                    st.session_state[
-                        "classification_selected_id"
-                    ] = selected_from_table
-
-            selected_transaction_id = (
-                st.session_state.get(
-                    "classification_selected_id"
-                )
+        if selected_rows:
+            selected_position = int(
+                selected_rows[0]
             )
 
             if (
-                    selected_transaction_id
-                    not in displayed_ids
+                    0
+                    <= selected_position
+                    < len(selection_source)
             ):
-                selected_transaction_id = (
-                    displayed_ids[0]
+                selected_from_table = int(
+                    selection_source.iloc[
+                        selected_position
+                    ]["id"]
                 )
 
                 st.session_state[
                     "classification_selected_id"
-                ] = selected_transaction_id
+                ] = selected_from_table
 
-            selected_rows_in_database = (
-                classification_transactions.loc[
-                    pd.to_numeric(
-                        classification_transactions[
-                            "id"
-                        ],
-                        errors="coerce",
-                    )
-                    == selected_transaction_id
-                    ]
+        selected_transaction_id = (
+            st.session_state.get(
+                "classification_selected_id"
+            )
+        )
+
+        if (
+                selected_transaction_id
+                not in displayed_ids
+        ):
+            selected_transaction_id = (
+                displayed_ids[0]
             )
 
-            if selected_rows_in_database.empty:
-                st.error(
-                    t(
-                        "classification.errors."
-                        "transaction_not_found"
-                    )
-                )
-            else:
-                selected_transaction = (
-                    selected_rows_in_database.iloc[0]
-                )
+            st.session_state[
+                "classification_selected_id"
+            ] = selected_transaction_id
 
-                selected_position = (
-                    displayed_ids.index(
-                        selected_transaction_id
-                    )
-                )
-
-                st.divider()
-
-                st.markdown(
-                    "#### "
-                    + t(
-                        "classification.selected_title"
-                    )
-                )
-
-                operation_header_columns = (
-                    st.columns([1, 1, 2])
-                )
-
-                posted_at = pd.to_datetime(
-                    selected_transaction[
-                        "posted_at"
+        selected_rows_in_database = (
+            classification_transactions.loc[
+                pd.to_numeric(
+                    classification_transactions[
+                        "id"
                     ],
                     errors="coerce",
                 )
+                == selected_transaction_id
+                ]
+        )
 
-                if pd.isna(posted_at):
-                    posted_at_text = "—"
-                else:
-                    posted_at_text = (
-                        posted_at.strftime(
-                            "%d.%m.%Y"
-                        )
+        if selected_rows_in_database.empty:
+            st.error(
+                t(
+                    "classification.errors."
+                    "transaction_not_found"
+                )
+            )
+        else:
+            selected_transaction = (
+                selected_rows_in_database.iloc[0]
+            )
+
+            selected_position = (
+                displayed_ids.index(
+                    selected_transaction_id
+                )
+            )
+
+            st.divider()
+
+            st.markdown(
+                "#### "
+                + t(
+                    "classification.selected_title"
+                )
+            )
+
+            operation_header_columns = (
+                st.columns([1, 1, 2])
+            )
+
+            posted_at = pd.to_datetime(
+                selected_transaction[
+                    "posted_at"
+                ],
+                errors="coerce",
+            )
+
+            if pd.isna(posted_at):
+                posted_at_text = "—"
+            else:
+                posted_at_text = (
+                    posted_at.strftime(
+                        "%d.%m.%Y"
                     )
-
-                operation_header_columns[0].metric(
-                    t(
-                        "classification.details.date"
-                    ),
-                    posted_at_text,
                 )
 
-                operation_header_columns[1].metric(
-                    t(
-                        "classification.details.amount"
-                    ),
-                    format_rubles(
-                        int(
-                            selected_transaction[
-                                "signed_amount_kopecks"
-                            ]
-                        )
-                    ),
-                )
+            operation_header_columns[0].metric(
+                t(
+                    "classification.details.date"
+                ),
+                posted_at_text,
+            )
 
-                operation_header_columns[2].metric(
-                    t(
-                        "classification.details.position"
-                    ),
+            operation_header_columns[1].metric(
+                t(
+                    "classification.details.amount"
+                ),
+                format_rubles(
+                    int(
+                        selected_transaction[
+                            "signed_amount_kopecks"
+                        ]
+                    )
+                ),
+            )
+
+            operation_header_columns[2].metric(
+                t(
+                    "classification.details.position"
+                ),
+                t(
+                    "classification.details."
+                    "position_value",
+                    current=selected_position + 1,
+                    total=len(displayed_ids),
+                ),
+            )
+
+            counterparty_text = _text_or_empty(
+                selected_transaction[
+                    "counterparty_name"
+                ]
+            )
+
+            description_text = _text_or_empty(
+                selected_transaction[
+                    "description"
+                ]
+            )
+
+            purpose_text = _text_or_empty(
+                selected_transaction[
+                    "payment_purpose"
+                ]
+            )
+
+            not_specified_text = t(
+                "classification.details."
+                "not_specified"
+            )
+
+            st.write(
+                f"**{t(
+                    'classification.details.'
+                    'counterparty'
+                )}:** "
+                + (
+                        counterparty_text
+                        or not_specified_text
+                )
+            )
+
+            st.write(
+                f"**{t(
+                    'classification.details.'
+                    'description'
+                )}:** "
+                + (
+                        description_text
+                        or not_specified_text
+                )
+            )
+
+            with st.expander(
                     t(
                         "classification.details."
-                        "position_value",
-                        current=selected_position + 1,
-                        total=len(displayed_ids),
-                    ),
-                )
-
-                counterparty_text = _text_or_empty(
-                    selected_transaction[
-                        "counterparty_name"
-                    ]
-                )
-
-                description_text = _text_or_empty(
-                    selected_transaction[
-                        "description"
-                    ]
-                )
-
-                purpose_text = _text_or_empty(
-                    selected_transaction[
                         "payment_purpose"
-                    ]
+                    ),
+                    expanded=True,
+            ):
+                st.write(
+                    purpose_text
+                    or not_specified_text
+                )
+                counterparty_label = t(
+                    "classification.details."
+                    "counterparty"
                 )
 
-                not_specified_text = t(
+                description_label = t(
                     "classification.details."
-                    "not_specified"
+                    "description"
                 )
 
                 st.write(
-                    f"**{t(
-                        'classification.details.'
-                        'counterparty'
-                    )}:** "
+                    f"**{counterparty_label}:** "
                     + (
                             counterparty_text
                             or not_specified_text
@@ -561,468 +597,428 @@ def render_classification_tab(
                 )
 
                 st.write(
-                    f"**{t(
-                        'classification.details.'
-                        'description'
-                    )}:** "
+                    f"**{description_label}:** "
                     + (
                             description_text
                             or not_specified_text
                     )
                 )
 
-                with st.expander(
-                        t(
-                            "classification.details."
-                            "payment_purpose"
-                        ),
-                        expanded=True,
-                ):
-                    st.write(
-                        purpose_text
-                        or not_specified_text
-                    )
-                    counterparty_label = t(
-                        "classification.details."
-                        "counterparty"
-                    )
-
-                    description_label = t(
-                        "classification.details."
-                        "description"
-                    )
-
-                    st.write(
-                        f"**{counterparty_label}:** "
-                        + (
-                                counterparty_text
-                                or not_specified_text
-                        )
-                    )
-
-                    st.write(
-                        f"**{description_label}:** "
-                        + (
-                                description_text
-                                or not_specified_text
-                        )
-                    )
-
-                current_pnl_action = (
-                    bool_to_action(
-                        selected_transaction[
-                            "include_in_pnl"
-                        ]
-                    )
-                )
-
-                current_cf_action = (
-                    bool_to_action(
-                        selected_transaction[
-                            "include_in_cf"
-                        ]
-                    )
-                )
-
-                current_pnl_category = (
-                    _text_or_empty(
-                        selected_transaction[
-                            "pnl_category"
-                        ]
-                    )
-                )
-
-                current_cf_category = (
-                    _text_or_empty(
-                        selected_transaction[
-                            "cf_category"
-                        ]
-                    )
-                )
-
-                current_comment = _text_or_empty(
+            current_pnl_action = (
+                bool_to_action(
                     selected_transaction[
-                        "comment"
+                        "include_in_pnl"
                     ]
                 )
+            )
 
-                pnl_action_options = list(
-                    REPORT_ACTIONS
+            current_cf_action = (
+                bool_to_action(
+                    selected_transaction[
+                        "include_in_cf"
+                    ]
+                )
+            )
+
+            current_pnl_category = (
+                _text_or_empty(
+                    selected_transaction[
+                        "pnl_category"
+                    ]
+                )
+            )
+
+            current_cf_category = (
+                _text_or_empty(
+                    selected_transaction[
+                        "cf_category"
+                    ]
+                )
+            )
+
+            current_comment = _text_or_empty(
+                selected_transaction[
+                    "comment"
+                ]
+            )
+
+            pnl_action_options = list(
+                REPORT_ACTIONS
+            )
+
+            cf_action_options = list(
+                REPORT_ACTIONS
+            )
+
+            pnl_category_options = list(
+                dict.fromkeys(
+                    [
+                        "",
+                        *list(PNL_CATEGORIES),
+                        current_pnl_category,
+                    ]
+                )
+            )
+
+            cf_category_options = list(
+                dict.fromkeys(
+                    [
+                        "",
+                        *list(CF_CATEGORIES),
+                        current_cf_category,
+                    ]
+                )
+            )
+
+            form_key = (
+                "classification_form_"
+                f"{selected_transaction_id}_"
+                f"{classification_ui_version}"
+            )
+
+            with st.form(
+                    form_key,
+                    clear_on_submit=False,
+            ):
+                pnl_column, cf_column = (
+                    st.columns(2)
                 )
 
-                cf_action_options = list(
-                    REPORT_ACTIONS
+                with pnl_column:
+                    st.markdown(
+                        "### "
+                        + t("reports.pnl.title")
+                    )
+
+                    selected_pnl_action = (
+                        st.selectbox(
+                            t(
+                                "classification.columns."
+                                "pnl_action"
+                            ),
+                            options=(
+                                pnl_action_options
+                            ),
+                            format_func=lambda value: (
+                                format_report_action(
+                                    value,
+                                    t=t,
+                                )
+                            ),
+                            index=option_index(
+                                pnl_action_options,
+                                current_pnl_action,
+                            ),
+                            key=(
+                                "classification_pnl_action_"
+                                f"{selected_transaction_id}_"
+                                f"{classification_ui_version}"
+                            ),
+                        )
+                    )
+
+                    selected_pnl_category = (
+                        st.selectbox(
+                            t(
+                                "classification.columns."
+                                "pnl_category"
+                            ),
+                            options=(
+                                pnl_category_options
+                            ),
+                            index=option_index(
+                                pnl_category_options,
+                                current_pnl_category,
+                            ),
+                            key=(
+                                "classification_pnl_category_"
+                                f"{selected_transaction_id}_"
+                                f"{classification_ui_version}"
+                            ),
+                            help=t(
+                                "classification.help."
+                                "pnl_category"
+                            ),
+                        )
+                    )
+
+                with cf_column:
+                    st.markdown(
+                        "### "
+                        + t(
+                            "reports.cash_flow.title"
+                        )
+                    )
+
+                    selected_cf_action = (
+                        st.selectbox(
+                            t(
+                                "classification.columns."
+                                "cf_action"
+                            ),
+                            options=(
+                                cf_action_options
+                            ),
+                            format_func=lambda value: (
+                                format_report_action(
+                                    value,
+                                    t=t,
+                                )
+                            ),
+                            index=option_index(
+                                cf_action_options,
+                                current_cf_action,
+                            ),
+                            key=(
+                                "classification_cf_action_"
+                                f"{selected_transaction_id}_"
+                                f"{classification_ui_version}"
+                            ),
+                        )
+                    )
+
+                    selected_cf_category = (
+                        st.selectbox(
+                            t(
+                                "classification.columns."
+                                "cf_category"
+                            ),
+                            options=(
+                                cf_category_options
+                            ),
+                            index=option_index(
+                                cf_category_options,
+                                current_cf_category,
+                            ),
+                            key=(
+                                "classification_cf_category_"
+                                f"{selected_transaction_id}_"
+                                f"{classification_ui_version}"
+                            ),
+                            help=t(
+                                "classification.help."
+                                "cf_category"
+                            ),
+                        )
+                    )
+
+                selected_comment = st.text_area(
+                    t(
+                        "classification.columns."
+                        "comment"
+                    ),
+                    value=current_comment,
+                    max_chars=500,
+                    key=(
+                        "classification_comment_"
+                        f"{selected_transaction_id}_"
+                        f"{classification_ui_version}"
+                    ),
                 )
 
-                pnl_category_options = list(
-                    dict.fromkeys(
-                        [
-                            "",
-                            *list(PNL_CATEGORIES),
-                            current_pnl_category,
-                        ]
-                    )
+                button_columns = st.columns(
+                    [1, 1.3, 1.3]
                 )
 
-                cf_category_options = list(
-                    dict.fromkeys(
-                        [
-                            "",
-                            *list(CF_CATEGORIES),
-                            current_cf_category,
-                        ]
-                    )
-                )
-
-                form_key = (
-                    "classification_form_"
-                    f"{selected_transaction_id}_"
-                    f"{classification_ui_version}"
-                )
-
-                with st.form(
-                        form_key,
-                        clear_on_submit=False,
-                ):
-                    pnl_column, cf_column = (
-                        st.columns(2)
+                with button_columns[0]:
+                    save_current = (
+                        st.form_submit_button(
+                            t(
+                                "classification.buttons."
+                                "save"
+                            ),
+                            use_container_width=True,
+                        )
                     )
 
-                    with pnl_column:
-                        st.markdown(
-                            "### "
-                            + t("reports.pnl.title")
+                with button_columns[1]:
+                    save_and_next = (
+                        st.form_submit_button(
+                            t(
+                                "classification.buttons."
+                                "save_next"
+                            ),
                         )
-
-                        selected_pnl_action = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "pnl_action"
-                                ),
-                                options=(
-                                    pnl_action_options
-                                ),
-                                format_func=lambda value: (
-                                    format_report_action(
-                                        value,
-                                        t=t,
-                                    )
-                                ),
-                                index=option_index(
-                                    pnl_action_options,
-                                    current_pnl_action,
-                                ),
-                                key=(
-                                    "classification_pnl_action_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                            )
-                        )
-
-                        selected_pnl_category = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "pnl_category"
-                                ),
-                                options=(
-                                    pnl_category_options
-                                ),
-                                index=option_index(
-                                    pnl_category_options,
-                                    current_pnl_category,
-                                ),
-                                key=(
-                                    "classification_pnl_category_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                                help=t(
-                                    "classification.help."
-                                    "pnl_category"
-                                ),
-                            )
-                        )
-
-                    with cf_column:
-                        st.markdown(
-                            "### "
-                            + t(
-                                "reports.cash_flow.title"
-                            )
-                        )
-
-                        selected_cf_action = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "cf_action"
-                                ),
-                                options=(
-                                    cf_action_options
-                                ),
-                                format_func=lambda value: (
-                                    format_report_action(
-                                        value,
-                                        t=t,
-                                    )
-                                ),
-                                index=option_index(
-                                    cf_action_options,
-                                    current_cf_action,
-                                ),
-                                key=(
-                                    "classification_cf_action_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                            )
-                        )
-
-                        selected_cf_category = (
-                            st.selectbox(
-                                t(
-                                    "classification.columns."
-                                    "cf_category"
-                                ),
-                                options=(
-                                    cf_category_options
-                                ),
-                                index=option_index(
-                                    cf_category_options,
-                                    current_cf_category,
-                                ),
-                                key=(
-                                    "classification_cf_category_"
-                                    f"{selected_transaction_id}_"
-                                    f"{classification_ui_version}"
-                                ),
-                                help=t(
-                                    "classification.help."
-                                    "cf_category"
-                                ),
-                            )
-                        )
-
-                    selected_comment = st.text_area(
-                        t(
-                            "classification.columns."
-                            "comment"
-                        ),
-                        value=current_comment,
-                        max_chars=500,
-                        key=(
-                            "classification_comment_"
-                            f"{selected_transaction_id}_"
-                            f"{classification_ui_version}"
-                        ),
                     )
 
-                    button_columns = st.columns(
-                        [1, 1.3, 1.3]
+                with button_columns[2]:
+                    exclude_from_both = (
+                        st.form_submit_button(
+                            t(
+                                "classification.buttons."
+                                "exclude_both"
+                            ),
+                        )
                     )
 
-                    with button_columns[0]:
-                        save_current = (
-                            st.form_submit_button(
-                                t(
-                                    "classification.buttons."
-                                    "save"
-                                ),
-                                use_container_width=True,
-                            )
-                        )
+            if (
+                    save_current
+                    or save_and_next
+                    or exclude_from_both
+            ):
+                if exclude_from_both:
+                    final_pnl_action = (
+                        EXCLUDE_ACTION
+                    )
 
-                    with button_columns[1]:
-                        save_and_next = (
-                            st.form_submit_button(
-                                t(
-                                    "classification.buttons."
-                                    "save_next"
-                                ),
-                            )
-                        )
+                    final_cf_action = (
+                        EXCLUDE_ACTION
+                    )
 
-                    with button_columns[2]:
-                        exclude_from_both = (
-                            st.form_submit_button(
-                                t(
-                                    "classification.buttons."
-                                    "exclude_both"
-                                ),
-                            )
-                        )
+                    final_pnl_category = ""
+                    final_cf_category = ""
 
-                if (
-                        save_current
-                        or save_and_next
-                        or exclude_from_both
-                ):
-                    if exclude_from_both:
-                        final_pnl_action = (
-                            EXCLUDE_ACTION
-                        )
+                else:
+                    final_pnl_action = (
+                        selected_pnl_action
+                    )
 
-                        final_cf_action = (
-                            EXCLUDE_ACTION
-                        )
+                    final_cf_action = (
+                        selected_cf_action
+                    )
 
-                        final_pnl_category = ""
-                        final_cf_category = ""
+                    final_pnl_category = (
+                        selected_pnl_category
+                    )
 
-                    else:
-                        final_pnl_action = (
-                            selected_pnl_action
-                        )
-
-                        final_cf_action = (
-                            selected_cf_action
-                        )
-
-                        final_pnl_category = (
-                            selected_pnl_category
-                        )
-
-                        final_cf_category = (
-                            selected_cf_category
-                        )
-
-                        if (
-                                final_pnl_action
-                                != INCLUDE_ACTION
-                        ):
-                            final_pnl_category = ""
-
-                        if (
-                                final_cf_action
-                                != INCLUDE_ACTION
-                        ):
-                            final_cf_category = ""
-
-                    validation_errors = []
+                    final_cf_category = (
+                        selected_cf_category
+                    )
 
                     if (
                             final_pnl_action
-                            == INCLUDE_ACTION
-                            and not final_pnl_category
+                            != INCLUDE_ACTION
                     ):
-                        validation_errors.append(
-                            t(
-                                "classification.errors."
-                                "pnl_category_required"
-                            )
-                        )
+                        final_pnl_category = ""
 
                     if (
                             final_cf_action
-                            == INCLUDE_ACTION
-                            and not final_cf_category
+                            != INCLUDE_ACTION
                     ):
-                        validation_errors.append(
-                            t(
-                                "classification.errors."
-                                "cf_category_required"
+                        final_cf_category = ""
+
+                validation_errors = []
+
+                if (
+                        final_pnl_action
+                        == INCLUDE_ACTION
+                        and not final_pnl_category
+                ):
+                    validation_errors.append(
+                        t(
+                            "classification.errors."
+                            "pnl_category_required"
+                        )
+                    )
+
+                if (
+                        final_cf_action
+                        == INCLUDE_ACTION
+                        and not final_cf_category
+                ):
+                    validation_errors.append(
+                        t(
+                            "classification.errors."
+                            "cf_category_required"
+                        )
+                    )
+
+                if validation_errors:
+                    for error_message in (
+                            validation_errors
+                    ):
+                        st.error(error_message)
+
+                else:
+                    classification_payload = (
+                        pd.DataFrame(
+                            [
+                                {
+                                    "id":
+                                        selected_transaction_id,
+                                    "pnl_action":
+                                        final_pnl_action,
+                                    "pnl_category":
+                                        final_pnl_category,
+                                    "cf_action":
+                                        final_cf_action,
+                                    "cf_category":
+                                        final_cf_category,
+                                    "comment":
+                                        selected_comment,
+                                }
+                            ]
+                        )
+                    )
+
+                    try:
+                        save_result = (
+                            save_classifications(
+                                classification_payload
                             )
                         )
-
-                    if validation_errors:
-                        for error_message in (
-                                validation_errors
-                        ):
-                            st.error(error_message)
-
+                    except ValueError as exc:
+                        st.error(str(exc))
                     else:
-                        classification_payload = (
-                            pd.DataFrame(
-                                [
-                                    {
-                                        "id":
-                                            selected_transaction_id,
-                                        "pnl_action":
-                                            final_pnl_action,
-                                        "pnl_category":
-                                            final_pnl_category,
-                                        "cf_action":
-                                            final_cf_action,
-                                        "cf_category":
-                                            final_cf_category,
-                                        "comment":
-                                            selected_comment,
-                                    }
-                                ]
+                        next_transaction_id = None
+
+                        if save_and_next:
+                            next_position = (
+                                    selected_position + 1
                             )
-                        )
-
-                        try:
-                            save_result = (
-                                save_classifications(
-                                    classification_payload
-                                )
-                            )
-                        except ValueError as exc:
-                            st.error(str(exc))
-                        else:
-                            next_transaction_id = None
-
-                            if save_and_next:
-                                next_position = (
-                                        selected_position + 1
-                                )
-
-                                if (
-                                        next_position
-                                        < len(displayed_ids)
-                                ):
-                                    next_transaction_id = (
-                                        displayed_ids[
-                                            next_position
-                                        ]
-                                    )
 
                             if (
-                                    next_transaction_id
-                                    is not None
+                                    next_position
+                                    < len(displayed_ids)
                             ):
-                                st.session_state[
-                                    "classification_selected_id"
-                                ] = (
-                                    next_transaction_id
+                                next_transaction_id = (
+                                    displayed_ids[
+                                        next_position
+                                    ]
                                 )
 
+                        if (
+                                next_transaction_id
+                                is not None
+                        ):
                             st.session_state[
-                                "classification_ui_version"
+                                "classification_selected_id"
                             ] = (
-                                    classification_ui_version
-                                    + 1
+                                next_transaction_id
                             )
 
-                            action_key = (
+                        st.session_state[
+                            "classification_ui_version"
+                        ] = (
+                                classification_ui_version
+                                + 1
+                        )
+
+                        action_key = (
+                            "classification.messages."
+                            "excluded_both"
+                            if exclude_from_both
+                            else (
                                 "classification.messages."
-                                "excluded_both"
-                                if exclude_from_both
-                                else (
-                                    "classification.messages."
-                                    "saved"
-                                )
+                                "saved"
                             )
+                        )
 
-                            st.session_state[
-                                "classification_message"
-                            ] = t(
-                                "classification.messages."
-                                "summary",
-                                action=t(action_key),
-                                updated=(
-                                    save_result.updated
-                                ),
-                                classified=(
-                                    save_result.classified
-                                ),
-                                partial=(
-                                    save_result.partial
-                                ),
-                            )
+                        st.session_state[
+                            "classification_message"
+                        ] = t(
+                            "classification.messages."
+                            "summary",
+                            action=t(action_key),
+                            updated=(
+                                save_result.updated
+                            ),
+                            classified=(
+                                save_result.classified
+                            ),
+                            partial=(
+                                save_result.partial
+                            ),
+                        )
 
-                            st.rerun()
+                        st.rerun()
