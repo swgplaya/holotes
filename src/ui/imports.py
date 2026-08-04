@@ -15,7 +15,7 @@ from src.transaction_repository import (
     delete_untracked_transactions,
     get_import_batch_transactions_dataframe,
     get_import_batches_dataframe,
-    get_transactions_dataframe,
+    get_transaction_count,
     get_untracked_transaction_count,
     save_transactions,
 )
@@ -153,8 +153,8 @@ def render_import_tab(
 
     import_batches = get_import_batches_dataframe()
     untracked_count = get_untracked_transaction_count()
-    total_transaction_count = len(
-        get_transactions_dataframe()
+    total_transaction_count = (
+        get_transaction_count()
     )
 
     management_metrics = st.columns(3)

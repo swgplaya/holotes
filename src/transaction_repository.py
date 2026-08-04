@@ -379,6 +379,18 @@ def save_transactions(
         import_batch_id=import_batch_id,
     )
 
+def get_transaction_count() -> int:
+    """Возвращает общее количество банковских операций."""
+
+    statement = select(
+        func.count(BankTransaction.id)
+    )
+
+    with SessionLocal() as session:
+        count = session.scalar(statement)
+
+    return int(count or 0)
+
 def get_transactions_dataframe() -> pd.DataFrame:
     """Возвращает все операции из SQLite как DataFrame."""
 

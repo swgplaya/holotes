@@ -144,6 +144,52 @@ def test_empty_import_creates_nothing(
         .empty
     )
 
+def test_transaction_count_tracks_saved_and_cleared_data(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    assert (
+        transaction_repository
+        .get_transaction_count()
+        == 0
+    )
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(1),
+            make_transaction(2),
+        ),
+        source_filename="first.csv",
+    )
+
+    assert (
+        transaction_repository
+        .get_transaction_count()
+        == 2
+    )
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(2),
+            make_transaction(3),
+        ),
+        source_filename="second.csv",
+    )
+
+    assert (
+        transaction_repository
+        .get_transaction_count()
+        == 3
+    )
+
+    transaction_repository.clear_bank_data()
+
+    assert (
+        transaction_repository
+        .get_transaction_count()
+        == 0
+    )
 
 def test_save_import_and_read_journal(
     isolated_repository: sessionmaker,
