@@ -98,17 +98,59 @@ def prepare_visible_table(
     return preview[visible_columns]
 
 
+def show_summary_metrics(
+    *,
+    count: int,
+    inflow_kopecks: int,
+    outflow_kopecks: int,
+    net_cash_flow_kopecks: int,
+    t: Translator,
+    format_rubles: MoneyFormatter,
+) -> None:
+    """Показывает готовые показатели операций."""
+
+    metric_columns = st.columns(4)
+
+    metric_columns[0].metric(
+        t("operations.metrics.count"),
+        f"{count}",
+    )
+
+    metric_columns[1].metric(
+        t("operations.metrics.inflow"),
+        format_rubles(
+            inflow_kopecks
+        ),
+    )
+
+    metric_columns[2].metric(
+        t("operations.metrics.outflow"),
+        format_rubles(
+            outflow_kopecks
+        ),
+    )
+
+    metric_columns[3].metric(
+        t("operations.metrics.net"),
+        format_rubles(
+            net_cash_flow_kopecks
+        ),
+    )
+
+
 def show_metrics(
     transactions: pd.DataFrame,
     *,
     t: Translator,
     format_rubles: MoneyFormatter,
 ) -> None:
-    """Показывает основные показатели банковских операций."""
+    """Рассчитывает и показывает показатели DataFrame."""
 
     inflow_kopecks = int(
         transactions.loc[
-            transactions["signed_amount_kopecks"] > 0,
+            transactions[
+                "signed_amount_kopecks"
+            ] > 0,
             "signed_amount_kopecks",
         ].sum()
     )
@@ -130,26 +172,13 @@ def show_metrics(
         ].sum()
     )
 
-    metric_columns = st.columns(4)
-
-    metric_columns[0].metric(
-        t("operations.metrics.count"),
-        f"{len(transactions)}",
-    )
-
-    metric_columns[1].metric(
-        t("operations.metrics.inflow"),
-        format_rubles(inflow_kopecks),
-    )
-
-    metric_columns[2].metric(
-        t("operations.metrics.outflow"),
-        format_rubles(outflow_kopecks),
-    )
-
-    metric_columns[3].metric(
-        t("operations.metrics.net"),
-        format_rubles(
+    show_summary_metrics(
+        count=len(transactions),
+        inflow_kopecks=inflow_kopecks,
+        outflow_kopecks=outflow_kopecks,
+        net_cash_flow_kopecks=(
             net_cash_flow_kopecks
         ),
+        t=t,
+        format_rubles=format_rubles,
     )

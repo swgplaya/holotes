@@ -424,6 +424,163 @@ def test_save_import_and_read_journal(
         10_000,
     ]
 
+def test_transaction_summary_uses_all_rows(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    assert (
+        transaction_repository
+        .get_transaction_summary()
+        == transaction_repository.TransactionSummary(
+            count=0,
+            inflow_kopecks=0,
+            outflow_kopecks=0,
+            net_kopecks=0,
+        )
+    )
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(1),
+            make_transaction(2),
+            make_transaction(3),
+        )
+    )
+
+    assert (
+        transaction_repository
+        .get_transaction_summary()
+        == transaction_repository.TransactionSummary(
+            count=3,
+            inflow_kopecks=40_000,
+            outflow_kopecks=20_000,
+            net_kopecks=20_000,
+        )
+    )
+
+
+def test_transaction_pages_are_ordered_and_separate(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(1),
+            make_transaction(2),
+            make_transaction(3),
+            make_transaction(4),
+            make_transaction(5),
+        )
+    )
+
+    first_page = (
+        transaction_repository
+        .get_transactions_page(
+            page=1,
+            page_size=2,
+        )
+    )
+
+    second_page = (
+        transaction_repository
+        .get_transactions_page(
+            page=2,
+            page_size=2,
+        )
+    )
+
+    third_page = (
+        transaction_repository
+        .get_transactions_page(
+            page=3,
+            page_size=2,
+        )
+    )
+
+    assert first_page[
+        "source_hash"
+    ].tolist() == [
+        "5" * 64,
+        "4" * 64,
+    ]
+
+    assert second_page[
+        "source_hash"
+    ].tolist() == [
+        "3" * 64,
+        "2" * 64,
+    ]
+
+    assert third_page[
+        "source_hash"
+    ].tolist() == [
+        "1" * 64,
+    ]
+
+
+def test_transaction_page_past_end_is_empty(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(1),
+            make_transaction(2),
+        )
+    )
+
+    result = (
+        transaction_repository
+        .get_transactions_page(
+            page=3,
+            page_size=2,
+        )
+    )
+
+    assert result.empty
+
+
+@pytest.mark.parametrize(
+    (
+        "page",
+        "page_size",
+        "message",
+    ),
+    [
+        (
+            0,
+            10,
+            "Номер страницы",
+        ),
+        (
+            1,
+            0,
+            "Размер страницы",
+        ),
+    ],
+)
+def test_transaction_page_rejects_invalid_values(
+    isolated_repository: sessionmaker,
+    page: int,
+    page_size: int,
+    message: str,
+) -> None:
+    del isolated_repository
+
+    with pytest.raises(
+        ValueError,
+        match=message,
+    ):
+        (
+            transaction_repository
+            .get_transactions_page(
+                page=page,
+                page_size=page_size,
+            )
+        )
 
 def test_duplicate_imports_link_existing_transactions(
     isolated_repository: sessionmaker,

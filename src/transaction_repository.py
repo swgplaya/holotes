@@ -6,7 +6,7 @@ from datetime import date, datetime, time
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import delete, func, select
+from sqlalchemy import case, delete, func, select
 
 from src.database import SessionLocal
 from src.models import (
@@ -29,6 +29,15 @@ class SaveResult:
     inserted: int
     duplicates: int
     import_batch_id: int | None = None
+
+@dataclass(frozen=True)
+class TransactionSummary:
+    """Сводные показатели по банковским операциям."""
+
+    count: int
+    inflow_kopecks: int
+    outflow_kopecks: int
+    net_kopecks: int
 
 def _optional_text(value: Any) -> str | None:
     """Возвращает очищенный текст либо None."""
@@ -391,6 +400,72 @@ def get_transaction_count() -> int:
 
     return int(count or 0)
 
+def get_transaction_summary() -> TransactionSummary:
+    """Возвращает общую сводку по банковским операциям."""
+
+    inflow_expression = case(
+        (
+            BankTransaction.signed_amount_kopecks > 0,
+            BankTransaction.signed_amount_kopecks,
+        ),
+        else_=0,
+    )
+
+    outflow_expression = case(
+        (
+            BankTransaction.signed_amount_kopecks < 0,
+            -BankTransaction.signed_amount_kopecks,
+        ),
+        else_=0,
+    )
+
+    statement = select(
+        func.count(
+            BankTransaction.id
+        ),
+        func.coalesce(
+            func.sum(
+                inflow_expression
+            ),
+            0,
+        ),
+        func.coalesce(
+            func.sum(
+                outflow_expression
+            ),
+            0,
+        ),
+        func.coalesce(
+            func.sum(
+                BankTransaction.signed_amount_kopecks
+            ),
+            0,
+        ),
+    )
+
+    with SessionLocal() as session:
+        (
+            count,
+            inflow_kopecks,
+            outflow_kopecks,
+            net_kopecks,
+        ) = session.execute(
+            statement
+        ).one()
+
+    return TransactionSummary(
+        count=int(count or 0),
+        inflow_kopecks=int(
+            inflow_kopecks or 0
+        ),
+        outflow_kopecks=int(
+            outflow_kopecks or 0
+        ),
+        net_kopecks=int(
+            net_kopecks or 0
+        ),
+    )
+
 def get_transaction_date_bounds(
 ) -> tuple[date, date] | None:
     """Возвращает первую и последнюю даты банковских операций."""
@@ -424,6 +499,8 @@ def get_transactions_dataframe(
     *,
     start_date: date | None = None,
     end_date: date | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> pd.DataFrame:
     """
     Возвращает банковские операции как DataFrame.
@@ -440,6 +517,18 @@ def get_transactions_dataframe(
         raise ValueError(
             "Дата начала периода не может "
             "быть позже даты окончания."
+        )
+
+    if limit is not None and limit <= 0:
+        raise ValueError(
+            "Лимит операций должен быть "
+            "больше нуля."
+        )
+
+    if offset < 0:
+        raise ValueError(
+            "Смещение операций не может "
+            "быть отрицательным."
         )
 
     columns = [
@@ -491,6 +580,16 @@ def get_transactions_dataframe(
         BankTransaction.id.desc(),
     )
 
+    if offset:
+        statement = statement.offset(
+            offset
+        )
+
+    if limit is not None:
+        statement = statement.limit(
+            limit
+        )
+
     with SessionLocal() as session:
         transactions = session.scalars(statement).all()
 
@@ -529,6 +628,34 @@ def get_transactions_dataframe(
         ]
 
     return pd.DataFrame(rows, columns=columns)
+
+def get_transactions_page(
+    *,
+    page: int,
+    page_size: int,
+) -> pd.DataFrame:
+    """Возвращает одну страницу банковских операций."""
+
+    if page < 1:
+        raise ValueError(
+            "Номер страницы должен быть "
+            "не меньше единицы."
+        )
+
+    if page_size < 1:
+        raise ValueError(
+            "Размер страницы должен быть "
+            "не меньше единицы."
+        )
+
+    offset = (
+        page - 1
+    ) * page_size
+
+    return get_transactions_dataframe(
+        limit=page_size,
+        offset=offset,
+    )
 
 @dataclass(frozen=True)
 class ImportBatchDeleteResult:
