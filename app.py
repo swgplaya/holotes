@@ -55,6 +55,12 @@ from src.ui.transaction_views import (
     prepare_visible_table,
     show_metrics,
 )
+from src.ui.classification import (
+    bool_to_action,
+    format_report_action,
+    option_index,
+    prepare_classification_editor,
+)
 from src.reporting import (
     COMPARISON_MODES,
     ReportResult,
@@ -229,39 +235,6 @@ def percent_to_basis_points(
 
     return int(basis_points)
 
-def bool_to_action(value: object) -> str:
-    """Преобразует значение из базы в подпись интерфейса."""
-
-    if value is None or pd.isna(value):
-        return UNDEFINED_ACTION
-
-    if bool(value):
-        return INCLUDE_ACTION
-
-    return EXCLUDE_ACTION
-
-def format_report_action(
-    value: object,
-) -> str:
-    """Возвращает локализованную подпись решения."""
-
-    if value == INCLUDE_ACTION:
-        return t(
-            "classification.actions.include"
-        )
-
-    if value == EXCLUDE_ACTION:
-        return t(
-            "classification.actions.exclude"
-        )
-
-    if value == UNDEFINED_ACTION:
-        return t(
-            "classification.actions.undefined"
-        )
-
-    return str(value)
-
 RULE_DIRECTION_TRANSLATION_KEYS = {
     "any": "rules.options.direction.any",
     "income": "rules.options.direction.income",
@@ -297,7 +270,6 @@ RULE_MATCH_TRANSLATION_KEYS = {
     "starts_with":
         "rules.options.match.starts_with",
 }
-
 
 def format_rule_option(
     value: object,
@@ -524,130 +496,6 @@ def text_or_empty(value: object) -> str:
         return ""
 
     return str(value).strip()
-
-
-def option_index(
-    options: list[str],
-    current_value: object,
-) -> int:
-    """Находит безопасный индекс текущего значения."""
-
-    current_text = text_or_empty(
-        current_value
-    )
-
-    try:
-        return options.index(current_text)
-    except ValueError:
-        return 0
-
-def prepare_classification_editor(
-    transactions: pd.DataFrame,
-) -> pd.DataFrame:
-    """Подготавливает таблицу ручной классификации."""
-
-    editor = transactions.copy()
-
-    date_label = t(
-        "classification.columns.date"
-    )
-    amount_label = t(
-        "classification.columns.amount"
-    )
-    counterparty_label = t(
-        "classification.columns.counterparty"
-    )
-    description_label = t(
-        "classification.columns.description"
-    )
-    payment_purpose_label = t(
-        "classification.columns.payment_purpose"
-    )
-    pnl_action_label = t(
-        "classification.columns.pnl_action"
-    )
-    pnl_category_label = t(
-        "classification.columns.pnl_category"
-    )
-    cf_action_label = t(
-        "classification.columns.cf_action"
-    )
-    cf_category_label = t(
-        "classification.columns.cf_category"
-    )
-    comment_label = t(
-        "classification.columns.comment"
-    )
-
-    editor["posted_at"] = pd.to_datetime(
-        editor["posted_at"]
-    )
-
-    editor[date_label] = editor[
-        "posted_at"
-    ].dt.strftime("%d.%m.%Y")
-
-    editor[amount_label] = (
-        editor["signed_amount_kopecks"] / 100
-    )
-
-    editor[counterparty_label] = (
-        editor["counterparty_name"]
-        .fillna("")
-    )
-
-    editor[description_label] = (
-        editor["description"]
-        .fillna("")
-    )
-
-    editor[payment_purpose_label] = (
-        editor["payment_purpose"]
-        .fillna("")
-    )
-
-    editor[pnl_action_label] = (
-        editor["include_in_pnl"]
-        .apply(bool_to_action)
-        .apply(format_report_action)
-    )
-
-    editor[pnl_category_label] = (
-        editor["pnl_category"]
-        .fillna("")
-    )
-
-    editor[cf_action_label] = (
-        editor["include_in_cf"]
-        .apply(bool_to_action)
-        .apply(format_report_action)
-    )
-
-    editor[cf_category_label] = (
-        editor["cf_category"]
-        .fillna("")
-    )
-
-    editor[comment_label] = (
-        editor["comment"]
-        .fillna("")
-    )
-
-    return editor[
-        [
-            "id",
-            date_label,
-            amount_label,
-            counterparty_label,
-            description_label,
-            payment_purpose_label,
-            pnl_action_label,
-            pnl_category_label,
-            cf_action_label,
-            cf_category_label,
-            comment_label,
-        ]
-    ]
 
 def prepare_report_details(
     transactions: pd.DataFrame,
@@ -2277,7 +2125,8 @@ if classification_tab.open:
 
                 selection_source = (
                     prepare_classification_editor(
-                        classification_transactions
+                        classification_transactions,
+                        t=t,
                     )
                     .reset_index(drop=True)
                 )
@@ -2679,8 +2528,11 @@ if classification_tab.open:
                                     options=(
                                         pnl_action_options
                                     ),
-                                    format_func=(
-                                        format_report_action
+                                    format_func=lambda value: (
+                                        format_report_action(
+                                            value,
+                                            t=t,
+                                        )
                                     ),
                                     index=option_index(
                                         pnl_action_options,
@@ -2736,8 +2588,11 @@ if classification_tab.open:
                                     options=(
                                         cf_action_options
                                     ),
-                                    format_func=(
-                                        format_report_action
+                                    format_func=lambda value: (
+                                        format_report_action(
+                                            value,
+                                            t=t,
+                                        )
                                     ),
                                     index=option_index(
                                         cf_action_options,
@@ -3110,8 +2965,11 @@ if rules_tab.open:
                         options=list(
                             REPORT_ACTIONS
                         ),
-                        format_func=(
-                            format_report_action
+                        format_func=lambda value: (
+                            format_report_action(
+                                value,
+                                t=t,
+                            )
                         ),
                         key="rule_pnl_action",
                     )
@@ -3144,8 +3002,11 @@ if rules_tab.open:
                         options=list(
                             REPORT_ACTIONS
                         ),
-                        format_func=(
-                            format_report_action
+                        format_func=lambda value: (
+                            format_report_action(
+                                value,
+                                t=t,
+                            )
                         ),
                         key="rule_cf_action",
                     )
@@ -3604,7 +3465,10 @@ if rules_tab.open:
                 ] = visible_rules[
                     "pnl_action"
                 ].apply(
-                    format_report_action
+                    lambda value: format_report_action(
+                        value,
+                        t=t,
+                    )
                 )
 
                 visible_rules[
@@ -3612,7 +3476,10 @@ if rules_tab.open:
                 ] = visible_rules[
                     "cf_action"
                 ].apply(
-                    format_report_action
+                    lambda value: format_report_action(
+                        value,
+                        t=t,
+                    )
                 )
 
                 visible_rules[
