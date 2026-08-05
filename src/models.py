@@ -8,6 +8,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -248,6 +249,15 @@ class ClassificationRule(Base):
 
     __tablename__ = "classification_rules"
 
+    __table_args__ = (
+        Index(
+            "ix_classification_rules_active_priority",
+            "is_active",
+            "priority",
+            "id",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
@@ -270,7 +280,6 @@ class ClassificationRule(Base):
         Boolean,
         nullable=False,
         default=True,
-        index=True,
     )
 
     direction_filter: Mapped[str] = mapped_column(
@@ -333,6 +342,15 @@ class PlannedCashFlow(Base):
 
     __tablename__ = "planned_cash_flows"
 
+    __table_args__ = (
+        Index(
+            "ix_planned_cash_flows_active_start_date",
+            "is_active",
+            "start_date",
+            "id",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
@@ -389,7 +407,6 @@ class PlannedCashFlow(Base):
         Boolean,
         nullable=False,
         default=True,
-        index=True,
     )
 
     comment: Mapped[str | None] = mapped_column(
