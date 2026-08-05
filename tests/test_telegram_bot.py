@@ -61,6 +61,117 @@ def make_settings(
     )
 
 
+def test_register_bot_commands(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[
+        dict[str, object]
+    ] = []
+
+    def fake_api_request(
+        **kwargs: object,
+    ) -> bool:
+        calls.append(
+            kwargs
+        )
+
+        return True
+
+    monkeypatch.setattr(
+        telegram_bot,
+        "_telegram_api_request",
+        fake_api_request,
+    )
+
+    telegram_bot.register_bot_commands(
+        token="SECRET"
+    )
+
+    assert len(calls) == 3
+
+    assert all(
+        call["method"]
+        == "setMyCommands"
+        for call in calls
+    )
+
+    assert [
+        call["parameters"].get(
+            "language_code"
+        )
+        for call in calls
+    ] == [
+        None,
+        "ru",
+        "zh",
+    ]
+
+    for call in calls:
+        commands = call[
+            "parameters"
+        ]["commands"]
+
+        assert [
+            command["command"]
+            for command in commands
+        ] == [
+            "start",
+            "help",
+            "myid",
+            "chatid",
+            "summary",
+        ]
+
+
+def test_fatal_polling_errors() -> None:
+    unauthorized = (
+        telegram_bot
+        .TelegramBotApiError(
+            "Unauthorized",
+            status_code=401,
+        )
+    )
+
+    conflict = (
+        telegram_bot
+        .TelegramBotApiError(
+            "Conflict",
+            status_code=409,
+        )
+    )
+
+    temporary = (
+        telegram_bot
+        .TelegramBotApiError(
+            "Temporary network error"
+        )
+    )
+
+    assert (
+        telegram_bot
+        ._polling_error_is_fatal(
+            unauthorized
+        )
+        is True
+    )
+
+    assert (
+        telegram_bot
+        ._polling_error_is_fatal(
+            conflict
+        )
+        is True
+    )
+
+    assert (
+        telegram_bot
+        ._polling_error_is_fatal(
+            temporary
+        )
+        is False
+    )
+
+
 def test_parse_command_with_bot_mention() -> None:
     command = telegram_bot.parse_command(
         "/summary@OpenMasBot 2026-07",

@@ -272,6 +272,76 @@ BOT_TEXTS = {
 }
 
 
+BOT_COMMANDS = {
+    "en": (
+        {
+            "command": "start",
+            "description": "Start Open MAS and show help",
+        },
+        {
+            "command": "help",
+            "description": "Show available commands",
+        },
+        {
+            "command": "myid",
+            "description": "Show your Telegram user ID",
+        },
+        {
+            "command": "chatid",
+            "description": "Show chat and topic IDs",
+        },
+        {
+            "command": "summary",
+            "description": "Generate a financial summary",
+        },
+    ),
+    "ru": (
+        {
+            "command": "start",
+            "description": "Запустить Open MAS и показать справку",
+        },
+        {
+            "command": "help",
+            "description": "Показать доступные команды",
+        },
+        {
+            "command": "myid",
+            "description": "Показать ваш Telegram user ID",
+        },
+        {
+            "command": "chatid",
+            "description": "Показать ID чата и темы",
+        },
+        {
+            "command": "summary",
+            "description": "Сформировать финансовую сводку",
+        },
+    ),
+    "zh": (
+        {
+            "command": "start",
+            "description": "启动 Open MAS 并显示帮助",
+        },
+        {
+            "command": "help",
+            "description": "显示可用命令",
+        },
+        {
+            "command": "myid",
+            "description": "显示您的 Telegram 用户 ID",
+        },
+        {
+            "command": "chatid",
+            "description": "显示聊天和主题 ID",
+        },
+        {
+            "command": "summary",
+            "description": "生成财务摘要",
+        },
+    ),
+}
+
+
 def _language_code(
     language_code: str,
 ) -> str:
@@ -458,6 +528,58 @@ def _telegram_api_request(
     return payload.get(
         "result"
     )
+
+
+def register_bot_commands(
+    *,
+    token: str,
+) -> None:
+    """Registers localized Telegram command menus."""
+
+    configurations = (
+        (
+            None,
+            BOT_COMMANDS["en"],
+        ),
+        (
+            "ru",
+            BOT_COMMANDS["ru"],
+        ),
+        (
+            "zh",
+            BOT_COMMANDS["zh"],
+        ),
+    )
+
+    for (
+        language_code,
+        commands,
+    ) in configurations:
+        parameters: dict[
+            str,
+            Any,
+        ] = {
+            "commands": list(
+                commands
+            ),
+        }
+
+        if language_code is not None:
+            parameters[
+                "language_code"
+            ] = language_code
+
+        result = _telegram_api_request(
+            token=token,
+            method="setMyCommands",
+            parameters=parameters,
+        )
+
+        if result is not True:
+            raise TelegramBotApiError(
+                "Telegram did not confirm "
+                "the command menu."
+            )
 
 
 def prepare_long_polling(
@@ -1122,6 +1244,17 @@ def handle_update(
     return True
 
 
+def _polling_error_is_fatal(
+    error: TelegramBotApiError,
+) -> bool:
+    """Checks whether polling must stop immediately."""
+
+    return error.status_code in {
+        401,
+        409,
+    }
+
+
 def run_bot() -> None:
     """Runs the Open MAS long-polling bot."""
 
@@ -1143,6 +1276,18 @@ def run_bot() -> None:
     prepare_long_polling(
         token=token
     )
+
+    try:
+        register_bot_commands(
+            token=token
+        )
+
+    except TelegramBotApiError as exc:
+        LOGGER.warning(
+            "Could not register Telegram "
+            "command menu: %s",
+            exc,
+        )
 
     print(
         "Open MAS Telegram bot started: "
@@ -1166,6 +1311,11 @@ def run_bot() -> None:
             retry_index = 0
 
         except TelegramBotApiError as exc:
+            if _polling_error_is_fatal(
+                exc
+            ):
+                raise
+
             delay = RETRY_DELAYS_SECONDS[
                 min(
                     retry_index,
