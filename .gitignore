@@ -34,7 +34,6 @@ dist/
 # Local application data
 data/
 imports/
-demo_data/
 
 # Databases
 *.db
@@ -53,3 +52,7 @@ demo_data/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Demo datasets included in the repository
+!demo_data/
+!demo_data/**
