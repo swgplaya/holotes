@@ -141,6 +141,66 @@ def test_inspection_accepts_known_old_revision(
     assert inspection.is_head is False
 
 
+def test_inspection_accepts_0002_without_telegram_tables(
+    tmp_path: Path,
+) -> None:
+    database_path = (
+        tmp_path
+        / "revision-0002.db"
+    )
+
+    create_database_at_revision(
+        database_path,
+        "0002_query_indexes",
+    )
+
+    inspection = inspect_open_mas_database(
+        database_path
+    )
+
+    assert (
+        inspection.revision
+        == "0002_query_indexes"
+    )
+
+    assert inspection.is_head is False
+
+    assert (
+        "telegram_bot_settings"
+        not in inspection.tables
+    )
+
+
+def test_head_revision_requires_telegram_tables(
+    tmp_path: Path,
+) -> None:
+    database_path = (
+        tmp_path
+        / "incomplete-head.db"
+    )
+
+    create_database_at_revision(
+        database_path,
+        "head",
+    )
+
+    with sqlite3.connect(
+        database_path
+    ) as connection:
+        connection.execute(
+            "DROP TABLE "
+            "telegram_allowed_users"
+        )
+
+    with pytest.raises(
+        DatabaseBackupError,
+        match="telegram_allowed_users",
+    ):
+        inspect_open_mas_database(
+            database_path
+        )
+
+
 def test_database_backup_is_independent_snapshot(
     tmp_path: Path,
 ) -> None:

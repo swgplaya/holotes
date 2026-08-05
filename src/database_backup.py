@@ -40,6 +40,17 @@ REQUIRED_OPEN_MAS_TABLES = frozenset(
 )
 
 
+TABLES_INTRODUCED_BY_REVISION = {
+    "0003_telegram_settings": frozenset(
+        {
+            "telegram_bot_settings",
+            "telegram_allowed_users",
+            "telegram_allowed_chats",
+        }
+    ),
+}
+
+
 class DatabaseBackupError(Exception):
     """Ошибка резервного копирования или проверки базы."""
 
@@ -188,6 +199,57 @@ def _read_database_revision(
     return revision
 
 
+def _required_tables_for_revision(
+    revision: str,
+    script_directory: ScriptDirectory,
+) -> frozenset[str]:
+    """Returns tables required by a schema revision."""
+
+    known_revisions = {
+        revision_item.revision
+        for revision_item
+        in script_directory.walk_revisions()
+    }
+
+    if revision not in known_revisions:
+        raise DatabaseBackupError(
+            "Версия базы не поддерживается "
+            "этой сборкой Open MAS: "
+            f"{revision}."
+        )
+
+    revision_lineage = {
+        revision_item.revision
+        for revision_item
+        in script_directory.iterate_revisions(
+            revision,
+            "base",
+        )
+    }
+
+    required_tables = set(
+        REQUIRED_OPEN_MAS_TABLES
+    )
+
+    for (
+        introduction_revision,
+        introduced_tables,
+    ) in (
+        TABLES_INTRODUCED_BY_REVISION.items()
+    ):
+        if (
+            introduction_revision
+            in revision_lineage
+        ):
+            required_tables.update(
+                introduced_tables
+            )
+
+    return frozenset(
+        required_tables
+    )
+
+
 def inspect_open_mas_database(
     database_path: Path,
 ) -> DatabaseInspection:
@@ -206,6 +268,10 @@ def inspect_open_mas_database(
         raise DatabaseBackupError(
             "Файл базы данных пуст."
         )
+
+    script_directory = (
+        get_alembic_script_directory()
+    )
 
     try:
         with _connect_read_only(
@@ -242,18 +308,20 @@ def inspect_open_mas_database(
                 for row in table_rows
             }
 
-            missing_tables = (
+            missing_base_tables = (
                 REQUIRED_OPEN_MAS_TABLES
                 - tables
             )
 
-            if missing_tables:
+            if missing_base_tables:
                 raise DatabaseBackupError(
                     "Файл не является совместимой "
                     "базой Open MAS. "
                     "Отсутствуют таблицы: "
                     + ", ".join(
-                        sorted(missing_tables)
+                        sorted(
+                            missing_base_tables
+                        )
                     )
                 )
 
@@ -262,6 +330,30 @@ def inspect_open_mas_database(
                     connection
                 )
             )
+
+            required_tables = (
+                _required_tables_for_revision(
+                    revision,
+                    script_directory,
+                )
+            )
+
+            missing_revision_tables = (
+                required_tables
+                - tables
+            )
+
+            if missing_revision_tables:
+                raise DatabaseBackupError(
+                    "Файл не соответствует своей "
+                    "ревизии Open MAS. "
+                    "Отсутствуют таблицы: "
+                    + ", ".join(
+                        sorted(
+                            missing_revision_tables
+                        )
+                    )
+                )
 
             foreign_key_violations = (
                 connection.execute(
@@ -277,27 +369,11 @@ def inspect_open_mas_database(
 
     except DatabaseBackupError:
         raise
+
     except sqlite3.DatabaseError as exc:
         raise DatabaseBackupError(
             "Не удалось прочитать SQLite-базу."
         ) from exc
-
-    script_directory = (
-        get_alembic_script_directory()
-    )
-
-    known_revisions = {
-        revision_item.revision
-        for revision_item
-        in script_directory.walk_revisions()
-    }
-
-    if revision not in known_revisions:
-        raise DatabaseBackupError(
-            "Версия базы не поддерживается "
-            "этой сборкой Open MAS: "
-            f"{revision}."
-        )
 
     head_revision = get_head_revision()
 
