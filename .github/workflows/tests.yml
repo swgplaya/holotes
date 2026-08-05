@@ -35,6 +35,9 @@ jobs:
           python -m pip install -r requirements-dev.txt
           python -m pip check
 
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+
       - name: Compile Python files
         run: |
           python -m compileall -q app.py src migrations
@@ -42,3 +45,6 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest -q
+
+      - name: Run browser smoke tests
+        run: python -m pytest tests/browser -o addopts= -m browser -q
