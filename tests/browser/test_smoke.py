@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 
@@ -12,11 +12,11 @@ from playwright.sync_api import (
 pytestmark = pytest.mark.browser
 
 
-def test_open_mas_starts_and_switches_tabs(
+def test_open_mas_starts_and_opens_settings(
     page: Page,
     streamlit_base_url: str,
 ) -> None:
-    """Проверяет базовый запуск интерфейса в Chromium."""
+    """Checks startup and the settings interface."""
 
     page.goto(
         streamlit_base_url,
@@ -30,24 +30,96 @@ def test_open_mas_starts_and_switches_tabs(
         )
     )
 
-    tabs = page.get_by_role("tab")
+    main_tabs = page.get_by_role(
+        "tab"
+    )
 
-    expect(tabs).to_have_count(8)
+    expect(main_tabs).to_have_count(
+        9
+    )
 
-    first_tab = tabs.nth(0)
-    second_tab = tabs.nth(1)
+    operations_tab = (
+        page.get_by_role(
+            "tab",
+            name="Операции в базе",
+            exact=True,
+        )
+    )
 
-    expect(first_tab).to_have_attribute(
+    settings_tab = (
+        page.get_by_role(
+            "tab",
+            name="Настройки",
+            exact=True,
+        )
+    )
+
+    expect(
+        operations_tab
+    ).to_have_attribute(
         "aria-selected",
         "true",
     )
 
-    second_tab.click()
+    settings_tab.click()
 
-    expect(second_tab).to_have_attribute(
+    expect(
+        settings_tab
+    ).to_have_attribute(
         "aria-selected",
         "true",
     )
+
+    expect(
+        page.get_by_role(
+            "heading",
+            name="Настройки",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    database_tab = (
+        page.get_by_role(
+            "tab",
+            name="База данных",
+            exact=True,
+        )
+    )
+
+    telegram_tab = (
+        page.get_by_role(
+            "tab",
+            name="Telegram",
+            exact=True,
+        )
+    )
+
+    expect(database_tab).to_be_visible()
+    expect(telegram_tab).to_be_visible()
+
+    expect(
+        page.get_by_text(
+            "Ревизия Alembic",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    telegram_tab.click()
+
+    expect(
+        telegram_tab
+    ).to_have_attribute(
+        "aria-selected",
+        "true",
+    )
+
+    expect(
+        page.get_by_role(
+            "heading",
+            name="Telegram-бот",
+            exact=True,
+        )
+    ).to_be_visible()
 
     expect(
         page.locator(

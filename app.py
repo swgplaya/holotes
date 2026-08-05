@@ -35,6 +35,11 @@ from src.ui.unit_economics import (
     render_unit_economics_tab,
 )
 
+from src.ui.settings import (
+    render_settings_tab,
+)
+
+
 st.set_page_config(
     page_title="Open MAS",
     page_icon="📊",
@@ -61,6 +66,7 @@ MAIN_TAB_TRANSLATION_KEYS = (
     "tabs.unit_economics",
     "tabs.payment_calendar",
     "tabs.import",
+    "tabs.settings",
 )
 
 
@@ -251,6 +257,7 @@ if last_import_message:
     unit_economics_tab,
     payment_calendar_tab,
     import_tab,
+    settings_tab,
 ) = st.tabs(
     [
         t(translation_key)
@@ -352,3 +359,8 @@ if import_tab.open:
             format_rubles=format_rubles,
         )
 
+if settings_tab.open:
+    with settings_tab:
+        render_settings_tab(
+            t=t,
+        )
