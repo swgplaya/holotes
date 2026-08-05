@@ -15,10 +15,12 @@ from src.reporting import (
 )
 
 from src.transaction_repository import (
-    get_transaction_date_bounds,
     get_transactions_dataframe,
 )
 
+from src.ui.data_cache import (
+    cached_transaction_date_bounds,
+)
 
 Translator = Callable[..., str]
 MoneyFormatter = Callable[[int], str]
@@ -1228,7 +1230,7 @@ def _render_financial_report_tab(
         """Показывает отчёт с общими финансовыми фильтрами."""
 
         date_bounds = (
-            get_transaction_date_bounds()
+            cached_transaction_date_bounds()
         )
 
         if date_bounds is None:

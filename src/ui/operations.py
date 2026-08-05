@@ -4,12 +4,14 @@ from math import ceil
 import streamlit as st
 
 from src.transaction_repository import (
-    get_transaction_summary,
     get_transactions_page,
 )
 from src.ui.transaction_views import (
     prepare_visible_table,
     show_summary_metrics,
+)
+from src.ui.data_cache import (
+    cached_transaction_summary,
 )
 
 
@@ -24,7 +26,7 @@ def render_operations_tab(
 ) -> None:
     """Отображает вкладку банковских операций."""
 
-    summary = get_transaction_summary()
+    summary = cached_transaction_summary()
 
     if summary.count == 0:
         st.info(

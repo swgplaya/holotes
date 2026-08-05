@@ -15,7 +15,6 @@ from src.transaction_repository import (
     delete_untracked_transactions,
     get_import_batch_transactions_dataframe,
     get_import_batches_dataframe,
-    get_transaction_count,
     get_untracked_transaction_count,
     save_transactions,
 )
@@ -23,7 +22,9 @@ from src.ui.transaction_views import (
     prepare_visible_table,
     show_metrics,
 )
-
+from src.ui.data_cache import (
+    cached_transaction_count,
+)
 
 Translator = Callable[..., str]
 MoneyFormatter = Callable[[int], str]
@@ -154,7 +155,7 @@ def render_import_tab(
     import_batches = get_import_batches_dataframe()
     untracked_count = get_untracked_transaction_count()
     total_transaction_count = (
-        get_transaction_count()
+        cached_transaction_count()
     )
 
     management_metrics = st.columns(3)

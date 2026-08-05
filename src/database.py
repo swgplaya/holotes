@@ -5,7 +5,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Session,
+    sessionmaker,
+)
+from src.data_revision import (
+    bump_database_revision,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -61,6 +68,18 @@ SessionLocal = sessionmaker(
     expire_on_commit=False,
 )
 
+@event.listens_for(
+    Session,
+    "after_commit",
+)
+def advance_database_revision(
+    session: Session,
+) -> None:
+    """Инвалидирует кэш чтения после успешного commit."""
+
+    del session
+
+    bump_database_revision()
 
 def init_db() -> None:
     """Создаёт отсутствующие таблицы."""

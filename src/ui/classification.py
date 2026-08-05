@@ -13,12 +13,13 @@ from src.categories import (
     UNDEFINED_ACTION,
 )
 from src.transaction_repository import (
-    get_pending_classification_summary,
-    get_transaction_count,
     get_transactions_page,
     save_classifications,
 )
-
+from src.ui.data_cache import (
+    cached_pending_classification_summary,
+    cached_transaction_count,
+)
 
 Translator = Callable[..., str]
 MoneyFormatter = Callable[[int], str]
@@ -219,11 +220,11 @@ def render_classification_tab(
     )
 
     total_transaction_count = (
-        get_transaction_count()
+        cached_transaction_count()
     )
 
     classification_summary = (
-        get_pending_classification_summary()
+        cached_pending_classification_summary()
     )
 
     st.markdown(
