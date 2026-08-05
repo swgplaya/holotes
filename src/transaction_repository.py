@@ -782,8 +782,14 @@ def get_transactions_page(
     *,
     page: int,
     page_size: int,
+    pending_only: bool = False,
 ) -> pd.DataFrame:
-    """Возвращает одну страницу банковских операций."""
+    """
+    Возвращает одну страницу банковских операций.
+
+    При pending_only=True возвращает только операции,
+    требующие завершения классификации.
+    """
 
     if page < 1:
         raise ValueError(
@@ -804,6 +810,7 @@ def get_transactions_page(
     return get_transactions_dataframe(
         limit=page_size,
         offset=offset,
+        pending_only=pending_only,
     )
 
 @dataclass(frozen=True)

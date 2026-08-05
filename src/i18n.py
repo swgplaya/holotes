@@ -56,6 +56,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык
         'classification.all_classified': 'Все операции классифицированы.',
         'classification.empty_database': 'В базе пока нет операций для классификации.',
         'classification.only_pending': 'Показывать только незавершённые',
+        'classification.pagination.page_size': 'Строк на странице',
+        'classification.pagination.page': 'Страница',
+        'classification.pagination.position': 'Страница {page} из {pages} · операции {start}–{end} из {total}',
         'classification.filtered_empty': 'Все операции полностью классифицированы.',
         'classification.instructions': 'Для каждого отчёта выбери отдельное решение. '
                                        'Операцию можно включить в Cash Flow, но '
@@ -546,6 +549,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык
         'classification.all_classified': 'All transactions are classified.',
         'classification.empty_database': 'There are no transactions to classify yet.',
         'classification.only_pending': 'Show incomplete only',
+        'classification.pagination.page_size': 'Rows per page',
+        'classification.pagination.page': 'Page',
+        'classification.pagination.position': 'Page {page} of {pages} · transactions {start}–{end} of {total}',
         'classification.filtered_empty': 'All transactions are fully classified.',
         'classification.instructions': 'Choose a separate decision for each report. A '
                                        'transaction may be included in Cash Flow but '
@@ -1034,6 +1040,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык
            'classification.all_classified': '所有交易均已分类。',
            'classification.empty_database': '数据库中暂无可分类的交易。',
            'classification.only_pending': '仅显示未完成分类的交易',
+        'classification.pagination.page_size': '每页行数',
+        'classification.pagination.page': '页码',
+        'classification.pagination.position': '第 {page}/{pages} 页 · 显示第 {start}–{end} 笔，共 {total} 笔',
            'classification.filtered_empty': '所有交易均已完成分类。',
            'classification.instructions': '请分别为每张报表选择处理方式。交易可纳入现金流量表而排除在损益表之外，反之亦然。',
            'classification.select_title': '选择交易',

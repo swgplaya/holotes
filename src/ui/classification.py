@@ -1,3 +1,4 @@
+from math import ceil
 from collections.abc import Callable
 
 import pandas as pd
@@ -14,7 +15,7 @@ from src.categories import (
 from src.transaction_repository import (
     get_pending_classification_summary,
     get_transaction_count,
-    get_transactions_dataframe,
+    get_transactions_page,
     save_classifications,
 )
 
@@ -273,23 +274,152 @@ def render_classification_tab(
             t("classification.all_classified")
         )
 
+    page_key = "classification_page"
+    page_size_key = (
+        "classification_page_size"
+    )
+
+    def reset_classification_page() -> None:
+        """Сбрасывает страницу и выбранную операцию."""
+
+        st.session_state[
+            page_key
+        ] = 1
+
+        st.session_state.pop(
+            "classification_selected_id",
+            None,
+        )
+
+        st.session_state.pop(
+            "classification_requested_position",
+            None,
+        )
+
     only_pending = st.checkbox(
         t("classification.only_pending"),
         value=True,
+        key="classification_only_pending",
+        on_change=reset_classification_page,
     )
 
+    matching_count = (
+        classification_summary.operation_count
+        if only_pending
+        else total_transaction_count
+    )
+
+    if matching_count == 0:
+        st.session_state.pop(
+            "classification_selected_id",
+            None,
+        )
+
+        st.session_state.pop(
+            "classification_requested_position",
+            None,
+        )
+
+        return
+
+    pagination_columns = st.columns(2)
+
+    with pagination_columns[0]:
+        page_size = int(
+            st.selectbox(
+                t(
+                    "classification.pagination."
+                    "page_size"
+                ),
+                options=(
+                    10,
+                    25,
+                    50,
+                    100,
+                ),
+                index=1,
+                key=page_size_key,
+                on_change=reset_classification_page,
+            )
+        )
+
+    total_pages = max(
+        1,
+        ceil(
+            matching_count
+            / page_size
+        ),
+    )
+
+    current_page = int(
+        st.session_state.get(
+            page_key,
+            1,
+        )
+    )
+
+    clamped_page = min(
+        max(
+            current_page,
+            1,
+        ),
+        total_pages,
+    )
+
+    if current_page != clamped_page:
+        st.session_state[
+            page_key
+        ] = clamped_page
+
+    with pagination_columns[1]:
+        page = int(
+            st.number_input(
+                t(
+                    "classification.pagination."
+                    "page"
+                ),
+                min_value=1,
+                max_value=total_pages,
+                step=1,
+                key=page_key,
+            )
+        )
+
     classification_transactions = (
-        get_transactions_dataframe(
+        get_transactions_page(
+            page=page,
+            page_size=page_size,
             pending_only=only_pending,
         )
     )
 
     if classification_transactions.empty:
-        st.success(
+        st.info(
             t("classification.filtered_empty")
         )
-
     else:
+        first_position = (
+                                 page - 1
+                         ) * page_size + 1
+
+        last_position = (
+                first_position
+                + len(classification_transactions)
+                - 1
+        )
+
+        st.caption(
+            t(
+                "classification.pagination."
+                "position",
+                page=page,
+                pages=total_pages,
+                start=first_position,
+                end=last_position,
+                total=matching_count,
+            )
+        )
+
         st.caption(
             t("classification.instructions")
         )
@@ -365,7 +495,10 @@ def render_classification_tab(
             selection_mode="single-row",
             key=(
                 "classification_selection_table_"
-                f"{classification_ui_version}"
+                f"{classification_ui_version}_"
+                f"{int(only_pending)}_"
+                f"{page_size}_"
+                f"{page}"
             ),
             column_config={
                 "id":
@@ -413,6 +546,13 @@ def render_classification_tab(
                     "classification_selected_id"
                 ] = selected_from_table
 
+        requested_position = (
+            st.session_state.pop(
+                "classification_requested_position",
+                None,
+            )
+        )
+
         selected_transaction_id = (
             st.session_state.get(
                 "classification_selected_id"
@@ -420,6 +560,28 @@ def render_classification_tab(
         )
 
         if (
+                requested_position is not None
+                and displayed_ids
+        ):
+            safe_position = min(
+                max(
+                    int(requested_position),
+                    0,
+                ),
+                len(displayed_ids) - 1,
+            )
+
+            selected_transaction_id = (
+                displayed_ids[
+                    safe_position
+                ]
+            )
+
+            st.session_state[
+                "classification_selected_id"
+            ] = selected_transaction_id
+
+        elif (
                 selected_transaction_id
                 not in displayed_ids
         ):
@@ -517,8 +679,15 @@ def render_classification_tab(
                 t(
                     "classification.details."
                     "position_value",
-                    current=selected_position + 1,
-                    total=len(displayed_ids),
+                    current=(
+                            (
+                                    page - 1
+                            )
+                            * page_size
+                            + selected_position
+                            + 1
+                    ),
+                    total=matching_count,
                 ),
             )
 
@@ -962,9 +1131,33 @@ def render_classification_tab(
                     else:
                         next_transaction_id = None
 
-                        if save_and_next:
+                        fully_classified = (
+                                final_pnl_action
+                                != UNDEFINED_ACTION
+                                and final_cf_action
+                                != UNDEFINED_ACTION
+                        )
+
+                        global_position = (
+                                (
+                                        page - 1
+                                )
+                                * page_size
+                                + selected_position
+                        )
+
+                        has_next_transaction = (
+                                global_position + 1
+                                < matching_count
+                        )
+
+                        if (
+                                save_and_next
+                                and has_next_transaction
+                        ):
                             next_position = (
-                                    selected_position + 1
+                                    selected_position
+                                    + 1
                             )
 
                             if (
@@ -976,6 +1169,35 @@ def render_classification_tab(
                                         next_position
                                     ]
                                 )
+
+                            elif (
+                                    only_pending
+                                    and fully_classified
+                            ):
+                                st.session_state.pop(
+                                    "classification_selected_id",
+                                    None,
+                                )
+
+                                st.session_state[
+                                    "classification_"
+                                    "requested_position"
+                                ] = selected_position
+
+                            elif page < total_pages:
+                                st.session_state[
+                                    page_key
+                                ] = page + 1
+
+                                st.session_state.pop(
+                                    "classification_selected_id",
+                                    None,
+                                )
+
+                                st.session_state[
+                                    "classification_"
+                                    "requested_position"
+                                ] = 0
 
                         if (
                                 next_transaction_id

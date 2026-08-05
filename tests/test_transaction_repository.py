@@ -685,6 +685,89 @@ def test_transaction_pages_are_ordered_and_separate(
         "1" * 64,
     ]
 
+def test_transaction_pages_can_show_pending_only(
+    isolated_repository: sessionmaker,
+) -> None:
+    del isolated_repository
+
+    transaction_repository.save_transactions(
+        make_transactions(
+            make_transaction(1),
+            make_transaction(2),
+            make_transaction(3),
+            make_transaction(4),
+            make_transaction(5),
+            make_transaction(6),
+        )
+    )
+
+    transactions = (
+        transaction_repository
+        .get_transactions_dataframe()
+        .set_index("source_hash")
+    )
+
+    fully_classified_hashes = (
+        "6" * 64,
+        "4" * 64,
+        "2" * 64,
+    )
+
+    classification_rows = []
+
+    for source_hash in fully_classified_hashes:
+        classification_rows.append(
+            {
+                "id": int(
+                    transactions.loc[
+                        source_hash,
+                        "id",
+                    ]
+                ),
+                "pnl_action": EXCLUDE_ACTION,
+                "pnl_category": "",
+                "cf_action": EXCLUDE_ACTION,
+                "cf_category": "",
+                "comment": "",
+            }
+        )
+
+    transaction_repository.save_classifications(
+        pd.DataFrame(
+            classification_rows
+        )
+    )
+
+    first_page = (
+        transaction_repository
+        .get_transactions_page(
+            page=1,
+            page_size=2,
+            pending_only=True,
+        )
+    )
+
+    second_page = (
+        transaction_repository
+        .get_transactions_page(
+            page=2,
+            page_size=2,
+            pending_only=True,
+        )
+    )
+
+    assert first_page[
+        "source_hash"
+    ].tolist() == [
+        "5" * 64,
+        "3" * 64,
+    ]
+
+    assert second_page[
+        "source_hash"
+    ].tolist() == [
+        "1" * 64,
+    ]
 
 def test_transaction_page_past_end_is_empty(
     isolated_repository: sessionmaker,
