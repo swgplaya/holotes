@@ -16,7 +16,7 @@ def test_open_mas_starts_and_opens_settings(
     page: Page,
     streamlit_base_url: str,
 ) -> None:
-    """Checks startup and the settings interface."""
+    """Checks startup and Telegram settings."""
 
     page.goto(
         streamlit_base_url,
@@ -74,27 +74,18 @@ def test_open_mas_starts_and_opens_settings(
         )
     ).to_be_visible()
 
-    database_tab = page.get_by_role(
-        "tab",
-        name="База данных",
-        exact=True,
-    )
-
-    telegram_tab = page.get_by_role(
-        "tab",
-        name="Telegram",
-        exact=True,
-    )
-
-    expect(database_tab).to_be_visible()
-    expect(telegram_tab).to_be_visible()
-
     expect(
         page.get_by_text(
             "Ревизия Alembic",
             exact=True,
         )
     ).to_be_visible()
+
+    telegram_tab = page.get_by_role(
+        "tab",
+        name="Telegram",
+        exact=True,
+    )
 
     telegram_tab.click()
 
@@ -105,24 +96,25 @@ def test_open_mas_starts_and_opens_settings(
         "true",
     )
 
+    for heading_name in (
+        "Telegram-бот",
+        "Токен Telegram-бота",
+        "Управление ботом",
+        "Разрешённые пользователи",
+        "Разрешённые чаты",
+    ):
+        expect(
+            page.get_by_role(
+                "heading",
+                name=heading_name,
+                exact=True,
+            )
+        ).to_be_visible()
+
     expect(
         page.get_by_role(
-            "heading",
-            name="Telegram-бот",
-            exact=True,
-        )
-    ).to_be_visible()
-
-    expect(
-        page.get_by_text(
-            "Как создать и подключить бота",
-            exact=True,
-        )
-    ).to_be_visible()
-
-    expect(
-        page.get_by_text(
-            "Токен Telegram-бота",
+            "button",
+            name="Сохранить настройки бота",
             exact=True,
         )
     ).to_be_visible()
@@ -130,7 +122,20 @@ def test_open_mas_starts_and_opens_settings(
     expect(
         page.get_by_role(
             "button",
-            name="Проверить и сохранить токен",
+            name=(
+                "Добавить или обновить "
+                "пользователя"
+            ),
+            exact=True,
+        )
+    ).to_be_visible()
+
+    expect(
+        page.get_by_role(
+            "button",
+            name=(
+                "Добавить или обновить чат"
+            ),
             exact=True,
         )
     ).to_be_visible()
