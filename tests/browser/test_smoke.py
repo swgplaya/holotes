@@ -38,20 +38,16 @@ def test_open_mas_starts_and_opens_settings(
         9
     )
 
-    operations_tab = (
-        page.get_by_role(
-            "tab",
-            name="Операции в базе",
-            exact=True,
-        )
+    operations_tab = page.get_by_role(
+        "tab",
+        name="Операции в базе",
+        exact=True,
     )
 
-    settings_tab = (
-        page.get_by_role(
-            "tab",
-            name="Настройки",
-            exact=True,
-        )
+    settings_tab = page.get_by_role(
+        "tab",
+        name="Настройки",
+        exact=True,
     )
 
     expect(
@@ -78,20 +74,16 @@ def test_open_mas_starts_and_opens_settings(
         )
     ).to_be_visible()
 
-    database_tab = (
-        page.get_by_role(
-            "tab",
-            name="База данных",
-            exact=True,
-        )
+    database_tab = page.get_by_role(
+        "tab",
+        name="База данных",
+        exact=True,
     )
 
-    telegram_tab = (
-        page.get_by_role(
-            "tab",
-            name="Telegram",
-            exact=True,
-        )
+    telegram_tab = page.get_by_role(
+        "tab",
+        name="Telegram",
+        exact=True,
     )
 
     expect(database_tab).to_be_visible()
@@ -117,6 +109,28 @@ def test_open_mas_starts_and_opens_settings(
         page.get_by_role(
             "heading",
             name="Telegram-бот",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    expect(
+        page.get_by_text(
+            "Как создать и подключить бота",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    expect(
+        page.get_by_text(
+            "Токен Telegram-бота",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    expect(
+        page.get_by_role(
+            "button",
+            name="Проверить и сохранить токен",
             exact=True,
         )
     ).to_be_visible()

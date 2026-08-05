@@ -13,6 +13,14 @@ from src.database_backup import (
     resolve_sqlite_database_path,
     restore_database,
 )
+from src.telegram_token import (
+    TelegramBotIdentity,
+    TelegramTokenError,
+    delete_telegram_bot_token,
+    get_configured_bot_identity,
+    is_telegram_bot_token_configured,
+    save_telegram_bot_token,
+)
 
 
 Translator = Callable[..., str]
@@ -31,6 +39,16 @@ RESTORE_MESSAGE_STATE_KEY = (
 )
 RESTORE_UPLOAD_VERSION_STATE_KEY = (
     "settings_database_restore_upload_version"
+)
+
+TELEGRAM_TOKEN_VERSION_STATE_KEY = (
+    "settings_telegram_token_version"
+)
+TELEGRAM_TOKEN_MESSAGE_STATE_KEY = (
+    "settings_telegram_token_message"
+)
+TELEGRAM_IDENTITY_STATE_KEY = (
+    "settings_telegram_bot_identity"
 )
 
 
@@ -643,11 +661,534 @@ def _render_database_settings(
         )
 
 
+def _identity_to_state(
+    identity: TelegramBotIdentity,
+) -> dict[str, object]:
+    """Converts a bot identity to session state."""
+
+    return {
+        "bot_id": identity.bot_id,
+        "username": identity.username,
+        "display_name": identity.display_name,
+        "can_join_groups": (
+            identity.can_join_groups
+        ),
+        "can_read_all_group_messages": (
+            identity.can_read_all_group_messages
+        ),
+    }
+
+
+def _show_telegram_error(
+    *,
+    t: Translator,
+    error: Exception,
+) -> None:
+    """Shows a safe localized Telegram error."""
+
+    st.error(
+        t(
+            "settings.telegram.error"
+        )
+    )
+
+    with st.expander(
+        t(
+            "settings.telegram.error_details"
+        )
+    ):
+        st.code(
+            str(error),
+            language=None,
+        )
+
+
+def _render_bot_identity(
+    *,
+    t: Translator,
+    identity: dict[str, object],
+) -> None:
+    """Shows non-secret Telegram bot information."""
+
+    username = str(
+        identity.get(
+            "username",
+            "",
+        )
+    ).strip()
+
+    display_name = str(
+        identity.get(
+            "display_name",
+            "",
+        )
+    ).strip()
+
+    bot_id = identity.get(
+        "bot_id",
+        "",
+    )
+
+    st.markdown(
+        f"#### "
+        f"{t('settings.telegram.identity.title')}"
+    )
+
+    if username:
+        st.markdown(
+            f"**@{username}**"
+        )
+
+    if display_name:
+        st.caption(
+            display_name
+        )
+
+    identity_columns = st.columns(
+        3
+    )
+
+    identity_columns[0].metric(
+        t(
+            "settings.telegram.identity.bot_id"
+        ),
+        str(bot_id),
+    )
+
+    identity_columns[1].metric(
+        t(
+            (
+                "settings.telegram.identity."
+                "can_join_groups"
+            )
+        ),
+        t(
+            "common.yes"
+            if bool(
+                identity.get(
+                    "can_join_groups",
+                    False,
+                )
+            )
+            else "common.no"
+        ),
+    )
+
+    identity_columns[2].metric(
+        t(
+            (
+                "settings.telegram.identity."
+                "reads_all_messages"
+            )
+        ),
+        t(
+            "common.yes"
+            if bool(
+                identity.get(
+                    (
+                        "can_read_all_"
+                        "group_messages"
+                    ),
+                    False,
+                )
+            )
+            else "common.no"
+        ),
+    )
+
+
+def _render_token_status(
+    *,
+    t: Translator,
+    configured: bool,
+) -> None:
+    """Shows token presence without exposing it."""
+
+    status_columns = st.columns(
+        2
+    )
+
+    status_columns[0].metric(
+        t(
+            "settings.telegram.status.title"
+        ),
+        t(
+            (
+                "settings.telegram.status."
+                "configured"
+            )
+            if configured
+            else (
+                "settings.telegram.status."
+                "not_configured"
+            )
+        ),
+    )
+
+    status_columns[1].metric(
+        t(
+            "settings.telegram.status.storage"
+        ),
+        ".env",
+    )
+
+
+def _render_token_form(
+    *,
+    t: Translator,
+) -> None:
+    """Renders token validation and save form."""
+
+    st.markdown(
+        f"#### "
+        f"{t('settings.telegram.token.title')}"
+    )
+
+    st.caption(
+        t(
+            "settings.telegram.token.caption"
+        )
+    )
+
+    token_version = int(
+        st.session_state.get(
+            TELEGRAM_TOKEN_VERSION_STATE_KEY,
+            0,
+        )
+    )
+
+    input_key = (
+        "settings_telegram_token_input_"
+        f"{token_version}"
+    )
+
+    form_key = (
+        "settings_telegram_token_form_"
+        f"{token_version}"
+    )
+
+    with st.form(
+        form_key,
+    ):
+        token = st.text_input(
+            t(
+                "settings.telegram.token.field"
+            ),
+            value="",
+            type="password",
+            placeholder=(
+                "123456789:"
+                "AA..."
+            ),
+            help=t(
+                "settings.telegram.token.help"
+            ),
+            key=input_key,
+        )
+
+        submitted = (
+            st.form_submit_button(
+                t(
+                    (
+                        "settings.telegram.token."
+                        "save"
+                    )
+                ),
+                type="primary",
+                use_container_width=True,
+            )
+        )
+
+    if not submitted:
+        return
+
+    if not token.strip():
+        st.error(
+            t(
+                (
+                    "settings.telegram.token."
+                    "empty"
+                )
+            )
+        )
+
+        return
+
+    try:
+        with st.spinner(
+            t(
+                (
+                    "settings.telegram.token."
+                    "checking"
+                )
+            )
+        ):
+            identity = (
+                save_telegram_bot_token(
+                    token
+                )
+            )
+
+    except TelegramTokenError as exc:
+        _show_telegram_error(
+            t=t,
+            error=exc,
+        )
+
+        return
+
+    st.session_state[
+        TELEGRAM_IDENTITY_STATE_KEY
+    ] = _identity_to_state(
+        identity
+    )
+
+    st.session_state[
+        TELEGRAM_TOKEN_MESSAGE_STATE_KEY
+    ] = t(
+        (
+            "settings.telegram.token."
+            "saved"
+        ),
+        username=(
+            f"@{identity.username}"
+            if identity.username
+            else identity.display_name
+        ),
+    )
+
+    st.session_state.pop(
+        input_key,
+        None,
+    )
+
+    st.session_state[
+        TELEGRAM_TOKEN_VERSION_STATE_KEY
+    ] = token_version + 1
+
+    st.rerun()
+
+
+def _render_connection_check(
+    *,
+    t: Translator,
+) -> None:
+    """Checks the stored token through getMe."""
+
+    check_clicked = st.button(
+        t(
+            (
+                "settings.telegram.connection."
+                "check"
+            )
+        ),
+        use_container_width=True,
+    )
+
+    if not check_clicked:
+        return
+
+    try:
+        with st.spinner(
+            t(
+                (
+                    "settings.telegram.connection."
+                    "checking"
+                )
+            )
+        ):
+            identity = (
+                get_configured_bot_identity()
+            )
+
+    except TelegramTokenError as exc:
+        _show_telegram_error(
+            t=t,
+            error=exc,
+        )
+
+        return
+
+    st.session_state[
+        TELEGRAM_IDENTITY_STATE_KEY
+    ] = _identity_to_state(
+        identity
+    )
+
+    st.success(
+        t(
+            (
+                "settings.telegram.connection."
+                "success"
+            ),
+            username=(
+                f"@{identity.username}"
+                if identity.username
+                else identity.display_name
+            ),
+        )
+    )
+
+
+def _render_token_deletion(
+    *,
+    t: Translator,
+) -> None:
+    """Renders double-confirmed token deletion."""
+
+    with st.expander(
+        t(
+            "settings.telegram.delete.title"
+        )
+    ):
+        st.warning(
+            t(
+                "settings.telegram.delete.warning"
+            )
+        )
+
+        confirmed = st.checkbox(
+            t(
+                (
+                    "settings.telegram.delete."
+                    "confirm_checkbox"
+                )
+            ),
+            key=(
+                "settings_telegram_delete_"
+                "confirm"
+            ),
+        )
+
+        required_phrase = t(
+            (
+                "settings.telegram.delete."
+                "confirm_phrase"
+            )
+        )
+
+        entered_phrase = st.text_input(
+            t(
+                (
+                    "settings.telegram.delete."
+                    "confirm_label"
+                )
+            ),
+            key=(
+                "settings_telegram_delete_"
+                "phrase"
+            ),
+        )
+
+        deletion_allowed = (
+            confirmed
+            and entered_phrase.strip()
+            == required_phrase
+        )
+
+        delete_clicked = st.button(
+            t(
+                "settings.telegram.delete.button"
+            ),
+            disabled=(
+                not deletion_allowed
+            ),
+            use_container_width=True,
+        )
+
+        if not delete_clicked:
+            return
+
+        try:
+            delete_telegram_bot_token()
+
+        except TelegramTokenError as exc:
+            _show_telegram_error(
+                t=t,
+                error=exc,
+            )
+
+            return
+
+        st.session_state.pop(
+            TELEGRAM_IDENTITY_STATE_KEY,
+            None,
+        )
+
+        st.session_state.pop(
+            (
+                "settings_telegram_delete_"
+                "confirm"
+            ),
+            None,
+        )
+
+        st.session_state.pop(
+            (
+                "settings_telegram_delete_"
+                "phrase"
+            ),
+            None,
+        )
+
+        st.session_state[
+            TELEGRAM_TOKEN_MESSAGE_STATE_KEY
+        ] = t(
+            "settings.telegram.delete.success"
+        )
+
+        current_version = int(
+            st.session_state.get(
+                TELEGRAM_TOKEN_VERSION_STATE_KEY,
+                0,
+            )
+        )
+
+        st.session_state[
+            TELEGRAM_TOKEN_VERSION_STATE_KEY
+        ] = current_version + 1
+
+        st.rerun()
+
+
+def _render_botfather_instructions(
+    *,
+    t: Translator,
+) -> None:
+    """Shows token creation instructions."""
+
+    with st.expander(
+        t(
+            (
+                "settings.telegram.instructions."
+                "title"
+            )
+        )
+    ):
+        st.markdown(
+            t(
+                (
+                    "settings.telegram.instructions."
+                    "body"
+                )
+            )
+        )
+
+        st.warning(
+            t(
+                (
+                    "settings.telegram.instructions."
+                    "security"
+                )
+            )
+        )
+
+
 def _render_telegram_settings(
     *,
     t: Translator,
 ) -> None:
-    """Renders the Telegram settings placeholder."""
+    """Renders Telegram bot token settings."""
 
     st.subheader(
         t(
@@ -655,11 +1196,65 @@ def _render_telegram_settings(
         )
     )
 
-    st.info(
+    st.caption(
         t(
-            "settings.telegram.placeholder"
+            "settings.telegram.caption"
         )
     )
+
+    message = st.session_state.pop(
+        TELEGRAM_TOKEN_MESSAGE_STATE_KEY,
+        None,
+    )
+
+    if message:
+        st.success(
+            message
+        )
+
+    _render_botfather_instructions(
+        t=t,
+    )
+
+    configured = (
+        is_telegram_bot_token_configured()
+    )
+
+    _render_token_status(
+        t=t,
+        configured=configured,
+    )
+
+    identity = st.session_state.get(
+        TELEGRAM_IDENTITY_STATE_KEY
+    )
+
+    if isinstance(
+        identity,
+        dict,
+    ):
+        _render_bot_identity(
+            t=t,
+            identity=identity,
+        )
+
+    if configured:
+        _render_connection_check(
+            t=t,
+        )
+
+    st.divider()
+
+    _render_token_form(
+        t=t,
+    )
+
+    if configured:
+        st.divider()
+
+        _render_token_deletion(
+            t=t,
+        )
 
 
 def render_settings_tab(
