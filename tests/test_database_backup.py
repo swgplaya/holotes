@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 import os
@@ -9,12 +9,15 @@ import sys
 
 import pytest
 
+import src.database_backup as database_backup
+
 from src.database_backup import (
     DatabaseBackupError,
     create_database_backup,
     get_head_revision,
     inspect_open_mas_database,
     resolve_sqlite_database_path,
+    restore_database,
 )
 
 
@@ -262,3 +265,345 @@ def test_foreign_sqlite_database_is_rejected(
         inspect_open_mas_database(
             database_path
         )
+
+
+def set_restore_marker(
+    database_path: Path,
+    value: str,
+) -> None:
+    """Writes a test marker value to the database."""
+
+    with sqlite3.connect(
+        database_path
+    ) as connection:
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS "
+            "restore_test_marker "
+            "(value TEXT NOT NULL)"
+        )
+
+        connection.execute(
+            "DELETE FROM "
+            "restore_test_marker"
+        )
+
+        connection.execute(
+            "INSERT INTO "
+            "restore_test_marker "
+            "(value) VALUES (?)",
+            (value,),
+        )
+
+
+def get_restore_marker(
+    database_path: Path,
+) -> str:
+    """Reads a test marker value from the database."""
+
+    with sqlite3.connect(
+        database_path
+    ) as connection:
+        row = connection.execute(
+            "SELECT value "
+            "FROM restore_test_marker"
+        ).fetchone()
+
+    assert row is not None
+
+    return str(row[0])
+
+
+def test_restore_database_replaces_data_and_keeps_backup(
+    tmp_path: Path,
+) -> None:
+    current_path = (
+        tmp_path
+        / "current.db"
+    )
+
+    uploaded_path = (
+        tmp_path
+        / "uploaded.db"
+    )
+
+    backup_directory = (
+        tmp_path
+        / "backups"
+    )
+
+    create_database_at_revision(
+        current_path,
+        "head",
+    )
+
+    create_database_at_revision(
+        uploaded_path,
+        "head",
+    )
+
+    set_restore_marker(
+        current_path,
+        "current value",
+    )
+
+    set_restore_marker(
+        uploaded_path,
+        "uploaded value",
+    )
+
+    result = restore_database(
+        uploaded_path,
+        current_path,
+        backup_directory,
+    )
+
+    assert get_restore_marker(
+        current_path
+    ) == "uploaded value"
+
+    assert get_restore_marker(
+        result.safety_backup_path
+    ) == "current value"
+
+    assert result.source_revision == (
+        get_head_revision()
+    )
+
+    assert result.restored_revision == (
+        get_head_revision()
+    )
+
+    assert result.migrated is False
+
+    assert (
+        result.safety_backup_path
+        .is_file()
+    )
+
+
+def test_restore_database_upgrades_old_backup(
+    tmp_path: Path,
+) -> None:
+    current_path = (
+        tmp_path
+        / "current.db"
+    )
+
+    uploaded_path = (
+        tmp_path
+        / "uploaded-old.db"
+    )
+
+    backup_directory = (
+        tmp_path
+        / "backups"
+    )
+
+    create_database_at_revision(
+        current_path,
+        "head",
+    )
+
+    create_database_at_revision(
+        uploaded_path,
+        "0001_initial",
+    )
+
+    set_restore_marker(
+        current_path,
+        "current value",
+    )
+
+    set_restore_marker(
+        uploaded_path,
+        "old uploaded value",
+    )
+
+    result = restore_database(
+        uploaded_path,
+        current_path,
+        backup_directory,
+    )
+
+    inspection = (
+        inspect_open_mas_database(
+            current_path
+        )
+    )
+
+    assert inspection.is_head is True
+
+    assert get_restore_marker(
+        current_path
+    ) == "old uploaded value"
+
+    assert (
+        result.source_revision
+        == "0001_initial"
+    )
+
+    assert result.restored_revision == (
+        get_head_revision()
+    )
+
+    assert result.migrated is True
+
+
+def test_invalid_restore_file_does_not_change_database(
+    tmp_path: Path,
+) -> None:
+    current_path = (
+        tmp_path
+        / "current.db"
+    )
+
+    uploaded_path = (
+        tmp_path
+        / "invalid.db"
+    )
+
+    backup_directory = (
+        tmp_path
+        / "backups"
+    )
+
+    create_database_at_revision(
+        current_path,
+        "head",
+    )
+
+    set_restore_marker(
+        current_path,
+        "original value",
+    )
+
+    uploaded_path.write_bytes(
+        b"not a sqlite database"
+    )
+
+    with pytest.raises(
+        DatabaseBackupError
+    ):
+        restore_database(
+            uploaded_path,
+            current_path,
+            backup_directory,
+        )
+
+    assert get_restore_marker(
+        current_path
+    ) == "original value"
+
+    assert (
+        not backup_directory.exists()
+        or not any(
+            backup_directory.iterdir()
+        )
+    )
+
+
+def test_failed_restore_rolls_back_to_safety_backup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_path = (
+        tmp_path
+        / "current.db"
+    )
+
+    uploaded_path = (
+        tmp_path
+        / "uploaded.db"
+    )
+
+    backup_directory = (
+        tmp_path
+        / "backups"
+    )
+
+    create_database_at_revision(
+        current_path,
+        "head",
+    )
+
+    create_database_at_revision(
+        uploaded_path,
+        "head",
+    )
+
+    set_restore_marker(
+        current_path,
+        "original value",
+    )
+
+    set_restore_marker(
+        uploaded_path,
+        "new value",
+    )
+
+    original_copy = (
+        database_backup
+        ._copy_sqlite_database
+    )
+
+    call_count = 0
+
+    def failing_first_copy(
+        source_path: Path,
+        target_path: Path,
+    ) -> None:
+        nonlocal call_count
+
+        call_count += 1
+
+        if call_count == 1:
+            with sqlite3.connect(
+                target_path
+            ) as connection:
+                connection.execute(
+                    "UPDATE restore_test_marker "
+                    "SET value = ?",
+                    ("partially damaged",),
+                )
+
+            raise OSError(
+                "Simulated restore failure"
+            )
+
+        original_copy(
+            source_path,
+            target_path,
+        )
+
+    monkeypatch.setattr(
+        database_backup,
+        "_copy_sqlite_database",
+        failing_first_copy,
+    )
+
+    with pytest.raises(
+        DatabaseBackupError,
+    ):
+        restore_database(
+            uploaded_path,
+            current_path,
+            backup_directory,
+        )
+
+    assert call_count == 2
+
+    assert get_restore_marker(
+        current_path
+    ) == "original value"
+
+    backups = list(
+        backup_directory.glob(
+            "open-mas-backup-*.db"
+        )
+    )
+
+    assert len(backups) == 1
+
+    assert get_restore_marker(
+        backups[0]
+    ) == "original value"

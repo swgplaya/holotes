@@ -1,17 +1,28 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import shutil
 import sqlite3
+import tempfile
+from threading import Lock
 
+from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 
+from src.data_revision import (
+    bump_database_revision,
+)
 from src.database import (
     BASE_DIR,
     DATABASE_URL,
+    engine,
 )
 
 
@@ -127,20 +138,26 @@ def resolve_sqlite_database_path(
     return database_path.resolve()
 
 
+@contextmanager
 def _connect_read_only(
     database_path: Path,
-) -> sqlite3.Connection:
-    """Открывает SQLite-файл без возможности изменения."""
+) -> Iterator[sqlite3.Connection]:
+    """Opens a read-only SQLite connection and closes it."""
 
     database_uri = (
         database_path.resolve().as_uri()
         + "?mode=ro"
     )
 
-    return sqlite3.connect(
+    connection = sqlite3.connect(
         database_uri,
         uri=True,
     )
+
+    try:
+        yield connection
+    finally:
+        connection.close()
 
 
 def _read_database_revision(
@@ -367,12 +384,20 @@ def create_database_backup(
         with _connect_read_only(
             source_path
         ) as source_connection:
-            with sqlite3.connect(
-                backup_path
-            ) as backup_connection:
+            backup_connection = (
+                sqlite3.connect(
+                    backup_path
+                )
+            )
+
+            try:
                 source_connection.backup(
                     backup_connection
                 )
+
+                backup_connection.commit()
+            finally:
+                backup_connection.close()
 
         inspect_open_mas_database(
             backup_path
@@ -386,3 +411,282 @@ def create_database_backup(
         raise
 
     return backup_path
+
+
+@dataclass(frozen=True)
+class DatabaseRestoreResult:
+    """Result of restoring an Open MAS database."""
+
+    database_path: Path
+    safety_backup_path: Path
+    source_revision: str
+    restored_revision: str
+    migrated: bool
+
+
+_database_restore_lock = Lock()
+
+
+def upgrade_open_mas_database(
+    database_path: Path,
+) -> DatabaseInspection:
+    """Upgrades a separate SQLite database to head."""
+
+    database_path = Path(
+        database_path
+    ).resolve()
+
+    inspection_before = (
+        inspect_open_mas_database(
+            database_path
+        )
+    )
+
+    if inspection_before.is_head:
+        return inspection_before
+
+    migration_engine = create_engine(
+        (
+            "sqlite:///"
+            + database_path.as_posix()
+        ),
+        connect_args={
+            "check_same_thread": False,
+        },
+    )
+
+    config = Config(
+        str(
+            BASE_DIR
+            / "alembic.ini"
+        )
+    )
+
+    config.set_main_option(
+        "script_location",
+        str(
+            BASE_DIR
+            / "migrations"
+        ),
+    )
+
+    try:
+        with migration_engine.begin() as connection:
+            config.attributes[
+                "connection"
+            ] = connection
+
+            command.upgrade(
+                config,
+                "head",
+            )
+    except Exception as exc:
+        raise DatabaseBackupError(
+            "Could not upgrade the restored "
+            "database to the current schema."
+        ) from exc
+    finally:
+        migration_engine.dispose()
+
+    inspection_after = (
+        inspect_open_mas_database(
+            database_path
+        )
+    )
+
+    if not inspection_after.is_head:
+        raise DatabaseBackupError(
+            "The restored database did not "
+            "reach the current schema revision."
+        )
+
+    return inspection_after
+
+
+def _copy_sqlite_database(
+    source_path: Path,
+    target_path: Path,
+) -> None:
+    """Copies one SQLite database into another."""
+
+    source_path = Path(
+        source_path
+    ).resolve()
+
+    target_path = Path(
+        target_path
+    ).resolve()
+
+    target_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with _connect_read_only(
+        source_path
+    ) as source_connection:
+        target_connection = (
+            sqlite3.connect(
+                target_path,
+                timeout=30,
+            )
+        )
+
+        try:
+            source_connection.backup(
+                target_connection
+            )
+
+            target_connection.commit()
+        finally:
+            target_connection.close()
+
+
+def restore_database(
+    uploaded_database_path: Path,
+    current_database_path: Path,
+    backup_directory: Path,
+) -> DatabaseRestoreResult:
+    """
+    Restores the working database safely.
+
+    The uploaded file is validated and upgraded in
+    a temporary copy. A safety backup is created
+    before the current database is overwritten.
+    """
+
+    uploaded_database_path = Path(
+        uploaded_database_path
+    ).resolve()
+
+    current_database_path = Path(
+        current_database_path
+    ).resolve()
+
+    backup_directory = Path(
+        backup_directory
+    ).resolve()
+
+    if (
+        uploaded_database_path
+        == current_database_path
+    ):
+        raise DatabaseBackupError(
+            "A database cannot be restored "
+            "from itself."
+        )
+
+    with _database_restore_lock:
+        inspect_open_mas_database(
+            current_database_path
+        )
+
+        with tempfile.TemporaryDirectory(
+            prefix="open-mas-restore-",
+            dir=current_database_path.parent,
+        ) as temporary_directory:
+            staging_path = (
+                Path(temporary_directory)
+                / "staging.db"
+            )
+
+            try:
+                shutil.copy2(
+                    uploaded_database_path,
+                    staging_path,
+                )
+            except OSError as exc:
+                raise DatabaseBackupError(
+                    "Could not prepare the uploaded "
+                    "database for restoration."
+                ) from exc
+
+            source_inspection = (
+                inspect_open_mas_database(
+                    staging_path
+                )
+            )
+
+            migrated = (
+                not source_inspection.is_head
+            )
+
+            restored_inspection = (
+                upgrade_open_mas_database(
+                    staging_path
+                )
+            )
+
+            safety_backup_path = (
+                create_database_backup(
+                    current_database_path,
+                    backup_directory,
+                )
+            )
+
+            engine.dispose()
+
+            try:
+                _copy_sqlite_database(
+                    staging_path,
+                    current_database_path,
+                )
+
+                final_inspection = (
+                    inspect_open_mas_database(
+                        current_database_path
+                    )
+                )
+
+                if not final_inspection.is_head:
+                    raise DatabaseBackupError(
+                        "The restored database does "
+                        "not use the current schema."
+                    )
+
+            except Exception as restore_error:
+                engine.dispose()
+
+                try:
+                    _copy_sqlite_database(
+                        safety_backup_path,
+                        current_database_path,
+                    )
+
+                    inspect_open_mas_database(
+                        current_database_path
+                    )
+
+                    bump_database_revision()
+
+                except Exception as rollback_error:
+                    raise DatabaseBackupError(
+                        "Database restoration and "
+                        "automatic rollback both "
+                        "failed. Safety backup: "
+                        f"{safety_backup_path}"
+                    ) from rollback_error
+
+                raise DatabaseBackupError(
+                    "Database restoration failed. "
+                    "The previous state was "
+                    "restored automatically."
+                ) from restore_error
+
+            bump_database_revision()
+
+            return DatabaseRestoreResult(
+                database_path=(
+                    current_database_path
+                ),
+                safety_backup_path=(
+                    safety_backup_path
+                ),
+                source_revision=(
+                    source_inspection.revision
+                ),
+                restored_revision=(
+                    restored_inspection.revision
+                ),
+                migrated=migrated,
+            )
