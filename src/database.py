@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from threading import Lock
 
+from alembic import command
+from alembic.config import Config
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import (
@@ -10,6 +13,7 @@ from sqlalchemy.orm import (
     Session,
     sessionmaker,
 )
+
 from src.data_revision import (
     bump_database_revision,
 )
@@ -81,10 +85,55 @@ def advance_database_revision(
 
     bump_database_revision()
 
+_database_init_lock = Lock()
+_database_initialized = False
+
+
+def _get_alembic_config() -> Config:
+    """Создаёт конфигурацию Alembic для текущего проекта."""
+
+    config = Config(
+        str(
+            BASE_DIR
+            / "alembic.ini"
+        )
+    )
+
+    config.set_main_option(
+        "script_location",
+        str(
+            BASE_DIR
+            / "migrations"
+        ),
+    )
+
+    return config
+
 def init_db() -> None:
-    """Создаёт отсутствующие таблицы."""
+    """Обновляет схему базы до последней миграции."""
 
-    # Импорт нужен здесь, чтобы SQLAlchemy увидел модели.
-    from src import models  # noqa: F401
+    global _database_initialized
 
-    Base.metadata.create_all(bind=engine)
+    if _database_initialized:
+        return
+
+    with _database_init_lock:
+        if _database_initialized:
+            return
+
+        # Импорт регистрирует модели в Base.metadata.
+        from src import models  # noqa: F401
+
+        config = _get_alembic_config()
+
+        with engine.begin() as connection:
+            config.attributes[
+                "connection"
+            ] = connection
+
+            command.upgrade(
+                config,
+                "head",
+            )
+
+        _database_initialized = True

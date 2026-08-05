@@ -25,3 +25,5 @@
 *.db     binary
 *.xlsx   binary
 *.xls    binary
+*.txt    text eol=lf
+*.mako   text eol=lf
