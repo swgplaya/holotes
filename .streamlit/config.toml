@@ -104,3 +104,15 @@ linkColor = "#60A5FA"
 borderColor = "#273449"
 dataframeBorderColor = "#273449"
 dataframeHeaderBackgroundColor = "#172033"
+
+[server]
+address = "127.0.0.1"
+headless = true
+enableCORS = true
+enableXsrfProtection = true
+enableStaticServing = false
+maxUploadSize = 50
+maxMessageSize = 50
+
+[browser]
+gatherUsageStats = false
