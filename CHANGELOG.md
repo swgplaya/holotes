@@ -25,8 +25,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Local SQLite database backup, preview, and restoration.
 - Automatic safety backup before database restoration.
 - Alembic database migrations.
-- Read-only Telegram bot with financial summaries.
+- Telegram bot with read-only financial summaries.
 - Telegram bot access restrictions by user ID and chat ID.
+- Per-chat Telegram summary language selection for Russian, English, and Simplified Chinese.
 - Telegram bot token storage in `.env`.
 - Russian, English, and Simplified Chinese interface localization.
 - Light and dark interface themes.
@@ -62,7 +63,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - There are no application user accounts or role-based permissions.
 - Docker and supported server deployment are not available yet.
 - SQLite is the only configured database.
-- The Telegram bot provides a limited read-only command set.
+- The Telegram bot provides a limited command set; financial data access is read-only.
 - P&L reporting uses the cash method.
 - The application must not be exposed directly to the public internet.
 - `v0.1.0` is a personal local milestone, not a production-ready multi-user release.
