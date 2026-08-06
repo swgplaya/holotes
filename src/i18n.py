@@ -1636,6 +1636,91 @@ TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык
            'import.danger.clear_button': '清空全部银行数据',
            'import.messages.cleared': '银行数据已清空。删除导入：{batches}；关联：{links}；交易：{transactions}。'}}
 
+# BUILT-IN REPORT CATEGORY TRANSLATIONS START
+BUILT_IN_REPORT_CATEGORY_TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'reports.categories.revenue': 'Выручка',
+        'reports.categories.cost_of_goods_sold': 'Себестоимость',
+        'reports.categories.product_development_prototypes': 'Разработка продукта и '
+                                                             'тестовые образцы',
+        'reports.categories.logistics': 'Логистика',
+        'reports.categories.marketing_advertising': 'Маркетинг и реклама',
+        'reports.categories.payroll_contractors': 'Заработная плата и подрядчики',
+        'reports.categories.rent_utilities': 'Аренда и коммунальные расходы',
+        'reports.categories.bank_fees': 'Банковские комиссии',
+        'reports.categories.taxes': 'Налоги',
+        'reports.categories.software_subscriptions': 'Программное обеспечение и '
+                                                     'подписки',
+        'reports.categories.other_operating_expenses': 'Прочие операционные расходы',
+        'reports.categories.other_income': 'Прочие доходы',
+        'reports.categories.other_expenses': 'Прочие расходы',
+        'reports.categories.operating_inflows': 'Операционные поступления',
+        'reports.categories.supplier_payments': 'Оплата поставщикам',
+        'reports.categories.operating_product_development': 'Операционная деятельность '
+                                                            '— разработка продукта',
+        'reports.categories.bank_expenses': 'Банковские расходы',
+        'reports.categories.other_operating_payments': 'Прочие операционные платежи',
+        'reports.categories.investing_activities': 'Инвестиционная деятельность',
+        'reports.categories.financing_activities': 'Финансовая деятельность',
+        'reports.categories.owner_contributions': 'Вложения собственника',
+        'reports.categories.owner_withdrawals': 'Изъятия собственника',
+        'reports.categories.internal_transfers': 'Внутренние переводы'},
+ 'en': {'reports.categories.revenue': 'Revenue',
+        'reports.categories.cost_of_goods_sold': 'Cost of goods sold',
+        'reports.categories.product_development_prototypes': 'Product development and '
+                                                             'prototypes',
+        'reports.categories.logistics': 'Logistics',
+        'reports.categories.marketing_advertising': 'Marketing and advertising',
+        'reports.categories.payroll_contractors': 'Payroll and contractors',
+        'reports.categories.rent_utilities': 'Rent and utilities',
+        'reports.categories.bank_fees': 'Bank fees',
+        'reports.categories.taxes': 'Taxes',
+        'reports.categories.software_subscriptions': 'Software and subscriptions',
+        'reports.categories.other_operating_expenses': 'Other operating expenses',
+        'reports.categories.other_income': 'Other income',
+        'reports.categories.other_expenses': 'Other expenses',
+        'reports.categories.operating_inflows': 'Operating inflows',
+        'reports.categories.supplier_payments': 'Supplier payments',
+        'reports.categories.operating_product_development': 'Operating activities - '
+                                                            'product development',
+        'reports.categories.bank_expenses': 'Bank expenses',
+        'reports.categories.other_operating_payments': 'Other operating payments',
+        'reports.categories.investing_activities': 'Investing activities',
+        'reports.categories.financing_activities': 'Financing activities',
+        'reports.categories.owner_contributions': 'Owner contributions',
+        'reports.categories.owner_withdrawals': 'Owner withdrawals',
+        'reports.categories.internal_transfers': 'Internal transfers'},
+ 'zh-CN': {'reports.categories.revenue': '收入',
+           'reports.categories.cost_of_goods_sold': '销售成本',
+           'reports.categories.product_development_prototypes': '产品开发与样品',
+           'reports.categories.logistics': '物流',
+           'reports.categories.marketing_advertising': '市场营销与广告',
+           'reports.categories.payroll_contractors': '工资与承包商费用',
+           'reports.categories.rent_utilities': '租金与公用事业费用',
+           'reports.categories.bank_fees': '银行手续费',
+           'reports.categories.taxes': '税费',
+           'reports.categories.software_subscriptions': '软件与订阅',
+           'reports.categories.other_operating_expenses': '其他经营费用',
+           'reports.categories.other_income': '其他收入',
+           'reports.categories.other_expenses': '其他费用',
+           'reports.categories.operating_inflows': '经营活动现金流入',
+           'reports.categories.supplier_payments': '支付供应商',
+           'reports.categories.operating_product_development': '经营活动—产品开发',
+           'reports.categories.bank_expenses': '银行费用',
+           'reports.categories.other_operating_payments': '其他经营付款',
+           'reports.categories.investing_activities': '投资活动',
+           'reports.categories.financing_activities': '融资活动',
+           'reports.categories.owner_contributions': '所有者投入',
+           'reports.categories.owner_withdrawals': '所有者提取',
+           'reports.categories.internal_transfers': '内部转账'}}
+
+for language, category_values in (
+    BUILT_IN_REPORT_CATEGORY_TRANSLATIONS.items()
+):
+    TRANSLATIONS[language].update(
+        category_values
+    )
+# BUILT-IN REPORT CATEGORY TRANSLATIONS END
+
+
 
 def normalize_language(
     language: object,

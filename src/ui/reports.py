@@ -4,6 +4,9 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from src.categories import (
+    BUILT_IN_CATEGORY_TRANSLATION_KEYS,
+)
 from src.reporting import (
     COMPARISON_MODES,
     ReportResult,
@@ -24,6 +27,34 @@ from src.ui.data_cache import (
 
 Translator = Callable[..., str]
 MoneyFormatter = Callable[[int], str]
+
+
+def _translate_report_category(
+    category: object,
+    *,
+    t: Translator,
+    empty_label: str,
+) -> str:
+    """Translates built-in categories and preserves custom names."""
+
+    if category is None or pd.isna(category):
+        return empty_label
+
+    category_name = str(category).strip()
+
+    if not category_name:
+        return empty_label
+
+    translation_key = (
+        BUILT_IN_CATEGORY_TRANSLATION_KEYS.get(
+            category_name
+        )
+    )
+
+    if translation_key is None:
+        return category_name
+
+    return t(translation_key)
 
 
 def _render_financial_report_tab(
@@ -74,12 +105,19 @@ def _render_financial_report_tab(
             details["signed_amount_kopecks"] / 100
         )
 
-        details[category_label] = (
-            details[category_column]
-            .fillna("")
-            .replace(
-                "",
-                t("reports.columns.no_category"),
+        no_category_label = t(
+            "reports.columns.no_category"
+        )
+
+        details[category_label] = details[
+            category_column
+        ].map(
+            lambda category: (
+                _translate_report_category(
+                    category,
+                    t=t,
+                    empty_label=no_category_label,
+                )
             )
         )
 
@@ -725,10 +763,27 @@ def _render_financial_report_tab(
         period_label = t(
             "reports.columns.period"
         )
+        no_category_label = t(
+            "reports.columns.no_category"
+        )
 
         if comparison_report is None:
             category_table = (
                 report.category_totals.copy()
+            )
+
+            category_table["category"] = (
+                category_table["category"].map(
+                    lambda category: (
+                        _translate_report_category(
+                            category,
+                            t=t,
+                            empty_label=(
+                                no_category_label
+                            ),
+                        )
+                    )
+                )
             )
 
             category_table[amount_label] = (
@@ -785,6 +840,20 @@ def _render_financial_report_tab(
                 build_category_comparison(
                     current_report=report,
                     comparison_report=comparison_report,
+                )
+            )
+
+            comparison_table["category"] = (
+                comparison_table["category"].map(
+                    lambda category: (
+                        _translate_report_category(
+                            category,
+                            t=t,
+                            empty_label=(
+                                no_category_label
+                            ),
+                        )
+                    )
                 )
             )
 
