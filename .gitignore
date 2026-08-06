@@ -56,3 +56,5 @@ desktop.ini
 # Demo datasets included in the repository
 !demo_data/
 !demo_data/**
+
+.tools/
