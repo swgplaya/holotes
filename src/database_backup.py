@@ -48,6 +48,11 @@ TABLES_INTRODUCED_BY_REVISION = {
             "telegram_allowed_chats",
         }
     ),
+    "0004_telegram_summary_language": frozenset(
+        {
+            "telegram_chat_preferences",
+        }
+    ),
 }
 
 
