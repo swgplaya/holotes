@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -75,8 +75,8 @@ def make_identity() -> (
 
     return telegram_token.TelegramBotIdentity(
         bot_id=123456789,
-        username="open_mas_test_bot",
-        display_name="Open MAS Test",
+        username="holotes_test_bot",
+        display_name="Holotes Test",
         can_join_groups=True,
         can_read_all_group_messages=False,
     )
@@ -108,9 +108,9 @@ def test_validate_token_parses_get_me(
         "result": {
             "id": 123456789,
             "is_bot": True,
-            "first_name": "Open MAS",
+            "first_name": "Holotes",
             "last_name": "Finance",
-            "username": "open_mas_bot",
+            "username": "holotes_bot",
             "can_join_groups": True,
             "can_read_all_group_messages": False,
         },
@@ -152,12 +152,12 @@ def test_validate_token_parses_get_me(
 
     assert (
         identity.username
-        == "open_mas_bot"
+        == "holotes_bot"
     )
 
     assert (
         identity.display_name
-        == "Open MAS Finance"
+        == "Holotes Finance"
     )
 
     assert identity.can_join_groups is True
@@ -235,7 +235,7 @@ def test_save_preserves_other_env_values(
 ) -> None:
     isolated_env_path.write_text(
         (
-            "# Open MAS\n"
+            "# Holotes\n"
             "DATABASE_URL=sqlite:///data/test.db\n"
             "TBANK_API_TOKEN=existing-value\n"
         ),

@@ -1,8 +1,8 @@
-# Contributing to Open MAS
+# Contributing to Holotes
 
-Thank you for your interest in Open MAS.
+Thank you for your interest in Holotes.
 
-Open MAS is an early-stage open-source management accounting system. Bug reports, feature proposals, documentation improvements, and pull requests are welcome.
+Holotes is an early-stage open-source management accounting system. Bug reports, feature proposals, documentation improvements, and pull requests are welcome.
 
 ## Before contributing
 
@@ -24,8 +24,8 @@ Python 3.12 is recommended.
 Clone the repository:
 
 ```bash
-git clone https://github.com/swgplaya/open-mas.git
-cd open-mas
+git clone https://github.com/swgplaya/holotes.git
+cd holotes
 ```
 
 Create a virtual environment:
@@ -115,4 +115,4 @@ Remove all confidential information before publishing logs or screenshots.
 
 ## License
 
-By contributing to Open MAS, you agree that your contributions will be licensed under the MIT License.
+By contributing to Holotes, you agree that your contributions will be licensed under the MIT License.

@@ -1,14 +1,16 @@
-# Open MAS
+# Holotes
 
-[![Tests](https://github.com/swgplaya/open-mas/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/swgplaya/open-mas/actions/workflows/tests.yml)
+[![Tests](https://github.com/swgplaya/holotes/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/swgplaya/holotes/actions/workflows/tests.yml)
 
-Open MAS is an open-source, local-first management accounting system for small businesses.
+Holotes is an open-source, local-first management accounting system for small businesses.
+
+The name comes from the Greek *holótēs* — wholeness: separate financial data brought together into one coherent system.
 
 It imports bank transactions, helps classify cash movements, builds management reports, plans future cash flows, and calculates unit economics without requiring a cloud accounting platform. Financial data is stored locally in SQLite by default.
 
 The application interface is available in Russian, English, and Simplified Chinese and supports light and dark themes.
 
-> Open MAS is currently an early-stage MVP. The first supported bank statement format is focused on Russian T-Business users. The interface itself is multilingual.
+> Holotes is currently an early-stage MVP. The first supported bank statement format is focused on Russian T-Business users. The interface itself is multilingual.
 
 ## Contents
 
@@ -105,7 +107,7 @@ The application interface is available in Russian, English, and Simplified Chine
 
 The P&L report currently uses bank transactions and the cash method.
 
-Open MAS is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
+Holotes is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
 
 ## Technology stack
 
@@ -125,8 +127,8 @@ Python 3.12 is recommended.
 ### 1. Clone the repository
 
 ```powershell
-git clone https://github.com/swgplaya/open-mas.git
-cd open-mas
+git clone https://github.com/swgplaya/holotes.git
+cd holotes
 ```
 
 ### 2. Create a virtual environment
@@ -174,7 +176,7 @@ The SQLite database is created locally when the application starts.
 4. Save the transactions to the local database.
 5. Use the import journal to inspect or safely remove a previous import batch.
 
-Open MAS calculates a stable content hash for every transaction and skips duplicates.
+Holotes calculates a stable content hash for every transaction and skips duplicates.
 
 ### Classify transactions
 
@@ -206,7 +208,7 @@ Rules can match:
 
 Higher-priority rules are evaluated before lower-priority rules.
 
-Rule configurations can be exported as JSON and restored in another Open MAS installation.
+Rule configurations can be exported as JSON and restored in another Holotes installation.
 
 ### Build reports
 
@@ -298,7 +300,7 @@ The workflow is stored in:
 
 ## Architecture
 
-Open MAS separates the application into several layers.
+Holotes separates the application into several layers.
 
 ### Application entry point
 
@@ -366,7 +368,7 @@ User-entered data, imported descriptions, rule names, counterparties, and catego
 
 ## Local data and privacy
 
-Open MAS is designed primarily for local operation.
+Holotes is designed primarily for local operation.
 
 The following files and directories should remain outside version control:
 
@@ -385,7 +387,7 @@ Before opening an issue or pull request, remove confidential information from lo
 ## Project structure
 
 ```text
-open-mas/
+holotes/
 ├── .github/
 │   └── workflows/
 │       └── tests.yml
@@ -428,6 +430,7 @@ open-mas/
 │   ├── test_unit_economics.py
 │   └── test_unit_economics_repository.py
 ├── app.py
+├── run_holotes.py
 ├── pytest.ini
 ├── requirements.txt
 ├── requirements-dev.txt

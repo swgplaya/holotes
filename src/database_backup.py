@@ -26,7 +26,7 @@ from src.database import (
 )
 
 
-REQUIRED_OPEN_MAS_TABLES = frozenset(
+REQUIRED_HOLOTES_TABLES = frozenset(
     {
         "alembic_version",
         "bank_transactions",
@@ -57,7 +57,7 @@ class DatabaseBackupError(Exception):
 
 @dataclass(frozen=True)
 class DatabaseInspection:
-    """Результат проверки базы Open MAS."""
+    """Результат проверки базы Holotes."""
 
     path: Path
     revision: str
@@ -214,7 +214,7 @@ def _required_tables_for_revision(
     if revision not in known_revisions:
         raise DatabaseBackupError(
             "Версия базы не поддерживается "
-            "этой сборкой Open MAS: "
+            "этой сборкой Holotes: "
             f"{revision}."
         )
 
@@ -228,7 +228,7 @@ def _required_tables_for_revision(
     }
 
     required_tables = set(
-        REQUIRED_OPEN_MAS_TABLES
+        REQUIRED_HOLOTES_TABLES
     )
 
     for (
@@ -250,7 +250,7 @@ def _required_tables_for_revision(
     )
 
 
-def inspect_open_mas_database(
+def inspect_holotes_database(
     database_path: Path,
 ) -> DatabaseInspection:
     """Проверяет целостность и совместимость базы."""
@@ -309,14 +309,14 @@ def inspect_open_mas_database(
             }
 
             missing_base_tables = (
-                REQUIRED_OPEN_MAS_TABLES
+                REQUIRED_HOLOTES_TABLES
                 - tables
             )
 
             if missing_base_tables:
                 raise DatabaseBackupError(
                     "Файл не является совместимой "
-                    "базой Open MAS. "
+                    "базой Holotes. "
                     "Отсутствуют таблицы: "
                     + ", ".join(
                         sorted(
@@ -346,7 +346,7 @@ def inspect_open_mas_database(
             if missing_revision_tables:
                 raise DatabaseBackupError(
                     "Файл не соответствует своей "
-                    "ревизии Open MAS. "
+                    "ревизии Holotes. "
                     "Отсутствуют таблицы: "
                     + ", ".join(
                         sorted(
@@ -405,7 +405,7 @@ def _build_backup_path(
     )
 
     base_name = (
-        f"open-mas-backup-{timestamp}"
+        f"holotes-backup-{timestamp}"
     )
 
     candidate = (
@@ -442,7 +442,7 @@ def create_database_backup(
         backup_directory
     ).resolve()
 
-    inspect_open_mas_database(
+    inspect_holotes_database(
         source_path
     )
 
@@ -475,7 +475,7 @@ def create_database_backup(
             finally:
                 backup_connection.close()
 
-        inspect_open_mas_database(
+        inspect_holotes_database(
             backup_path
         )
 
@@ -491,7 +491,7 @@ def create_database_backup(
 
 @dataclass(frozen=True)
 class DatabaseRestoreResult:
-    """Result of restoring an Open MAS database."""
+    """Result of restoring a Holotes database."""
 
     database_path: Path
     safety_backup_path: Path
@@ -503,7 +503,7 @@ class DatabaseRestoreResult:
 _database_restore_lock = Lock()
 
 
-def upgrade_open_mas_database(
+def upgrade_holotes_database(
     database_path: Path,
 ) -> DatabaseInspection:
     """Upgrades a separate SQLite database to head."""
@@ -513,7 +513,7 @@ def upgrade_open_mas_database(
     ).resolve()
 
     inspection_before = (
-        inspect_open_mas_database(
+        inspect_holotes_database(
             database_path
         )
     )
@@ -565,7 +565,7 @@ def upgrade_open_mas_database(
         migration_engine.dispose()
 
     inspection_after = (
-        inspect_open_mas_database(
+        inspect_holotes_database(
             database_path
         )
     )
@@ -653,12 +653,12 @@ def restore_database(
         )
 
     with _database_restore_lock:
-        inspect_open_mas_database(
+        inspect_holotes_database(
             current_database_path
         )
 
         with tempfile.TemporaryDirectory(
-            prefix="open-mas-restore-",
+            prefix="holotes-restore-",
             dir=current_database_path.parent,
         ) as temporary_directory:
             staging_path = (
@@ -678,7 +678,7 @@ def restore_database(
                 ) from exc
 
             source_inspection = (
-                inspect_open_mas_database(
+                inspect_holotes_database(
                     staging_path
                 )
             )
@@ -688,7 +688,7 @@ def restore_database(
             )
 
             restored_inspection = (
-                upgrade_open_mas_database(
+                upgrade_holotes_database(
                     staging_path
                 )
             )
@@ -709,7 +709,7 @@ def restore_database(
                 )
 
                 final_inspection = (
-                    inspect_open_mas_database(
+                    inspect_holotes_database(
                         current_database_path
                     )
                 )
@@ -729,7 +729,7 @@ def restore_database(
                         current_database_path,
                     )
 
-                    inspect_open_mas_database(
+                    inspect_holotes_database(
                         current_database_path
                     )
 

@@ -794,7 +794,7 @@ def _format_date_range(
 
 SUMMARY_LABELS = {
     "ru": {
-        "title": "📊 Open MAS — финансовая сводка",
+        "title": "📊 Holotes — финансовая сводка",
         "period": "Период",
         "cash_flow": "💳 Cash Flow",
         "cf_inflow": "Поступления",
@@ -813,7 +813,7 @@ SUMMARY_LABELS = {
         "calendar_empty": "Запланированных движений нет.",
     },
     "en": {
-        "title": "📊 Open MAS — financial summary",
+        "title": "📊 Holotes — financial summary",
         "period": "Period",
         "cash_flow": "💳 Cash Flow",
         "cf_inflow": "Inflows",
@@ -832,7 +832,7 @@ SUMMARY_LABELS = {
         "calendar_empty": "No planned movements.",
     },
     "zh-CN": {
-        "title": "📊 Open MAS — 财务摘要",
+        "title": "📊 Holotes — 财务摘要",
         "period": "期间",
         "cash_flow": "💳 现金流",
         "cf_inflow": "流入",

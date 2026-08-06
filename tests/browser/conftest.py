@@ -38,7 +38,7 @@ def find_free_port() -> int:
 def streamlit_base_url(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> str:
-    """Запускает Open MAS с изолированной временной БД."""
+    """Запускает Holotes с изолированной временной БД."""
 
     temporary_directory = (
         tmp_path_factory.mktemp(

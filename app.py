@@ -41,7 +41,7 @@ from src.ui.settings import (
 
 
 st.set_page_config(
-    page_title="Open MAS",
+    page_title="Holotes",
     page_icon="📊",
     layout="wide",
 )
@@ -217,22 +217,22 @@ hero_badge = escape(
 
 st.html(
     f"""
-    <section class="openmas-hero">
-        <div class="openmas-hero__content">
-            <div class="openmas-hero__eyebrow">
+    <section class="holotes-hero">
+        <div class="holotes-hero__content">
+            <div class="holotes-hero__eyebrow">
                 {hero_eyebrow}
             </div>
 
-            <h1 class="openmas-hero__title">
-                Open MAS
+            <h1 class="holotes-hero__title">
+                Holotes
             </h1>
 
-            <p class="openmas-hero__description">
+            <p class="holotes-hero__description">
                 {hero_description}
             </p>
         </div>
 
-        <div class="openmas-hero__badge">
+        <div class="holotes-hero__badge">
             {hero_badge}
         </div>
     </section>

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import re
 
@@ -12,7 +12,7 @@ from playwright.sync_api import (
 pytestmark = pytest.mark.browser
 
 
-def test_open_mas_starts_and_opens_settings(
+def test_holotes_starts_and_opens_settings(
     page: Page,
     streamlit_base_url: str,
 ) -> None:
@@ -25,7 +25,7 @@ def test_open_mas_starts_and_opens_settings(
 
     expect(page).to_have_title(
         re.compile(
-            "Open MAS",
+            "Holotes",
             re.IGNORECASE,
         )
     )

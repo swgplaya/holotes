@@ -174,8 +174,8 @@ def test_fatal_polling_errors() -> None:
 
 def test_parse_command_with_bot_mention() -> None:
     command = telegram_bot.parse_command(
-        "/summary@OpenMasBot 2026-07",
-        bot_username="openmasbot",
+        "/summary@HolotesBot 2026-07",
+        bot_username="holotesbot",
     )
 
     assert command == (
@@ -190,7 +190,7 @@ def test_command_for_another_bot_is_ignored() -> None:
     assert (
         telegram_bot.parse_command(
             "/summary@another_bot",
-            bot_username="openmasbot",
+            bot_username="holotesbot",
         )
         is None
     )
@@ -259,7 +259,7 @@ def test_myid_is_available_without_access(
             text="/myid"
         ),
         token="SECRET",
-        bot_username="openmasbot",
+        bot_username="holotesbot",
     )
 
     assert handled is True
@@ -317,7 +317,7 @@ def test_summary_rejects_unauthorized_user(
             text="/summary"
         ),
         token="SECRET",
-        bot_username="openmasbot",
+        bot_username="holotesbot",
     )
 
     assert len(messages) == 1
@@ -356,7 +356,7 @@ def test_disabled_bot_rejects_summary(
             text="/summary"
         ),
         token="SECRET",
-        bot_username="openmasbot",
+        bot_username="holotesbot",
     )
 
     assert len(messages) == 1
@@ -435,7 +435,7 @@ def test_authorized_summary_uses_period(
             text="/summary 2026-07"
         ),
         token="SECRET",
-        bot_username="openmasbot",
+        bot_username="holotesbot",
     )
 
     assert calls == {
@@ -483,7 +483,7 @@ def test_invalid_summary_arguments_show_usage(
             )
         ),
         token="SECRET",
-        bot_username="openmasbot",
+        bot_username="holotesbot",
     )
 
     assert len(messages) == 1

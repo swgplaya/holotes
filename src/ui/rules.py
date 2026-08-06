@@ -474,7 +474,7 @@ def render_rules_tab(
             t("rules.transfer.download"),
             data=export_json,
             file_name=(
-                "open_mas_rules_"
+                "holotes_rules_"
                 f"{date.today().isoformat()}.json"
             ),
             mime="application/json",

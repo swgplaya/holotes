@@ -9,7 +9,7 @@ import streamlit as st
 from src.database_backup import (
     DatabaseBackupError,
     create_database_backup,
-    inspect_open_mas_database,
+    inspect_holotes_database,
     resolve_sqlite_database_path,
     restore_database,
 )
@@ -115,7 +115,7 @@ def _write_uploaded_database(
 
     with tempfile.NamedTemporaryFile(
         mode="wb",
-        prefix="open-mas-upload-",
+        prefix="holotes-upload-",
         suffix=".db",
         dir=directory,
         delete=False,
@@ -161,7 +161,7 @@ def _render_database_information(
     """Shows information about the active database."""
 
     inspection = (
-        inspect_open_mas_database(
+        inspect_holotes_database(
             database_path
         )
     )
@@ -490,7 +490,7 @@ def _render_restore_section(
 
     try:
         uploaded_inspection = (
-            inspect_open_mas_database(
+            inspect_holotes_database(
                 uploaded_path
             )
         )

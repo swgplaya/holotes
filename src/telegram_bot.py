@@ -41,7 +41,7 @@ RETRY_DELAYS_SECONDS = (
 )
 
 LOGGER = logging.getLogger(
-    "open_mas.telegram_bot"
+    "holotes.telegram_bot"
 )
 
 
@@ -86,7 +86,7 @@ class ParsedCommand:
 BOT_TEXTS = {
     "ru": {
         "start": (
-            "Open MAS Telegram-бот запущен.\n\n"
+            "Holotes Telegram-бот запущен.\n\n"
             "/help — список команд\n"
             "/myid — показать ваш Telegram user ID\n"
             "/chatid — показать ID текущего чата\n"
@@ -94,7 +94,7 @@ BOT_TEXTS = {
             "/summary 2026-07 — сводка за конкретный месяц"
         ),
         "help": (
-            "Команды Open MAS:\n\n"
+            "Команды Holotes:\n\n"
             "/myid — ваш Telegram user ID\n"
             "/chatid — ID и тип текущего чата\n"
             "/summary — сводка за период по умолчанию\n"
@@ -114,7 +114,7 @@ BOT_TEXTS = {
         ),
         "disabled": (
             "Финансовые команды Telegram-бота "
-            "сейчас отключены в настройках Open MAS."
+            "сейчас отключены в настройках Holotes."
         ),
         "access_denied": (
             "Доступ к финансовым данным запрещён.\n\n"
@@ -140,7 +140,7 @@ BOT_TEXTS = {
         ),
         "summary_error": (
             "Не удалось сформировать финансовую сводку. "
-            "Проверьте базу и настройки Open MAS."
+            "Проверьте базу и настройки Holotes."
         ),
         "unknown": (
             "Неизвестная команда. "
@@ -149,7 +149,7 @@ BOT_TEXTS = {
     },
     "en": {
         "start": (
-            "Open MAS Telegram bot is running.\n\n"
+            "Holotes Telegram bot is running.\n\n"
             "/help — command list\n"
             "/myid — show your Telegram user ID\n"
             "/chatid — show the current chat ID\n"
@@ -157,7 +157,7 @@ BOT_TEXTS = {
             "/summary 2026-07 — summary for a specific month"
         ),
         "help": (
-            "Open MAS commands:\n\n"
+            "Holotes commands:\n\n"
             "/myid — your Telegram user ID\n"
             "/chatid — current chat ID and type\n"
             "/summary — summary for the default period\n"
@@ -177,7 +177,7 @@ BOT_TEXTS = {
         ),
         "disabled": (
             "Telegram financial commands are currently "
-            "disabled in Open MAS settings."
+            "disabled in Holotes settings."
         ),
         "access_denied": (
             "Access to financial data was denied.\n\n"
@@ -203,7 +203,7 @@ BOT_TEXTS = {
         ),
         "summary_error": (
             "The financial summary could not be generated. "
-            "Check the Open MAS database and settings."
+            "Check the Holotes database and settings."
         ),
         "unknown": (
             "Unknown command. Send /help."
@@ -211,7 +211,7 @@ BOT_TEXTS = {
     },
     "zh-CN": {
         "start": (
-            "Open MAS Telegram 机器人正在运行。\n\n"
+            "Holotes Telegram 机器人正在运行。\n\n"
             "/help — 命令列表\n"
             "/myid — 显示您的 Telegram 用户 ID\n"
             "/chatid — 显示当前聊天 ID\n"
@@ -219,7 +219,7 @@ BOT_TEXTS = {
             "/summary 2026-07 — 指定月份的摘要"
         ),
         "help": (
-            "Open MAS 命令：\n\n"
+            "Holotes 命令：\n\n"
             "/myid — 您的 Telegram 用户 ID\n"
             "/chatid — 当前聊天 ID 和类型\n"
             "/summary — 默认期间的摘要\n"
@@ -238,7 +238,7 @@ BOT_TEXTS = {
             "聊天类型：{chat_type}"
         ),
         "disabled": (
-            "Open MAS 设置中当前已禁用 Telegram 财务命令。"
+            "Holotes 设置中当前已禁用 Telegram 财务命令。"
         ),
         "access_denied": (
             "无权访问财务数据。\n\n"
@@ -263,7 +263,7 @@ BOT_TEXTS = {
         ),
         "summary_error": (
             "无法生成财务摘要。"
-            "请检查 Open MAS 数据库和设置。"
+            "请检查 Holotes 数据库和设置。"
         ),
         "unknown": (
             "未知命令。请发送 /help。"
@@ -276,7 +276,7 @@ BOT_COMMANDS = {
     "en": (
         {
             "command": "start",
-            "description": "Start Open MAS and show help",
+            "description": "Start Holotes and show help",
         },
         {
             "command": "help",
@@ -298,7 +298,7 @@ BOT_COMMANDS = {
     "ru": (
         {
             "command": "start",
-            "description": "Запустить Open MAS и показать справку",
+            "description": "Запустить Holotes и показать справку",
         },
         {
             "command": "help",
@@ -320,7 +320,7 @@ BOT_COMMANDS = {
     "zh": (
         {
             "command": "start",
-            "description": "启动 Open MAS 并显示帮助",
+            "description": "启动 Holotes 并显示帮助",
         },
         {
             "command": "help",
@@ -448,7 +448,7 @@ def _telegram_api_request(
             "Content-Type": (
                 "application/x-www-form-urlencoded"
             ),
-            "User-Agent": "Open-MAS/0.1",
+            "User-Agent": "Holotes/0.1",
         },
         method="POST",
     )
@@ -1256,7 +1256,7 @@ def _polling_error_is_fatal(
 
 
 def run_bot() -> None:
-    """Runs the Open MAS long-polling bot."""
+    """Runs the Holotes long-polling bot."""
 
     token = load_telegram_bot_token()
 
@@ -1290,7 +1290,7 @@ def run_bot() -> None:
         )
 
     print(
-        "Open MAS Telegram bot started: "
+        "Holotes Telegram bot started: "
         f"@{bot_username}"
     )
 
@@ -1392,7 +1392,7 @@ def main() -> None:
 
     except KeyboardInterrupt:
         print(
-            "\nOpen MAS Telegram bot stopped."
+            "\nHolotes Telegram bot stopped."
         )
 
     except (

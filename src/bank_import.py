@@ -225,7 +225,7 @@ def read_tbank_csv(
 ) -> ImportResult:
     """
     Читает CSV-выписку Т-Бизнеса и преобразует её
-    во внутренний формат Open MAS.
+    во внутренний формат Holotes.
     """
 
     try:

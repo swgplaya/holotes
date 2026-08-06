@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 import json
@@ -198,7 +198,7 @@ def _request_bot_identity(
         data=b"",
         headers={
             "User-Agent": (
-                "Open-MAS/0.1"
+                "Holotes/0.1"
             ),
         },
         method="POST",

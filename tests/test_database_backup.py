@@ -15,7 +15,7 @@ from src.database_backup import (
     DatabaseBackupError,
     create_database_backup,
     get_head_revision,
-    inspect_open_mas_database,
+    inspect_holotes_database,
     resolve_sqlite_database_path,
     restore_database,
 )
@@ -81,7 +81,7 @@ def test_resolve_sqlite_database_path(
     ).resolve()
 
 
-def test_inspect_open_mas_database(
+def test_inspect_holotes_database(
     tmp_path: Path,
 ) -> None:
     database_path = (
@@ -94,7 +94,7 @@ def test_inspect_open_mas_database(
         "head",
     )
 
-    inspection = inspect_open_mas_database(
+    inspection = inspect_holotes_database(
         database_path
     )
 
@@ -129,7 +129,7 @@ def test_inspection_accepts_known_old_revision(
         "0001_initial",
     )
 
-    inspection = inspect_open_mas_database(
+    inspection = inspect_holotes_database(
         database_path
     )
 
@@ -154,7 +154,7 @@ def test_inspection_accepts_0002_without_telegram_tables(
         "0002_query_indexes",
     )
 
-    inspection = inspect_open_mas_database(
+    inspection = inspect_holotes_database(
         database_path
     )
 
@@ -196,7 +196,7 @@ def test_head_revision_requires_telegram_tables(
         DatabaseBackupError,
         match="telegram_allowed_users",
     ):
-        inspect_open_mas_database(
+        inspect_holotes_database(
             database_path
         )
 
@@ -247,7 +247,7 @@ def test_database_backup_is_independent_snapshot(
     )
 
     assert backup_path.name == (
-        "open-mas-backup-"
+        "holotes-backup-"
         "20260805-225000.db"
     )
 
@@ -275,7 +275,7 @@ def test_database_backup_is_independent_snapshot(
     )
 
     backup_inspection = (
-        inspect_open_mas_database(
+        inspect_holotes_database(
             backup_path
         )
     )
@@ -298,7 +298,7 @@ def test_corrupted_database_is_rejected(
     with pytest.raises(
         DatabaseBackupError
     ):
-        inspect_open_mas_database(
+        inspect_holotes_database(
             database_path
         )
 
@@ -322,7 +322,7 @@ def test_foreign_sqlite_database_is_rejected(
     with pytest.raises(
         DatabaseBackupError
     ):
-        inspect_open_mas_database(
+        inspect_holotes_database(
             database_path
         )
 
@@ -486,7 +486,7 @@ def test_restore_database_upgrades_old_backup(
     )
 
     inspection = (
-        inspect_open_mas_database(
+        inspect_holotes_database(
             current_path
         )
     )
@@ -658,7 +658,7 @@ def test_failed_restore_rolls_back_to_safety_backup(
 
     backups = list(
         backup_directory.glob(
-            "open-mas-backup-*.db"
+            "holotes-backup-*.db"
         )
     )
 
