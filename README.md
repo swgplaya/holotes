@@ -10,7 +10,7 @@ Holotes imports bank transactions, helps classify cash movements, builds managem
 
 Financial data is stored locally in SQLite by default. The interface is available in Russian, English, and Simplified Chinese and supports light and dark themes.
 
-> **Development status:** Holotes is preparing for its first tagged release, `v0.1.0`. This release is intended primarily for personal, local, single-user use. It is not yet designed for public server deployment or production multi-user access.
+> **Release status:** This README describes `v0.1.0`, the first tagged Holotes release. It is intended primarily for personal, local, single-user use and is not designed for public server deployment or production multi-user access.
 
 ## Contents
 
@@ -115,6 +115,7 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 - Store the bot token in `.env` without displaying the full saved token
 - Restrict access by Telegram user ID and chat ID
 - Configure the default summary period
+- Select and persist the summary language separately for each Telegram chat
 - Use Russian, English, and Simplified Chinese responses
 - Request read-only financial summaries
 - Request a summary for a specific month
@@ -134,7 +135,7 @@ The P&L report currently uses bank transactions and the cash method.
 
 Holotes is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
 
-The Telegram bot in `v0.1.0` is read-only, but it still exposes financial summaries to authorized Telegram accounts. Configure the allowed users and chats carefully and do not share the bot token.
+The Telegram bot in `v0.1.0` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
 
 ## Technology stack
 
@@ -309,7 +310,7 @@ Open the **Unit economics** tab to:
 
 ## Telegram bot
 
-The current bot is designed for local, read-only access to financial summaries.
+The current bot is designed for local access to read-only financial summaries and per-chat language preferences.
 
 ### Configure the token
 
@@ -338,6 +339,10 @@ Add the required user IDs and chat IDs in the Holotes settings. Keep access rest
 /help
 /myid
 /chatid
+/language
+/language ru
+/language en
+/language zh-CN
 /summary
 /summary YYYY-MM
 ```
@@ -345,9 +350,13 @@ Add the required user IDs and chat IDs in the Holotes settings. Keep access rest
 Examples:
 
 ```text
+/language
+/language en
 /summary
 /summary 2026-07
 ```
+
+The selected language is stored separately for each Telegram chat. In a group, Telegram may send the command in the form `/language@BotUsername en`.
 
 ## Backup and restore
 
@@ -407,8 +416,8 @@ The automated suite covers:
 - rule priority, merge, replace, and automatic classification;
 - database backup and restoration;
 - Alembic migrations;
-- demonstration data stability;
-- Telegram token storage, settings, authorization, bot behavior, and financial summaries;
+- demonstration data safety, stability, and built-in report category localization;
+- Telegram token storage, settings, authorization, per-chat language selection, bot behavior, and financial summaries;
 - application service launcher behavior;
 - browser smoke tests.
 
@@ -517,7 +526,7 @@ A successful check returns:
 ()
 ```
 
-User-entered data, imported descriptions, rule names, counterparties, and category names are preserved exactly as stored and are not automatically translated.
+Changing the interface language never rewrites stored values. Built-in P&L and Cash Flow category labels are translated for presentation in reports, while custom category names, imported descriptions, rule names, counterparties, and other user-entered content are displayed exactly as stored.
 
 ## Local data, privacy, and security
 
@@ -584,7 +593,8 @@ holotes/
 │   ├── telegram_summary.py
 │   ├── telegram_token.py
 │   ├── transaction_repository.py
-│   └── unit_economics.py
+│   ├── unit_economics.py
+│   └── version.py
 ├── tests/
 │   ├── browser/
 │   │   └── test_smoke.py
@@ -612,9 +622,9 @@ holotes/
 - There is no application login, user account system, or role-based access control
 - Docker and supported server deployment are not available yet
 - The Streamlit interface is an MVP and may be replaced or supplemented by a more suitable frontend
-- The Telegram bot is read-only and supports a limited command set
+- The Telegram bot supports a limited command set; access to financial data is read-only
 - P&L is cash-based rather than accrual-based
-- User-entered data and financial category names are not automatically translated
+- Built-in report category labels are localized, but custom categories and other user-entered content are not automatically translated
 - Some low-level validation and repository errors may not yet be localized
 - Large transaction histories still require further query, caching, and pagination optimization
 - `v0.1.0` is a personal/local milestone, not a production-ready multi-user release
@@ -634,7 +644,7 @@ The first release focuses on a complete local workflow for one user:
 - unit economics;
 - local backup and restore;
 - database migrations;
-- read-only Telegram summaries;
+- read-only Telegram financial summaries with per-chat language selection;
 - demonstration data;
 - automated tests and a Windows launcher;
 - release documentation and changelog.
@@ -690,7 +700,7 @@ A logo and interface screenshots are intentionally postponed until the next deve
 
 #### Telegram bot
 
-- Expand the command set beyond read-only monthly summaries
+- Expand the command set beyond on-demand financial summaries and basic language settings
 - Add configurable alerts and scheduled reports
 - Add payment-calendar and cash-gap notifications
 - Add company/workspace selection
