@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to Holotes will be documented in this file.
 
@@ -6,6 +6,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-06
 ### Added
 
 - Local-first management accounting application built with Streamlit.
