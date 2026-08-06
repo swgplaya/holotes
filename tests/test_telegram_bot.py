@@ -119,6 +119,7 @@ def test_register_bot_commands(
             "help",
             "myid",
             "chatid",
+            "language",
             "summary",
         ]
 

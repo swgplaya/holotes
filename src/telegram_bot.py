@@ -12,7 +12,10 @@ from urllib.request import Request, urlopen
 from src.telegram_settings import (
     TelegramSettings,
     get_telegram_settings,
+    get_telegram_summary_language,
     is_telegram_request_allowed,
+    normalize_telegram_summary_language,
+    set_telegram_summary_language,
 )
 from src.telegram_summary import (
     TelegramSummaryError,
@@ -90,6 +93,7 @@ BOT_TEXTS = {
             "/help — список команд\n"
             "/myid — показать ваш Telegram user ID\n"
             "/chatid — показать ID текущего чата\n"
+            "/language — язык финансовых сводок\n"
             "/summary — финансовая сводка\n"
             "/summary 2026-07 — сводка за конкретный месяц"
         ),
@@ -97,6 +101,7 @@ BOT_TEXTS = {
             "Команды Holotes:\n\n"
             "/myid — ваш Telegram user ID\n"
             "/chatid — ID и тип текущего чата\n"
+            "/language — выбрать язык сводок\n"
             "/summary — сводка за период по умолчанию\n"
             "/summary YYYY-MM — сводка за выбранный месяц\n\n"
             "Также поддерживаются периоды:\n"
@@ -123,6 +128,23 @@ BOT_TEXTS = {
             "Тип чата: {chat_type}\n\n"
             "Добавьте пользователя и, для группы, чат "
             "в Настройки → Telegram."
+        ),
+        "language_usage": (
+            "Текущий язык сводок: {language_name}.\n\n"
+            "/language ru\n"
+            "/language en\n"
+            "/language zh-CN"
+        ),
+        "language_changed": (
+            "Язык финансовых сводок изменён: "
+            "{language_name}."
+        ),
+        "language_invalid": (
+            "Неизвестный язык. Используйте ru, en "
+            "или zh-CN."
+        ),
+        "language_error": (
+            "Не удалось сохранить язык сводок."
         ),
         "summary_usage": (
             "Формат команды:\n"
@@ -153,6 +175,7 @@ BOT_TEXTS = {
             "/help — command list\n"
             "/myid — show your Telegram user ID\n"
             "/chatid — show the current chat ID\n"
+            "/language — summary language\n"
             "/summary — financial summary\n"
             "/summary 2026-07 — summary for a specific month"
         ),
@@ -160,6 +183,7 @@ BOT_TEXTS = {
             "Holotes commands:\n\n"
             "/myid — your Telegram user ID\n"
             "/chatid — current chat ID and type\n"
+            "/language — choose summary language\n"
             "/summary — summary for the default period\n"
             "/summary YYYY-MM — summary for a selected month\n\n"
             "Named periods:\n"
@@ -186,6 +210,22 @@ BOT_TEXTS = {
             "Chat type: {chat_type}\n\n"
             "Add the user and, for a group, the chat "
             "under Settings → Telegram."
+        ),
+        "language_usage": (
+            "Current summary language: {language_name}.\n\n"
+            "/language ru\n"
+            "/language en\n"
+            "/language zh-CN"
+        ),
+        "language_changed": (
+            "Financial summary language changed to "
+            "{language_name}."
+        ),
+        "language_invalid": (
+            "Unknown language. Use ru, en, or zh-CN."
+        ),
+        "language_error": (
+            "The summary language could not be saved."
         ),
         "summary_usage": (
             "Command format:\n"
@@ -215,6 +255,7 @@ BOT_TEXTS = {
             "/help — 命令列表\n"
             "/myid — 显示您的 Telegram 用户 ID\n"
             "/chatid — 显示当前聊天 ID\n"
+            "/language — 财务摘要语言\n"
             "/summary — 财务摘要\n"
             "/summary 2026-07 — 指定月份的摘要"
         ),
@@ -222,6 +263,7 @@ BOT_TEXTS = {
             "Holotes 命令：\n\n"
             "/myid — 您的 Telegram 用户 ID\n"
             "/chatid — 当前聊天 ID 和类型\n"
+            "/language — 选择摘要语言\n"
             "/summary — 默认期间的摘要\n"
             "/summary YYYY-MM — 指定月份的摘要\n\n"
             "可用期间：\n"
@@ -246,6 +288,21 @@ BOT_TEXTS = {
             "聊天 ID：{chat_id}\n"
             "聊天类型：{chat_type}\n\n"
             "请在设置 → Telegram 中添加用户和群组聊天。"
+        ),
+        "language_usage": (
+            "当前摘要语言：{language_name}。\n\n"
+            "/language ru\n"
+            "/language en\n"
+            "/language zh-CN"
+        ),
+        "language_changed": (
+            "财务摘要语言已更改为：{language_name}。"
+        ),
+        "language_invalid": (
+            "未知语言。请使用 ru、en 或 zh-CN。"
+        ),
+        "language_error": (
+            "无法保存摘要语言。"
         ),
         "summary_usage": (
             "命令格式：\n"
@@ -291,6 +348,10 @@ BOT_COMMANDS = {
             "description": "Show chat and topic IDs",
         },
         {
+            "command": "language",
+            "description": "Choose summary language",
+        },
+        {
             "command": "summary",
             "description": "Generate a financial summary",
         },
@@ -311,6 +372,10 @@ BOT_COMMANDS = {
         {
             "command": "chatid",
             "description": "Показать ID чата и темы",
+        },
+        {
+            "command": "language",
+            "description": "Выбрать язык сводок",
         },
         {
             "command": "summary",
@@ -335,10 +400,21 @@ BOT_COMMANDS = {
             "description": "显示聊天和主题 ID",
         },
         {
+            "command": "language",
+            "description": "选择摘要语言",
+        },
+        {
             "command": "summary",
             "description": "生成财务摘要",
         },
     ),
+}
+
+
+TELEGRAM_LANGUAGE_NAMES = {
+    "ru": "Русский",
+    "en": "English",
+    "zh-CN": "简体中文",
 }
 
 
@@ -989,6 +1065,7 @@ def _send_localized(
     token: str,
     context: TelegramMessageContext,
     key: str,
+    language: str | None = None,
     **values: object,
 ) -> None:
     """Sends a localized command response."""
@@ -1002,10 +1079,141 @@ def _send_localized(
             context.message_thread_id
         ),
         text=_text(
-            context.language_code,
+            language or context.language_code,
             key,
             **values,
         ),
+    )
+
+
+
+def _summary_language_for_context(
+    context: TelegramMessageContext,
+) -> str:
+    """Returns saved language or Telegram fallback."""
+
+    fallback = _language_code(
+        context.language_code
+    )
+
+    try:
+        return get_telegram_summary_language(
+            telegram_chat_id=context.telegram_chat_id,
+            default_language=fallback,
+        )
+    except Exception:
+        LOGGER.exception(
+            "Could not read Telegram summary language."
+        )
+        return fallback
+
+
+def _handle_language_command(
+    *,
+    token: str,
+    context: TelegramMessageContext,
+    arguments: str,
+) -> None:
+    """Shows or changes one chat's summary language."""
+
+    try:
+        settings = get_telegram_settings()
+    except Exception:
+        LOGGER.exception(
+            "Could not read Telegram settings."
+        )
+        _send_localized(
+            token=token,
+            context=context,
+            key="language_error",
+        )
+        return
+
+    if not settings.is_enabled:
+        _send_localized(
+            token=token,
+            context=context,
+            key="disabled",
+        )
+        return
+
+    allowed = is_telegram_request_allowed(
+        telegram_user_id=context.telegram_user_id,
+        telegram_chat_id=context.telegram_chat_id,
+        chat_type=context.chat_type,
+    )
+
+    if not allowed:
+        _send_localized(
+            token=token,
+            context=context,
+            key="access_denied",
+            user_id=context.telegram_user_id,
+            chat_id=context.telegram_chat_id,
+            chat_type=context.chat_type,
+        )
+        return
+
+    current = _summary_language_for_context(
+        context
+    )
+    values = str(arguments).split()
+
+    if not values:
+        _send_localized(
+            token=token,
+            context=context,
+            key="language_usage",
+            language=current,
+            language_name=(
+                TELEGRAM_LANGUAGE_NAMES[current]
+            ),
+        )
+        return
+
+    if len(values) != 1:
+        _send_localized(
+            token=token,
+            context=context,
+            key="language_invalid",
+            language=current,
+        )
+        return
+
+    try:
+        selected = normalize_telegram_summary_language(
+            values[0]
+        )
+        selected = set_telegram_summary_language(
+            telegram_chat_id=context.telegram_chat_id,
+            language=selected,
+        )
+    except ValueError:
+        _send_localized(
+            token=token,
+            context=context,
+            key="language_invalid",
+            language=current,
+        )
+        return
+    except Exception:
+        LOGGER.exception(
+            "Could not save Telegram summary language."
+        )
+        _send_localized(
+            token=token,
+            context=context,
+            key="language_error",
+            language=current,
+        )
+        return
+
+    _send_localized(
+        token=token,
+        context=context,
+        key="language_changed",
+        language=selected,
+        language_name=TELEGRAM_LANGUAGE_NAMES[selected],
     )
 
 
@@ -1074,6 +1282,10 @@ def _handle_summary_command(
 
         return
 
+    summary_language = (
+        _summary_language_for_context(context)
+    )
+
     try:
         period = (
             _summary_period_argument(
@@ -1086,6 +1298,7 @@ def _handle_summary_command(
             token=token,
             context=context,
             key="summary_usage",
+            language=summary_language,
         )
 
         return
@@ -1101,6 +1314,7 @@ def _handle_summary_command(
             token=token,
             context=context,
             key="invalid_period",
+            language=summary_language,
         )
 
         return
@@ -1134,9 +1348,7 @@ def _handle_summary_command(
     summary_text = (
         format_telegram_summary(
             summary,
-            language=(
-                context.language_code
-            ),
+            language=summary_language,
         )
     )
 
@@ -1224,6 +1436,14 @@ def handle_update(
             chat_type=context.chat_type,
         )
 
+        return True
+
+    if command.name == "language":
+        _handle_language_command(
+            token=token,
+            context=context,
+            arguments=command.arguments,
+        )
         return True
 
     if command.name == "summary":

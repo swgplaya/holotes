@@ -755,3 +755,50 @@ class TelegramAllowedChat(Base):
         onupdate=func.current_timestamp(),
     )
 
+class TelegramChatPreference(Base):
+    """Per-chat preferences for Telegram summaries."""
+
+    __tablename__ = "telegram_chat_preferences"
+
+    __table_args__ = (
+        CheckConstraint(
+            "language IN ('ru', 'en', 'zh-CN')",
+            name=(
+                "ck_telegram_chat_preferences_"
+                "language"
+            ),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    telegram_chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        unique=True,
+    )
+
+    language: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="ru",
+        server_default="ru",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+

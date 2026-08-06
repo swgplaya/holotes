@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
@@ -12,6 +12,7 @@ from src.models import (
     TelegramAllowedChat,
     TelegramAllowedUser,
     TelegramBotSettings,
+    TelegramChatPreference,
 )
 
 
@@ -27,6 +28,140 @@ TELEGRAM_CHAT_TYPES = (
     "group",
     "supergroup",
 )
+
+
+TELEGRAM_LANGUAGE_ALIASES = {
+    "ru": "ru",
+    "rus": "ru",
+    "russian": "ru",
+    "en": "en",
+    "eng": "en",
+    "english": "en",
+    "zh": "zh-CN",
+    "zh-cn": "zh-CN",
+    "cn": "zh-CN",
+    "chinese": "zh-CN",
+    "zn": "zh-CN",
+}
+
+
+def _any_telegram_chat_id(
+    value: int | str,
+) -> int:
+    """Validates a private or group Telegram chat ID."""
+
+    if isinstance(value, bool):
+        raise ValueError(
+            "Telegram chat ID must be an integer."
+        )
+
+    try:
+        normalized = int(str(value).strip())
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "Telegram chat ID must be an integer."
+        ) from exc
+
+    if not (
+        SIGNED_BIGINT_MIN
+        <= normalized
+        <= SIGNED_BIGINT_MAX
+    ) or normalized == 0:
+        raise ValueError(
+            "Telegram chat ID is invalid."
+        )
+
+    return normalized
+
+
+def normalize_telegram_summary_language(
+    language: str,
+) -> str:
+    """Normalizes a supported summary language."""
+
+    normalized = str(language).strip().replace(
+        "_",
+        "-",
+    ).lower()
+
+    result = TELEGRAM_LANGUAGE_ALIASES.get(
+        normalized
+    )
+
+    if result is None:
+        raise ValueError(
+            "Unknown Telegram summary language."
+        )
+
+    return result
+
+
+def get_telegram_summary_language(
+    *,
+    telegram_chat_id: int | str,
+    default_language: str = "ru",
+) -> str:
+    """Returns the saved summary language for one chat."""
+
+    chat_id = _any_telegram_chat_id(
+        telegram_chat_id
+    )
+    fallback = normalize_telegram_summary_language(
+        default_language
+    )
+
+    with SessionLocal() as session:
+        preference = session.scalar(
+            select(TelegramChatPreference).where(
+                TelegramChatPreference.telegram_chat_id
+                == chat_id
+            )
+        )
+
+    if preference is None:
+        return fallback
+
+    try:
+        return normalize_telegram_summary_language(
+            preference.language
+        )
+    except ValueError:
+        return fallback
+
+
+def set_telegram_summary_language(
+    *,
+    telegram_chat_id: int | str,
+    language: str,
+) -> str:
+    """Creates or updates the language for one chat."""
+
+    chat_id = _any_telegram_chat_id(
+        telegram_chat_id
+    )
+    normalized = normalize_telegram_summary_language(
+        language
+    )
+
+    with SessionLocal() as session:
+        preference = session.scalar(
+            select(TelegramChatPreference).where(
+                TelegramChatPreference.telegram_chat_id
+                == chat_id
+            )
+        )
+
+        if preference is None:
+            preference = TelegramChatPreference(
+                telegram_chat_id=chat_id
+            )
+            session.add(preference)
+
+        preference.language = normalized
+        session.commit()
+
+    return normalized
+
 
 SIGNED_BIGINT_MIN = -(2**63)
 SIGNED_BIGINT_MAX = 2**63 - 1
