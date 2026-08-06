@@ -12,6 +12,7 @@ from src.i18n import (
 )
 
 from src.database import init_db
+from src.version import APP_NAME, __version__
 from src.ui.operations import (
     render_operations_tab,
 )
@@ -41,7 +42,7 @@ from src.ui.settings import (
 
 
 st.set_page_config(
-    page_title="Holotes",
+    page_title=f"{APP_NAME} {__version__}",
     page_icon="📊",
     layout="wide",
 )
@@ -211,7 +212,7 @@ hero_description = escape(
 )
 
 hero_badge = escape(
-    t("app.badge")
+    f"{t('app.badge')} \u00b7 v{__version__}"
 )
 
 
