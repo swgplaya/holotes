@@ -231,6 +231,18 @@ def render_unit_economics_tab(
             )
         )
 
+        # Keep this selector outside the form so changing it
+        # immediately rerenders the corresponding value field.
+        calculation_type = st.selectbox(
+            t("unit.cost.type"),
+            options=list(COST_TYPE_LABELS),
+            format_func=format_unit_cost_type,
+            key=(
+                "create_unit_economics_cost_type_"
+                f"{selected_product_id}"
+            ),
+        )
+
         with st.form(
             f"create_cost_item_form_"
             f"{selected_product_id}",
@@ -241,12 +253,6 @@ def render_unit_economics_tab(
                 placeholder=t(
                     "unit.cost.name_placeholder"
                 ),
-            )
-
-            calculation_type = st.selectbox(
-                t("unit.cost.type"),
-                options=list(COST_TYPE_LABELS),
-                format_func=format_unit_cost_type,
             )
 
             cost_amount_rubles: float | None
