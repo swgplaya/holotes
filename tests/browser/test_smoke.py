@@ -134,7 +134,9 @@ def test_holotes_starts_and_opens_settings(
     )
 
     expect(
-        page.get_by_text(
+        page.locator(
+            '[role="tabpanel"]:visible'
+        ).get_by_text(
             current_period_text,
             exact=True,
         )
@@ -150,7 +152,9 @@ def test_holotes_starts_and_opens_settings(
     )
 
     expect(
-        page.get_by_text(
+        page.locator(
+            '[role="tabpanel"]:visible'
+        ).get_by_text(
             current_period_text,
             exact=True,
         )
