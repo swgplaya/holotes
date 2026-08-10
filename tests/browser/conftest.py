@@ -72,6 +72,71 @@ def streamlit_base_url(
         "STREAMLIT_BROWSER_GATHER_USAGE_STATS"
     ] = "false"
 
+    seed_script = """
+from datetime import date, datetime, time, timedelta
+
+from src.database import SessionLocal, init_db
+from src.models import BankTransaction
+
+
+init_db()
+
+today = date.today()
+first_current_month = today.replace(day=1)
+previous_month_date = (
+    first_current_month
+    - timedelta(days=1)
+)
+
+posted_at = datetime.combine(
+    previous_month_date,
+    time(12, 0),
+)
+
+with SessionLocal() as session:
+    session.add(
+        BankTransaction(
+            source_hash="b" * 64,
+            direction="income",
+            posted_at=posted_at,
+            amount_kopecks=100_00,
+            signed_amount_kopecks=100_00,
+            currency="RUB",
+            description=(
+                "Browser smoke report transaction"
+            ),
+            include_in_pnl=True,
+            pnl_category="Продажи",
+            include_in_cf=True,
+            cf_category="Операционная деятельность",
+            classification_status="classified",
+        )
+    )
+    session.commit()
+"""
+
+    seed_result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            seed_script,
+        ],
+        cwd=PROJECT_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    if seed_result.returncode != 0:
+        raise RuntimeError(
+            "Could not seed browser smoke database.\n\n"
+            + seed_result.stdout
+            + "\n"
+            + seed_result.stderr
+        )
+
     with log_path.open(
         "w+",
         encoding="utf-8",

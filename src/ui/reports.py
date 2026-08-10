@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from datetime import date
 
 import pandas as pd
 import plotly.express as px
@@ -9,12 +10,15 @@ from src.categories import (
 )
 from src.reporting import (
     COMPARISON_MODES,
+    REPORT_PERIOD_MODES,
     ReportResult,
     build_cash_flow_report,
     build_category_comparison,
     build_pnl_report,
     filter_transactions_by_period,
     get_comparison_period,
+    get_report_month_options,
+    get_report_preset_period,
 )
 
 from src.transaction_repository import (
@@ -1013,6 +1017,18 @@ def _render_financial_report_tab(
                     },
                 )
 
+    REPORT_PERIOD_MODE_STATE_KEY = (
+        "shared_report_period_mode"
+    )
+
+    REPORT_MONTH_STATE_KEY = (
+        "shared_report_month"
+    )
+
+    REPORT_YEAR_STATE_KEY = (
+        "shared_report_year"
+    )
+
     REPORT_START_DATE_STATE_KEY = (
         "shared_report_start_date"
     )
@@ -1025,6 +1041,21 @@ def _render_financial_report_tab(
         "shared_report_comparison_mode"
     )
 
+
+    REPORT_PERIOD_MODE_WIDGET_KEYS = {
+        "pnl": "pnl_report_period_mode",
+        "cash_flow": "cash_flow_report_period_mode",
+    }
+
+    REPORT_MONTH_WIDGET_KEYS = {
+        "pnl": "pnl_report_month",
+        "cash_flow": "cash_flow_report_month",
+    }
+
+    REPORT_YEAR_WIDGET_KEYS = {
+        "pnl": "pnl_report_year",
+        "cash_flow": "cash_flow_report_year",
+    }
 
     REPORT_START_DATE_WIDGET_KEYS = {
         "pnl": "pnl_report_start_date",
@@ -1048,9 +1079,8 @@ def _render_financial_report_tab(
         max_date,
         default_date,
     ):
-        """Ограничивает дату диапазоном имеющихся операций."""
+        """Ограничивает пользовательскую дату диапазоном данных."""
 
-        # None и pandas.NaT не являются корректными датами.
         if value is None or pd.isna(value):
             return default_date
 
@@ -1059,8 +1089,6 @@ def _render_financial_report_tab(
         except (TypeError, ValueError, OverflowError):
             return default_date
 
-        # pd.Timestamp(pd.NaT) не выбрасывает ошибку,
-        # поэтому NaT требуется проверять отдельно.
         if pd.isna(timestamp):
             return default_date
 
@@ -1074,28 +1102,124 @@ def _render_financial_report_tab(
 
         return result
 
+
+    def _get_report_month_options(
+        min_date,
+        max_date,
+    ) -> list[str]:
+        """Возвращает доступные месяцы от новых к старым."""
+
+        return get_report_month_options(
+            min_date=min_date,
+            max_date=max_date,
+        )
+
+
+    def _format_report_month(
+        value: str,
+    ) -> str:
+        """Форматирует YYYY-MM как MM.YYYY."""
+
+        year, month = value.split(
+            "-",
+            maxsplit=1,
+        )
+
+        return f"{month}.{year}"
+
+
     def _set_report_widget_values(
         widget_keys: dict[str, str],
         value,
     ) -> None:
-        """Устанавливает одно значение всем связанным виджетам."""
+        """Устанавливает одно значение связанным виджетам."""
 
         for widget_key in widget_keys.values():
             st.session_state[widget_key] = value
 
 
+    def _sync_report_period_mode(
+        source_widget_key: str,
+    ) -> None:
+        """Синхронизирует тип периода между отчётами."""
+
+        selected_mode = st.session_state.get(
+            source_widget_key
+        )
+
+        if selected_mode not in REPORT_PERIOD_MODES:
+            return
+
+        st.session_state[
+            REPORT_PERIOD_MODE_STATE_KEY
+        ] = selected_mode
+
+        _set_report_widget_values(
+            REPORT_PERIOD_MODE_WIDGET_KEYS,
+            selected_mode,
+        )
+
+
+    def _sync_report_month(
+        source_widget_key: str,
+    ) -> None:
+        """Синхронизирует выбранный месяц."""
+
+        selected_month = st.session_state.get(
+            source_widget_key
+        )
+
+        if not selected_month:
+            return
+
+        st.session_state[
+            REPORT_MONTH_STATE_KEY
+        ] = selected_month
+
+        _set_report_widget_values(
+            REPORT_MONTH_WIDGET_KEYS,
+            selected_month,
+        )
+
+
+    def _sync_report_year(
+        source_widget_key: str,
+    ) -> None:
+        """Синхронизирует выбранный год."""
+
+        selected_year = st.session_state.get(
+            source_widget_key
+        )
+
+        try:
+            selected_year = int(
+                selected_year
+            )
+        except (TypeError, ValueError):
+            return
+
+        st.session_state[
+            REPORT_YEAR_STATE_KEY
+        ] = selected_year
+
+        _set_report_widget_values(
+            REPORT_YEAR_WIDGET_KEYS,
+            selected_year,
+        )
+
+
     def _sync_report_start_date(
         source_widget_key: str,
     ) -> None:
-        """Синхронизирует начало периода между отчётами."""
+        """Синхронизирует пользовательское начало периода."""
 
         selected_start = st.session_state.get(
             source_widget_key
         )
 
         if (
-                selected_start is None
-                or pd.isna(selected_start)
+            selected_start is None
+            or pd.isna(selected_start)
         ):
             return
 
@@ -1113,9 +1237,9 @@ def _render_financial_report_tab(
         )
 
         if (
-                current_end is not None
-                and not pd.isna(current_end)
-                and selected_start > current_end
+            current_end is not None
+            and not pd.isna(current_end)
+            and selected_start > current_end
         ):
             st.session_state[
                 REPORT_END_DATE_STATE_KEY
@@ -1130,7 +1254,7 @@ def _render_financial_report_tab(
     def _sync_report_end_date(
         source_widget_key: str,
     ) -> None:
-        """Синхронизирует конец периода между отчётами."""
+        """Синхронизирует пользовательский конец периода."""
 
         selected_end = st.session_state.get(
             source_widget_key
@@ -1169,6 +1293,7 @@ def _render_financial_report_tab(
                 selected_end,
             )
 
+
     def _sync_report_comparison_mode(
         source_widget_key: str,
     ) -> None:
@@ -1191,6 +1316,62 @@ def _render_financial_report_tab(
         )
 
 
+    def _resolve_report_period(
+        *,
+        period_mode: str,
+        selected_month: str,
+        selected_year: int,
+        custom_start,
+        custom_end,
+        min_date,
+        max_date,
+    ):
+        """Преобразует выбранный режим в конкретные даты."""
+
+        if period_mode in {
+            "month",
+            "year",
+            "last_30_days",
+            "all_time",
+        }:
+            return get_report_preset_period(
+                period_mode=period_mode,
+                selected_month=selected_month,
+                selected_year=selected_year,
+                min_date=min_date,
+                max_date=max_date,
+            )
+
+        if period_mode == "custom":
+            custom_max_date = max(
+                max_date,
+                date.today(),
+            )
+
+            start_date = _clamp_report_date(
+                value=custom_start,
+                min_date=min_date,
+                max_date=custom_max_date,
+                default_date=min_date,
+            )
+
+            end_date = _clamp_report_date(
+                value=custom_end,
+                min_date=min_date,
+                max_date=custom_max_date,
+                default_date=custom_max_date,
+            )
+
+            if start_date > end_date:
+                end_date = start_date
+
+            return start_date, end_date
+
+        raise ValueError(
+            f"Неизвестный режим периода: {period_mode}"
+        )
+
+
     def _prepare_report_filter_state(
         *,
         report_key: str,
@@ -1206,6 +1387,57 @@ def _render_financial_report_tab(
             raise ValueError(
                 f"Неизвестный ключ отчёта: {report_key}"
             )
+
+        month_options = (
+            _get_report_month_options(
+                min_date=min_date,
+                max_date=max_date,
+            )
+        )
+
+        latest_year = max(
+            max_date.year,
+            date.today().year,
+        )
+
+        year_options = list(
+            range(
+                latest_year,
+                min_date.year - 1,
+                -1,
+            )
+        )
+
+        period_mode = st.session_state.get(
+            REPORT_PERIOD_MODE_STATE_KEY,
+            "month",
+        )
+
+        if period_mode not in REPORT_PERIOD_MODES:
+            period_mode = "month"
+
+        selected_month = st.session_state.get(
+            REPORT_MONTH_STATE_KEY,
+            month_options[0],
+        )
+
+        if selected_month not in month_options:
+            selected_month = month_options[0]
+
+        selected_year = st.session_state.get(
+            REPORT_YEAR_STATE_KEY,
+            max_date.year,
+        )
+
+        try:
+            selected_year = int(
+                selected_year
+            )
+        except (TypeError, ValueError):
+            selected_year = max_date.year
+
+        if selected_year not in year_options:
+            selected_year = max_date.year
 
         shared_start = _clamp_report_date(
             value=st.session_state.get(
@@ -1237,6 +1469,18 @@ def _render_financial_report_tab(
             comparison_mode = "none"
 
         st.session_state[
+            REPORT_PERIOD_MODE_STATE_KEY
+        ] = period_mode
+
+        st.session_state[
+            REPORT_MONTH_STATE_KEY
+        ] = selected_month
+
+        st.session_state[
+            REPORT_YEAR_STATE_KEY
+        ] = selected_year
+
+        st.session_state[
             REPORT_START_DATE_STATE_KEY
         ] = shared_start
 
@@ -1248,49 +1492,48 @@ def _render_financial_report_tab(
             REPORT_COMPARISON_STATE_KEY
         ] = comparison_mode
 
-        start_widget_key = (
-            REPORT_START_DATE_WIDGET_KEYS[
-                report_key
-            ]
+        widget_values = (
+            (
+                REPORT_PERIOD_MODE_WIDGET_KEYS,
+                period_mode,
+            ),
+            (
+                REPORT_MONTH_WIDGET_KEYS,
+                selected_month,
+            ),
+            (
+                REPORT_YEAR_WIDGET_KEYS,
+                selected_year,
+            ),
+            (
+                REPORT_START_DATE_WIDGET_KEYS,
+                shared_start,
+            ),
+            (
+                REPORT_END_DATE_WIDGET_KEYS,
+                shared_end,
+            ),
+            (
+                REPORT_COMPARISON_WIDGET_KEYS,
+                comparison_mode,
+            ),
         )
 
-        end_widget_key = (
-            REPORT_END_DATE_WIDGET_KEYS[
+        for widget_keys, value in widget_values:
+            widget_key = widget_keys[
                 report_key
             ]
-        )
 
-        comparison_widget_key = (
-            REPORT_COMPARISON_WIDGET_KEYS[
-                report_key
-            ]
-        )
+            if (
+                st.session_state.get(
+                    widget_key
+                )
+                != value
+            ):
+                st.session_state[
+                    widget_key
+                ] = value
 
-        if (
-            st.session_state.get(start_widget_key)
-            != shared_start
-        ):
-            st.session_state[
-                start_widget_key
-            ] = shared_start
-
-        if (
-            st.session_state.get(end_widget_key)
-            != shared_end
-        ):
-            st.session_state[
-                end_widget_key
-            ] = shared_end
-
-        if (
-            st.session_state.get(
-                comparison_widget_key
-            )
-            != comparison_mode
-        ):
-            st.session_state[
-                comparison_widget_key
-            ] = comparison_mode
 
     def show_financial_report(
             report_type: str,
@@ -1320,6 +1563,24 @@ def _render_financial_report_tab(
             st.error(str(exc))
             return
 
+        period_mode_widget_key = (
+            REPORT_PERIOD_MODE_WIDGET_KEYS[
+                key_prefix
+            ]
+        )
+
+        month_widget_key = (
+            REPORT_MONTH_WIDGET_KEYS[
+                key_prefix
+            ]
+        )
+
+        year_widget_key = (
+            REPORT_YEAR_WIDGET_KEYS[
+                key_prefix
+            ]
+        )
+
         start_widget_key = (
             REPORT_START_DATE_WIDGET_KEYS[
                 key_prefix
@@ -1338,6 +1599,26 @@ def _render_financial_report_tab(
             ]
         )
 
+        month_options = (
+            _get_report_month_options(
+                min_date=min_date,
+                max_date=max_date,
+            )
+        )
+
+        latest_year = max(
+            max_date.year,
+            date.today().year,
+        )
+
+        year_options = list(
+            range(
+                latest_year,
+                min_date.year - 1,
+                -1,
+            )
+        )
+
         with st.container(
             border=True,
             key=f"{key_prefix}_period_panel",
@@ -1346,39 +1627,111 @@ def _render_financial_report_tab(
                 f"#### {t('reports.period.title')}"
             )
 
-            start_column, end_column, comparison_column = (
-                st.columns(
-                    [1, 1, 1.25],
-                    gap="medium",
-                )
+            (
+                mode_column,
+                value_column,
+                comparison_column,
+            ) = st.columns(
+                [1, 1, 1.25],
+                gap="medium",
             )
 
-            with start_column:
-                start_date = st.date_input(
-                    t("reports.period.start"),
-                    min_value=min_date,
-                    max_value=max_date,
-                    format="DD.MM.YYYY",
-                    key=start_widget_key,
-                    on_change=_sync_report_start_date,
-                    args=(start_widget_key,),
+            with mode_column:
+                period_mode = st.selectbox(
+                    t("reports.period.mode"),
+                    options=list(
+                        REPORT_PERIOD_MODES
+                    ),
+                    format_func=lambda mode: t(
+                        f"reports.period.mode.{mode}"
+                    ),
+                    key=period_mode_widget_key,
+                    on_change=(
+                        _sync_report_period_mode
+                    ),
+                    args=(
+                        period_mode_widget_key,
+                    ),
                 )
 
-            with end_column:
-                end_date = st.date_input(
-                    t("reports.period.end"),
-                    min_value=min_date,
-                    max_value=max_date,
-                    format="DD.MM.YYYY",
-                    key=end_widget_key,
-                    on_change=_sync_report_end_date,
-                    args=(end_widget_key,),
-                )
+            selected_month = st.session_state[
+                REPORT_MONTH_STATE_KEY
+            ]
+
+            selected_year = st.session_state[
+                REPORT_YEAR_STATE_KEY
+            ]
+
+            with value_column:
+                if period_mode == "month":
+                    selected_month = st.selectbox(
+                        t("reports.period.month"),
+                        options=month_options,
+                        format_func=(
+                            _format_report_month
+                        ),
+                        key=month_widget_key,
+                        on_change=_sync_report_month,
+                        args=(month_widget_key,),
+                    )
+
+                elif period_mode == "year":
+                    selected_year = st.selectbox(
+                        t("reports.period.year"),
+                        options=year_options,
+                        key=year_widget_key,
+                        on_change=_sync_report_year,
+                        args=(year_widget_key,),
+                    )
+
+                elif period_mode in {
+                    "last_30_days",
+                    "all_time",
+                }:
+                    preview_start, preview_end = (
+                        _resolve_report_period(
+                            period_mode=period_mode,
+                            selected_month=(
+                                selected_month
+                            ),
+                            selected_year=(
+                                selected_year
+                            ),
+                            custom_start=(
+                                st.session_state[
+                                    REPORT_START_DATE_STATE_KEY
+                                ]
+                            ),
+                            custom_end=(
+                                st.session_state[
+                                    REPORT_END_DATE_STATE_KEY
+                                ]
+                            ),
+                            min_date=min_date,
+                            max_date=max_date,
+                        )
+                    )
+
+                    st.caption(
+                        t("reports.period.range")
+                    )
+
+                    st.write(
+                        preview_start.strftime(
+                            "%d.%m.%Y"
+                        )
+                        + " — "
+                        + preview_end.strftime(
+                            "%d.%m.%Y"
+                        )
+                    )
 
             with comparison_column:
                 comparison_mode = st.selectbox(
                     t("reports.period.compare"),
-                    options=list(COMPARISON_MODES),
+                    options=list(
+                        COMPARISON_MODES
+                    ),
                     format_func=lambda mode: t(
                         f"reports.comparison.{mode}"
                     ),
@@ -1386,8 +1739,71 @@ def _render_financial_report_tab(
                     on_change=(
                         _sync_report_comparison_mode
                     ),
-                    args=(comparison_widget_key,),
+                    args=(
+                        comparison_widget_key,
+                    ),
                 )
+
+            custom_start = st.session_state[
+                REPORT_START_DATE_STATE_KEY
+            ]
+
+            custom_end = st.session_state[
+                REPORT_END_DATE_STATE_KEY
+            ]
+
+            if period_mode == "custom":
+                (
+                    start_column,
+                    end_column,
+                ) = st.columns(
+                    [1, 1],
+                    gap="medium",
+                )
+
+                with start_column:
+                    custom_start = st.date_input(
+                        t("reports.period.start"),
+                        min_value=min_date,
+                        max_value=max(
+                            max_date,
+                            date.today(),
+                        ),
+                        format="DD.MM.YYYY",
+                        key=start_widget_key,
+                        on_change=(
+                            _sync_report_start_date
+                        ),
+                        args=(start_widget_key,),
+                    )
+
+                with end_column:
+                    custom_end = st.date_input(
+                        t("reports.period.end"),
+                        min_value=min_date,
+                        max_value=max(
+                            max_date,
+                            date.today(),
+                        ),
+                        format="DD.MM.YYYY",
+                        key=end_widget_key,
+                        on_change=(
+                            _sync_report_end_date
+                        ),
+                        args=(end_widget_key,),
+                    )
+
+            start_date, end_date = (
+                _resolve_report_period(
+                    period_mode=period_mode,
+                    selected_month=selected_month,
+                    selected_year=selected_year,
+                    custom_start=custom_start,
+                    custom_end=custom_end,
+                    min_date=min_date,
+                    max_date=max_date,
+                )
+            )
 
             st.caption(
                 t("reports.period.synced")
@@ -1399,6 +1815,7 @@ def _render_financial_report_tab(
                     start_date=start_date,
                     end_date=end_date,
                     mode=comparison_mode,
+                    period_mode=period_mode,
                 )
             )
         except ValueError as exc:

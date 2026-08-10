@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 import re
 
 import pytest
@@ -50,6 +51,18 @@ def test_holotes_starts_and_opens_settings(
         exact=True,
     )
 
+    pnl_tab = page.get_by_role(
+        "tab",
+        name="P&L",
+        exact=True,
+    )
+
+    cash_flow_tab = page.get_by_role(
+        "tab",
+        name="Cash Flow",
+        exact=True,
+    )
+
     settings_tab = page.get_by_role(
         "tab",
         name="Настройки",
@@ -83,6 +96,62 @@ def test_holotes_starts_and_opens_settings(
     expect(
         page.get_by_text(
             "Правила пока не созданы.",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    pnl_tab.click()
+
+    expect(
+        pnl_tab
+    ).to_have_attribute(
+        "aria-selected",
+        "true",
+    )
+
+    expect(
+        page.get_by_role(
+            "heading",
+            name="Период отчёта",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    expect(
+        page.get_by_text(
+            "Тип периода",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    today = date.today()
+
+    current_period_text = (
+        "Период: "
+        f"01.{today:%m.%Y}"
+        " — "
+        f"{today:%d.%m.%Y}"
+    )
+
+    expect(
+        page.get_by_text(
+            current_period_text,
+            exact=True,
+        )
+    ).to_be_visible()
+
+    cash_flow_tab.click()
+
+    expect(
+        cash_flow_tab
+    ).to_have_attribute(
+        "aria-selected",
+        "true",
+    )
+
+    expect(
+        page.get_by_text(
+            current_period_text,
             exact=True,
         )
     ).to_be_visible()

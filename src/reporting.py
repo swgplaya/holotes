@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -24,6 +25,186 @@ COMPARISON_MODES = {
     "previous": "Предыдущий период",
     "previous_year": "Тот же период год назад",
 }
+
+REPORT_PERIOD_MODES = (
+    "month",
+    "year",
+    "last_30_days",
+    "all_time",
+    "custom",
+)
+
+
+def get_calendar_month_period(
+    year: int,
+    month: int,
+) -> tuple[date, date]:
+    """Возвращает полный календарный месяц."""
+
+    start_date = date(
+        int(year),
+        int(month),
+        1,
+    )
+
+    last_day = monthrange(
+        int(year),
+        int(month),
+    )[1]
+
+    end_date = date(
+        int(year),
+        int(month),
+        last_day,
+    )
+
+    return start_date, end_date
+
+
+def get_calendar_year_period(
+    year: int,
+) -> tuple[date, date]:
+    """Возвращает полный календарный год."""
+
+    selected_year = int(year)
+
+    return (
+        date(selected_year, 1, 1),
+        date(selected_year, 12, 31),
+    )
+
+
+def get_last_days_period(
+    end_date: date,
+    days: int,
+) -> tuple[date, date]:
+    """Возвращает период из N календарных дней включительно."""
+
+    if days <= 0:
+        raise ValueError(
+            "Количество дней должно быть положительным."
+        )
+
+    start_date = (
+        end_date
+        - timedelta(days=days - 1)
+    )
+
+    return start_date, end_date
+
+
+
+def get_report_month_options(
+    min_date: date,
+    max_date: date,
+    *,
+    today: date | None = None,
+) -> list[str]:
+    """Возвращает доступные месяцы от новых к старым."""
+
+    current_date = (
+        today
+        if today is not None
+        else date.today()
+    )
+
+    latest_date = max(
+        max_date,
+        current_date,
+    )
+
+    result: list[str] = []
+
+    year = latest_date.year
+    month = latest_date.month
+
+    while (
+        (year, month)
+        >= (min_date.year, min_date.month)
+    ):
+        result.append(
+            f"{year:04d}-{month:02d}"
+        )
+
+        month -= 1
+
+        if month == 0:
+            month = 12
+            year -= 1
+
+    return result
+
+
+def get_report_preset_period(
+    *,
+    period_mode: str,
+    selected_month: str,
+    selected_year: int,
+    min_date: date,
+    max_date: date,
+    today: date | None = None,
+) -> tuple[date, date]:
+    """Возвращает даты для стандартного периода отчёта."""
+
+    current_date = (
+        today
+        if today is not None
+        else date.today()
+    )
+
+    if period_mode == "month":
+        year_text, month_text = (
+            selected_month.split(
+                "-",
+                maxsplit=1,
+            )
+        )
+
+        year = int(year_text)
+        month = int(month_text)
+
+        start_date, end_date = (
+            get_calendar_month_period(
+                year=year,
+                month=month,
+            )
+        )
+
+        if (
+            year == current_date.year
+            and month == current_date.month
+        ):
+            end_date = current_date
+
+        return start_date, end_date
+
+    if period_mode == "year":
+        year = int(selected_year)
+
+        start_date, end_date = (
+            get_calendar_year_period(
+                year
+            )
+        )
+
+        if year == current_date.year:
+            end_date = current_date
+
+        return start_date, end_date
+
+    if period_mode == "last_30_days":
+        return get_last_days_period(
+            end_date=current_date,
+            days=30,
+        )
+
+    if period_mode == "all_time":
+        return min_date, max_date
+
+    raise ValueError(
+        "Режим не является стандартным "
+        f"периодом отчёта: {period_mode}"
+    )
 
 def filter_transactions_by_period(
     transactions: pd.DataFrame,
@@ -195,6 +376,7 @@ def get_comparison_period(
     start_date: date,
     end_date: date,
     mode: str,
+    period_mode: str | None = None,
 ) -> tuple[date, date] | None:
     """Определяет даты периода для сравнения."""
 
@@ -207,6 +389,40 @@ def get_comparison_period(
         return None
 
     if mode == "previous":
+        if period_mode == "month":
+            comparison_end = (
+                start_date - timedelta(days=1)
+            )
+
+            comparison_start = date(
+                comparison_end.year,
+                comparison_end.month,
+                1,
+            )
+
+            return (
+                comparison_start,
+                comparison_end,
+            )
+
+        if period_mode == "year":
+            comparison_year = (
+                start_date.year - 1
+            )
+
+            return (
+                date(
+                    comparison_year,
+                    1,
+                    1,
+                ),
+                date(
+                    comparison_year,
+                    12,
+                    31,
+                ),
+            )
+
         period_length = end_date - start_date
 
         comparison_end = (
