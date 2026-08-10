@@ -44,6 +44,12 @@ def test_holotes_starts_and_opens_settings(
         exact=True,
     )
 
+    rules_tab = page.get_by_role(
+        "tab",
+        name="Правила",
+        exact=True,
+    )
+
     settings_tab = page.get_by_role(
         "tab",
         name="Настройки",
@@ -56,6 +62,30 @@ def test_holotes_starts_and_opens_settings(
         "aria-selected",
         "true",
     )
+
+    rules_tab.click()
+
+    expect(
+        rules_tab
+    ).to_have_attribute(
+        "aria-selected",
+        "true",
+    )
+
+    expect(
+        page.get_by_role(
+            "heading",
+            name="Сохранённые правила",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    expect(
+        page.get_by_text(
+            "Правила пока не созданы.",
+            exact=True,
+        )
+    ).to_be_visible()
 
     settings_tab.click()
 

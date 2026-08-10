@@ -752,236 +752,236 @@ def render_rules_tab(
 
                     st.rerun()
 
-        rules = get_rules_dataframe()
+    rules = get_rules_dataframe()
 
-        st.subheader(
-            t("rules.saved.title")
+    st.subheader(
+        t("rules.saved.title")
+    )
+
+    if rules.empty:
+        st.info(
+            t("rules.saved.empty")
         )
 
-        if rules.empty:
-            st.info(
-                t("rules.saved.empty")
-            )
+    else:
+        visible_rules = rules.copy()
 
-        else:
-            visible_rules = rules.copy()
+        visible_rules[
+            "direction_filter"
+        ] = visible_rules[
+            "direction_filter"
+        ].apply(
+            format_rule_direction
+        )
 
-            visible_rules[
-                "direction_filter"
-            ] = visible_rules[
-                "direction_filter"
-            ].apply(
-                format_rule_direction
-            )
+        visible_rules[
+            "match_field"
+        ] = visible_rules[
+            "match_field"
+        ].apply(
+            format_rule_field
+        )
 
-            visible_rules[
-                "match_field"
-            ] = visible_rules[
-                "match_field"
-            ].apply(
-                format_rule_field
-            )
+        visible_rules[
+            "match_type"
+        ] = visible_rules[
+            "match_type"
+        ].apply(
+            format_rule_match_type
+        )
 
-            visible_rules[
-                "match_type"
-            ] = visible_rules[
-                "match_type"
-            ].apply(
-                format_rule_match_type
+        visible_rules[
+            "pnl_action"
+        ] = visible_rules[
+            "pnl_action"
+        ].apply(
+            lambda value: format_report_action(
+                value,
+                t=t,
             )
+        )
 
-            visible_rules[
-                "pnl_action"
-            ] = visible_rules[
-                "pnl_action"
-            ].apply(
-                lambda value: format_report_action(
-                    value,
-                    t=t,
-                )
+        visible_rules[
+            "cf_action"
+        ] = visible_rules[
+            "cf_action"
+        ].apply(
+            lambda value: format_report_action(
+                value,
+                t=t,
             )
+        )
 
-            visible_rules[
-                "cf_action"
-            ] = visible_rules[
-                "cf_action"
-            ].apply(
-                lambda value: format_report_action(
-                    value,
-                    t=t,
-                )
-            )
+        visible_rules[
+            "is_active"
+        ] = visible_rules[
+            "is_active"
+        ].apply(
+            format_rule_active_status
+        )
 
-            visible_rules[
-                "is_active"
-            ] = visible_rules[
-                "is_active"
-            ].apply(
-                format_rule_active_status
-            )
+        id_column = t(
+            "rules.saved.columns.id"
+        )
+        name_column = t(
+            "rules.saved.columns.name"
+        )
+        priority_column = t(
+            "rules.saved.columns.priority"
+        )
+        active_column = t(
+            "rules.saved.columns.active"
+        )
+        direction_column = t(
+            "rules.saved.columns.direction"
+        )
+        field_column = t(
+            "rules.saved.columns.field"
+        )
+        condition_column = t(
+            "rules.saved.columns.condition"
+        )
+        value_column = t(
+            "rules.saved.columns.value"
+        )
+        pnl_action_column = t(
+            "rules.saved.columns.pnl_action"
+        )
+        pnl_category_column = t(
+            "rules.saved.columns.pnl_category"
+        )
+        cf_action_column = t(
+            "rules.saved.columns.cf_action"
+        )
+        cf_category_column = t(
+            "rules.saved.columns.cf_category"
+        )
 
-            id_column = t(
-                "rules.saved.columns.id"
-            )
-            name_column = t(
-                "rules.saved.columns.name"
-            )
-            priority_column = t(
-                "rules.saved.columns.priority"
-            )
-            active_column = t(
-                "rules.saved.columns.active"
-            )
-            direction_column = t(
-                "rules.saved.columns.direction"
-            )
-            field_column = t(
-                "rules.saved.columns.field"
-            )
-            condition_column = t(
-                "rules.saved.columns.condition"
-            )
-            value_column = t(
-                "rules.saved.columns.value"
-            )
-            pnl_action_column = t(
-                "rules.saved.columns.pnl_action"
-            )
-            pnl_category_column = t(
-                "rules.saved.columns.pnl_category"
-            )
-            cf_action_column = t(
-                "rules.saved.columns.cf_action"
-            )
-            cf_category_column = t(
-                "rules.saved.columns.cf_category"
-            )
-
-            visible_rules = visible_rules.rename(
-                columns={
-                    "id": id_column,
-                    "name": name_column,
-                    "priority": priority_column,
-                    "is_active": active_column,
-                    "direction_filter":
-                        direction_column,
-                    "match_field": field_column,
-                    "match_type": condition_column,
-                    "match_value": value_column,
-                    "pnl_action": pnl_action_column,
-                    "pnl_category":
-                        pnl_category_column,
-                    "cf_action": cf_action_column,
-                    "cf_category":
-                        cf_category_column,
-                }
-            )
-
-            visible_rule_columns = [
-                id_column,
-                name_column,
-                priority_column,
-                active_column,
-                direction_column,
-                field_column,
-                condition_column,
-                value_column,
-                pnl_action_column,
-                pnl_category_column,
-                cf_action_column,
-                cf_category_column,
-            ]
-
-            st.dataframe(
-                visible_rules[
-                    visible_rule_columns
-                ],
-                use_container_width=True,
-                hide_index=True,
-            )
-
-            rule_options = {
-                (
-                    f"{int(row['id'])} — "
-                    f"{row['name']}"
-                ): int(row["id"])
-                for _, row in rules.iterrows()
+        visible_rules = visible_rules.rename(
+            columns={
+                "id": id_column,
+                "name": name_column,
+                "priority": priority_column,
+                "is_active": active_column,
+                "direction_filter":
+                    direction_column,
+                "match_field": field_column,
+                "match_type": condition_column,
+                "match_value": value_column,
+                "pnl_action": pnl_action_column,
+                "pnl_category":
+                    pnl_category_column,
+                "cf_action": cf_action_column,
+                "cf_category":
+                    cf_category_column,
             }
+        )
 
-            selected_rule_label = st.selectbox(
-                t("rules.saved.manage"),
-                options=list(rule_options),
-            )
+        visible_rule_columns = [
+            id_column,
+            name_column,
+            priority_column,
+            active_column,
+            direction_column,
+            field_column,
+            condition_column,
+            value_column,
+            pnl_action_column,
+            pnl_category_column,
+            cf_action_column,
+            cf_category_column,
+        ]
 
-            selected_rule_id = rule_options[
-                selected_rule_label
-            ]
+        st.dataframe(
+            visible_rules[
+                visible_rule_columns
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
 
-            selected_rule = rules.loc[
-                rules["id"] == selected_rule_id
-                ].iloc[0]
+        rule_options = {
+            (
+                f"{int(row['id'])} — "
+                f"{row['name']}"
+            ): int(row["id"])
+            for _, row in rules.iterrows()
+        }
 
-            selected_rule_active = st.checkbox(
-                t("rules.fields.active"),
-                value=bool(
-                    selected_rule["is_active"]
-                ),
-                key=(
-                    "selected_rule_active_"
-                    f"{selected_rule_id}"
-                ),
-            )
+        selected_rule_label = st.selectbox(
+            t("rules.saved.manage"),
+            options=list(rule_options),
+        )
 
-            action_column, delete_column = (
-                st.columns(2)
-            )
+        selected_rule_id = rule_options[
+            selected_rule_label
+        ]
 
-            with action_column:
-                if st.button(
-                        t(
-                            "rules.saved."
-                            "save_activity"
-                        ),
-                        use_container_width=True,
-                        key=(
-                                "save_rule_activity_"
-                                f"{selected_rule_id}"
-                        ),
-                ):
-                    set_rule_active(
-                        rule_id=selected_rule_id,
-                        is_active=(
-                            selected_rule_active
-                        ),
-                    )
+        selected_rule = rules.loc[
+            rules["id"] == selected_rule_id
+            ].iloc[0]
 
-                    st.session_state[
-                        "rule_message"
-                    ] = t(
-                        "rules.messages."
-                        "activity_updated"
-                    )
+        selected_rule_active = st.checkbox(
+            t("rules.fields.active"),
+            value=bool(
+                selected_rule["is_active"]
+            ),
+            key=(
+                "selected_rule_active_"
+                f"{selected_rule_id}"
+            ),
+        )
 
-                    st.rerun()
+        action_column, delete_column = (
+            st.columns(2)
+        )
 
-            with delete_column:
-                if st.button(
-                        t("rules.saved.delete"),
-                        type="secondary",
-                        use_container_width=True,
-                        key=(
-                                "delete_rule_"
-                                f"{selected_rule_id}"
-                        ),
-                ):
-                    delete_rule(
-                        selected_rule_id
-                    )
+        with action_column:
+            if st.button(
+                    t(
+                        "rules.saved."
+                        "save_activity"
+                    ),
+                    use_container_width=True,
+                    key=(
+                            "save_rule_activity_"
+                            f"{selected_rule_id}"
+                    ),
+            ):
+                set_rule_active(
+                    rule_id=selected_rule_id,
+                    is_active=(
+                        selected_rule_active
+                    ),
+                )
 
-                    st.session_state[
-                        "rule_message"
-                    ] = t(
-                        "rules.messages.deleted"
-                    )
+                st.session_state[
+                    "rule_message"
+                ] = t(
+                    "rules.messages."
+                    "activity_updated"
+                )
 
-                    st.rerun()
+                st.rerun()
+
+        with delete_column:
+            if st.button(
+                    t("rules.saved.delete"),
+                    type="secondary",
+                    use_container_width=True,
+                    key=(
+                            "delete_rule_"
+                            f"{selected_rule_id}"
+                    ),
+            ):
+                delete_rule(
+                    selected_rule_id
+                )
+
+                st.session_state[
+                    "rule_message"
+                ] = t(
+                    "rules.messages.deleted"
+                )
+
+                st.rerun()
