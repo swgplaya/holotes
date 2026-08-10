@@ -10,7 +10,7 @@ Holotes imports bank transactions, helps classify cash movements, builds managem
 
 Financial data is stored locally in SQLite by default. The interface is available in Russian, English, and Simplified Chinese and supports light and dark themes.
 
-> **Release status:** This README describes `v0.1.0`, the first tagged Holotes release. It is intended primarily for personal, local, single-user use and is not designed for public server deployment or production multi-user access.
+> **Release status:** This README describes `v0.1.1`, the current tagged Holotes release. It is intended primarily for personal, local, single-user use and is not designed for public server deployment or production multi-user access.
 
 ## Contents
 
@@ -72,8 +72,10 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 
 - Build a cash-based P&L report
 - Build a Cash Flow report
-- Filter reports by period
-- Compare with the previous period or the previous year
+- Select report periods using month, year, last 30 days, all time, or custom dates
+- Include the current partial month and current partial year in calendar presets
+- Keep the selected period synchronized between P&L and Cash Flow
+- Compare with the previous period or the previous year using calendar-aware comparisons where applicable
 - Review inflows, outflows, net results, and category breakdowns
 - Open transaction-level report details
 - Visualize reports with interactive Plotly charts
@@ -128,6 +130,7 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 - Lazy rendering of the active tab
 - Separate UI modules for the main application sections
 - Interactive tables, forms, metrics, and charts
+- Automatically size Operations and Classification tables to the number of displayed rows
 
 ## Important note
 
@@ -135,7 +138,7 @@ The P&L report currently uses bank transactions and the cash method.
 
 Holotes is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
 
-The Telegram bot in `v0.1.0` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
+The Telegram bot in `v0.1.1` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
 
 ## Technology stack
 
@@ -155,9 +158,9 @@ Python 3.12 is recommended.
 
 ### Supported installation mode: local computer
 
-The supported `v0.1.0` installation mode is a local Python environment on Windows, Linux, or macOS.
+The supported `v0.1.1` installation mode is a local Python environment on Windows, Linux, or macOS.
 
-Docker images, server deployment instructions, authentication, and production multi-user configuration are planned for the next development cycle and are not part of the first release.
+Docker images and supported server deployment are planned for later milestones. Public deployment, full authentication, and production multi-user configuration are not part of `v0.1.1`.
 
 ### 1. Clone the repository
 
@@ -289,7 +292,9 @@ Open the reporting tabs to review:
 
 - cash-based P&L;
 - Cash Flow;
+- period presets for month, year, last 30 days, all time, and custom dates;
 - period comparisons;
+- synchronized P&L and Cash Flow period selection;
 - financial KPIs;
 - category breakdowns;
 - transaction-level report details.
@@ -434,7 +439,11 @@ Before a release or pull request, run:
 ```powershell
 python -m compileall -q app.py src
 python -m pytest -q
+python -m pytest tests/browser/test_smoke.py -m browser -q
+python -m pip_audit
 ```
+
+`pip-audit` is included in the development requirements. Release validation also includes a Gitleaks scan of the Git history when the separately installed Gitleaks binary is available.
 
 ## Architecture
 
@@ -530,7 +539,7 @@ Changing the interface language never rewrites stored values. Built-in P&L and C
 
 ## Local data, privacy, and security
 
-Holotes `v0.1.0` is designed primarily for trusted local use by one person.
+Holotes `v0.1.1` is designed primarily for trusted local use by one person.
 
 The following files and directories should remain outside version control:
 
@@ -574,6 +583,7 @@ holotes/
 │   │   ├── reports.py
 │   │   ├── rules.py
 │   │   ├── settings.py
+│   │   ├── table_height.py
 │   │   ├── transaction_views.py
 │   │   └── unit_economics.py
 │   ├── bank_import.py
@@ -627,15 +637,15 @@ holotes/
 - Built-in report category labels are localized, but custom categories and other user-entered content are not automatically translated
 - Some low-level validation and repository errors may not yet be localized
 - Large transaction histories still require further query, caching, and pagination optimization
-- `v0.1.0` is a personal/local milestone, not a production-ready multi-user release
+- `v0.1.1` is a personal/local release, not a production-ready multi-user release
 
 ## Roadmap
 
-The roadmap describes direction rather than a fixed promise. Large items may be split across several `0.2.x` releases so that each release remains testable and usable.
+The roadmap describes direction rather than a fixed promise. Patch releases stay focused on small, testable improvements; larger architecture changes are reserved for later milestones.
 
 ### `v0.1.0` — personal local release
 
-The first release focuses on a complete local workflow for one user:
+The first release established a complete local workflow for one user:
 
 - T-Business CSV import and deduplication;
 - transaction classification and automatic rules;
@@ -646,83 +656,52 @@ The first release focuses on a complete local workflow for one user:
 - database migrations;
 - read-only Telegram financial summaries with per-chat language selection;
 - demonstration data;
-- automated tests and a Windows launcher;
-- release documentation and changelog.
+- automated tests and a Windows launcher.
 
-A logo and interface screenshots are intentionally postponed until the next development cycle.
+### `v0.1.1` — reporting and interface refinement
 
-### Next development cycle — deployment and multi-user foundations
+The current patch release focuses on usability and regression fixes:
 
-#### Installation and deployment modes
+- restore the saved rules list in the Rules interface;
+- add report period presets for month, year, last 30 days, all time, and custom dates;
+- keep P&L and Cash Flow period selection synchronized;
+- use calendar-aware previous-period comparisons for month and year presets;
+- allow current partial month and year periods even when no transactions exist yet for the current calendar period;
+- adapt Operations and Classification table height to the number of displayed rows;
+- keep release validation reproducible with development dependency auditing.
 
-- Add Docker and Docker Compose configuration
-- Provide a documented local installation mode
-- Provide a documented server installation mode
-- Add environment-specific configuration for local and server deployments
-- Add health checks, persistent volumes, upgrade procedures, and backup guidance
-- Evaluate PostgreSQL as the primary server database while retaining a simple local mode
-- Document reverse proxy and HTTPS deployment
+### `v0.1.2` — planned incremental improvements
 
-#### Company profiles and workspaces
+The next patch cycle is expected to focus on small accounting workflow improvements:
 
-- Allow one installation to contain multiple isolated company profiles or workspaces
-- Let one person manage two or more companies on the same computer
-- Separate transactions, categories, rules, reports, plans, products, and settings by company
-- Add explicit company switching and safe backup/export per workspace
+- add numeric amount conditions to automatic rules;
+- add a calculated balance based on imported operations;
+- expose that calculated balance in Telegram summaries with an explicit scope caveat.
 
-#### Users, roles, and permissions
+### `v0.2.0` — planned local-network node and multi-company foundation
 
-- Add user accounts and authentication
-- Support several people in one installation
-- Introduce role-based permissions, such as owner, administrator, accountant, analyst, and read-only viewer
-- Define access separately for each company or workspace
-- Add audit history for important data and configuration changes
+The next larger milestone is intended to keep Holotes owner-operated while making it practical as an always-on node inside a trusted local network:
 
-#### Security hardening
+- documented always-on deployment with Docker/Docker Compose or an equivalent Linux service mode;
+- automatic start/restart, health checks, persistent storage, logs, upgrades, and backups;
+- access from the owner's devices inside a trusted LAN;
+- multiple isolated companies/workspaces in one installation;
+- persistent company switching in the web interface and Telegram bot;
+- continued use of SQLite with a single Holotes server process and safer concurrency settings;
+- basic protection for LAN access and improved mobile usability of the main screens.
 
-- Replace local trust assumptions with a documented security model
-- Improve secret storage and token rotation
-- Add secure password hashing and session management
-- Add server-side authorization checks
-- Add rate limiting and protection against common web attacks
-- Add HTTPS deployment guidance and secure defaults
-- Add audit logging and security-relevant event history
-- Add dependency and vulnerability scanning
-- Review backup, restore, export, and file-upload security
-
-#### API and bank integrations
-
-- Introduce a documented application API
-- Add direct T-Business API integration where technically and legally practical
-- Expand support for statement formats from other banks
-- Create a reusable importer interface and test fixtures for each supported bank
-- Improve currency and regional formatting support
-
-#### Telegram bot
-
-- Expand the command set beyond on-demand financial summaries and basic language settings
-- Add configurable alerts and scheduled reports
-- Add payment-calendar and cash-gap notifications
-- Add company/workspace selection
-- Apply the same role and permission model as the main application
-- Improve bot administration, diagnostics, and secure deployment
-
-#### Frontend and product presentation
-
-- Evaluate whether Streamlit remains suitable for the next stage
-- If necessary, introduce a dedicated frontend and API-backed architecture
-- Improve navigation and workflows for multi-company and multi-user use
-- Add the Holotes logo and current interface screenshots
-- Improve first-run onboarding and deployment documentation
+Full multi-user accounts and roles, PostgreSQL, public Internet deployment, a separate API/frontend architecture, and other SaaS-style capabilities are intentionally deferred beyond `v0.2.0`.
 
 ### Longer-term ideas
 
-- Additional report types and accrual-based accounting options
-- Configurable currencies and number formats
-- More advanced planning, budgeting, and scenario analysis
-- External integrations and webhooks
-- Import/export integrations with accounting and ERP systems
-- Production monitoring, observability, and administration tools
+- additional report types and accrual-based accounting options;
+- configurable currencies and number formats;
+- more advanced planning, budgeting, and scenario analysis;
+- additional bank importers and direct bank integrations where practical;
+- user accounts, roles, audit history, and stronger authorization;
+- PostgreSQL and protected public-server deployment;
+- a documented application API and, if justified, a dedicated frontend;
+- external integrations, webhooks, monitoring, and administration tools.
 
 ## Help add support for more banks
 

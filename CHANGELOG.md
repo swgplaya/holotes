@@ -6,6 +6,30 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-11
+
+### Fixed
+
+- Fixed the saved rules list so it is always rendered and no longer depends on uploading a rule configuration file.
+
+### Added
+
+- Added report period presets for P&L and Cash Flow:
+  - month;
+  - year;
+  - last 30 days;
+  - all time;
+  - custom period.
+- Added support for the current incomplete month and current incomplete year.
+- Added synchronized report period selection between P&L and Cash Flow.
+
+### Changed
+
+- Monthly and yearly comparisons now use calendar-aware previous periods.
+- The last 30 days period is calculated relative to the current date.
+- Report month and year selectors include the current calendar period even when no transactions have been imported for it yet.
+- Operations and classification tables now adapt their height to the number of displayed rows.
+
 ## [0.1.0] - 2026-08-06
 ### Added
 
