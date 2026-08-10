@@ -13,6 +13,9 @@ from src.ui.transaction_views import (
 from src.ui.data_cache import (
     cached_transaction_summary,
 )
+from src.ui.table_height import (
+    dataframe_height,
+)
 
 
 Translator = Callable[..., str]
@@ -168,6 +171,9 @@ def render_operations_tab(
         operations_table,
         use_container_width=True,
         hide_index=True,
+        height=dataframe_height(
+            len(operations_table)
+        ),
         column_config={
             amount_column:
                 st.column_config.NumberColumn(

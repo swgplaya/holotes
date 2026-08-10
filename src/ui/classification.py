@@ -20,6 +20,9 @@ from src.ui.data_cache import (
     cached_pending_classification_summary,
     cached_transaction_count,
 )
+from src.ui.table_height import (
+    dataframe_height,
+)
 
 Translator = Callable[..., str]
 MoneyFormatter = Callable[[int], str]
@@ -492,6 +495,9 @@ def render_classification_tab(
             ],
             use_container_width=True,
             hide_index=True,
+            height=dataframe_height(
+                len(selection_source)
+            ),
             on_select="rerun",
             selection_mode="single-row",
             key=(
