@@ -18,6 +18,7 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 - [Important note](#important-note)
 - [Technology stack](#technology-stack)
 - [Installation](#installation)
+- [Docker deployment](#docker-deployment)
 - [Usage](#usage)
 - [Telegram bot](#telegram-bot)
 - [Backup and restore](#backup-and-restore)
@@ -155,6 +156,7 @@ The calculated balance shown in Holotes is derived from the sum of all imported 
 - SQLite
 - Alembic
 - Plotly
+- Docker and Docker Compose
 - pytest
 - GitHub Actions
 
@@ -162,11 +164,13 @@ The calculated balance shown in Holotes is derived from the sum of all imported 
 
 Python 3.12 is recommended.
 
-### Supported installation mode: local computer
+### Installation modes
 
-The supported `v0.1.2` installation mode is a local Python environment on Windows, Linux, or macOS.
+The released `v0.1.2` installation mode is a local Python environment on Windows, Linux, or macOS.
 
-Docker images and supported server deployment are planned for later milestones. Public deployment, full authentication, and production multi-user configuration are not part of `v0.1.2`.
+The current development branch also includes the Docker deployment mode planned for `v0.2.0`. It is intended for an owner-operated, always-on Holotes instance on a trusted machine or server.
+
+Public Internet deployment, full user authentication, multi-user accounts, and role-based access control are not part of the current architecture.
 
 ### 1. Clone the repository
 
@@ -237,6 +241,170 @@ python -m src.telegram_bot
 ```
 
 Streamlit prints the local application URL in the terminal. The SQLite database is created locally when the application starts.
+
+## Docker deployment
+
+Docker deployment is available on the current development branch and is planned as the main deployment improvement in `v0.2.0`.
+
+It is intended for an always-on, owner-operated Holotes instance. The default Compose configuration exposes the Streamlit interface only on the Docker host itself:
+
+```text
+127.0.0.1:8501
+```
+
+It does not publish port `8501` to the LAN or public Internet by default.
+
+### Requirements
+
+Install Docker Engine with Docker Compose on Linux, or Docker Desktop with the WSL 2 backend on Windows.
+
+Verify the installation:
+
+```powershell
+docker --version
+docker compose version
+```
+
+### 1. Clone Holotes
+
+```powershell
+git clone https://github.com/swgplaya/holotes.git
+cd holotes
+```
+
+### 2. Create the environment file
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Linux or macOS:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` if Telegram integration or another supported setting is required. Do not commit `.env`.
+
+### 3. Build and start Holotes
+
+```powershell
+docker compose up -d --build
+```
+
+Check container status:
+
+```powershell
+docker compose ps
+```
+
+A healthy installation should report the Holotes service as `healthy`. The local web interface is available at `http://127.0.0.1:8501`.
+
+### Persistent data
+
+Compose bind-mounts two host locations into the container:
+
+```text
+./data  -> /app/data
+./.env  -> /app/.env
+```
+
+The `data` directory contains the SQLite database and built-in database backups. Because it is stored on the host, deleting or recreating the container does not delete the Holotes database.
+
+The `.env` file is also stored on the host, so Telegram settings saved through Holotes survive container recreation.
+
+Typical persistent files include:
+
+```text
+data/
+├── finance.db
+├── finance.db-wal
+├── finance.db-shm
+└── backups/
+```
+
+Do not delete `data/` or `.env` during a normal container upgrade.
+
+### Health check
+
+The Docker image checks the built-in Streamlit endpoint `http://127.0.0.1:8501/_stcore/health`.
+
+Inspect current health with:
+
+```powershell
+docker compose ps
+```
+
+The exact generated container name can vary. `docker compose ps` is the preferred way to inspect the service.
+
+### Logs
+
+```powershell
+docker compose logs -f holotes
+```
+
+Recent logs only:
+
+```powershell
+docker compose logs --tail=100 holotes
+```
+
+### Stop and start
+
+Stop without deleting the container:
+
+```powershell
+docker compose stop
+```
+
+Start it again:
+
+```powershell
+docker compose start
+```
+
+Holotes handles Docker's normal termination signal and shuts down the Streamlit and Telegram child processes before the container exits.
+
+Remove and recreate the container:
+
+```powershell
+docker compose down
+docker compose up -d
+```
+
+Persistent data in `./data` and `.env` remains on the host.
+
+### Upgrade an existing Docker installation
+
+Before upgrading, create and download a Holotes database backup from **Settings** and keep a copy outside the project directory.
+
+Then update the repository and rebuild:
+
+```powershell
+git pull
+docker compose up -d --build
+```
+
+Database migrations run automatically when Holotes starts. After the upgrade, confirm the service is healthy:
+
+```powershell
+docker compose ps
+docker compose logs --tail=100 holotes
+```
+
+### Network access
+
+The default Compose configuration binds the web port to `127.0.0.1:8501`. This is deliberate because Holotes does not yet provide application-level login or role-based authorization.
+
+The bind address can be changed in `.env`:
+
+```dotenv
+HOLOTES_BIND_ADDRESS=0.0.0.0
+```
+
+Only do this inside a trusted LAN, VPN, or another appropriately protected environment. Do not expose the current Streamlit interface directly to the public Internet.
 
 ## Usage
 
@@ -385,6 +553,10 @@ Recommended procedure before upgrades or major data changes:
 
 Before restoring an uploaded database, Holotes creates an additional safety backup of the current database.
 
+When using Docker, the database and built-in backups remain in the host `data/` directory and survive container recreation. Before a Docker upgrade, keep an additional downloaded backup outside the project directory.
+
+Holotes uses SQLite's backup mechanism when creating and restoring database snapshots so committed data remains consistent when WAL mode is enabled.
+
 Real database backups contain financial data and must not be committed to Git or shared publicly.
 
 ## Testing and CI
@@ -460,8 +632,10 @@ Holotes separates the application into several layers.
 ### Application entry points
 
 - `app.py` configures Streamlit, initializes the database, manages top-level navigation, and delegates each section to a UI renderer.
-- `run_holotes.py` launches Streamlit and the Telegram bot together.
+- `run_holotes.py` initializes the database, launches Streamlit and the Telegram bot together, and coordinates graceful shutdown.
 - `start_holotes.bat` provides a Windows launcher for both services or either service separately.
+- `Dockerfile` defines the Linux container image used for always-on deployment.
+- `compose.yaml` configures persistent host data, health checks, restart behavior, and local port publishing.
 
 ### UI layer
 
@@ -500,6 +674,8 @@ SQLAlchemy models and repository operations are implemented in:
 - `src/transaction_repository.py`;
 - `src/rule_repository.py`;
 - repository functions in the payment calendar and unit economics modules.
+
+SQLite connections enable foreign-key enforcement, WAL journaling, and a busy timeout for safer long-running web and Telegram access.
 
 Database migrations are managed through Alembic:
 
@@ -563,7 +739,11 @@ Do not commit real bank statements, credentials, API tokens, personal informatio
 
 Before opening an issue or pull request, remove confidential information from logs, screenshots, sample files, and test data.
 
-The current local-first architecture reduces external exposure, but it must not be treated as a production security boundary. Do not expose the Streamlit port directly to the public internet. Server deployment will require authentication, authorization, HTTPS, secure secret storage, hardened sessions, audit logging, and other controls planned for later versions.
+The current local-first architecture reduces external exposure, but it must not be treated as a production security boundary.
+
+Docker deployment binds Streamlit to `127.0.0.1` on the host by default. Do not expose the current Streamlit port directly to the public Internet.
+
+Trusted-LAN or VPN access can be enabled deliberately, but Holotes still has no application login, user accounts, or role-based access control. Public deployment requires stronger authentication, authorization, HTTPS, secret management, hardened sessions, audit logging, and other controls planned for later versions.
 
 ## Project structure
 
@@ -617,8 +797,11 @@ holotes/
 │   ├── browser/
 │   │   └── test_smoke.py
 │   └── test_*.py
+├── .dockerignore
 ├── alembic.ini
 ├── app.py
+├── compose.yaml
+├── Dockerfile
 ├── run_holotes.py
 ├── start_holotes.bat
 ├── pytest.ini
@@ -636,9 +819,9 @@ holotes/
 - Imported banking data and monetary formatting are currently focused on Russian business workflows and RUB
 - SQLite is the only configured database
 - One Holotes installation currently represents one company or one financial workspace
-- The application is designed for local single-user operation
+- The application remains owner-operated and single-user
 - There is no application login, user account system, or role-based access control
-- Docker and supported server deployment are not available yet
+- Docker deployment is intended for localhost, trusted LAN, VPN, or another protected environment rather than direct public Internet exposure
 - The Streamlit interface is an MVP and may be replaced or supplemented by a more suitable frontend
 - The Telegram bot supports a limited command set; access to financial data is read-only
 - P&L is cash-based rather than accrual-based
@@ -646,7 +829,7 @@ holotes/
 - Some low-level validation and repository errors may not yet be localized
 - Large transaction histories still require further query, caching, and pagination optimization
 - The calculated balance is derived from imported transaction history and is not a direct bank balance
-- `v0.1.2` is a personal/local release, not a production-ready multi-user release
+- `v0.1.2` is the latest released personal/local version; Docker deployment belongs to the upcoming `v0.2.0` milestone and does not make Holotes a production-ready multi-user system
 
 ## Roadmap
 
@@ -691,19 +874,37 @@ The current patch release adds small accounting-workflow improvements without ch
 - include the calculated balance in Telegram financial summaries;
 - make the web interface explicitly explain that the calculated balance can differ from the actual bank balance when imported history is incomplete or starts from a non-zero balance.
 
-### `v0.2.0` — planned local-network node and multi-company foundation
+### `v0.2.0` — always-on Docker deployment
 
-The next larger milestone is intended to keep Holotes owner-operated while making it practical as an always-on node inside a trusted local network:
+The next milestone is focused deliberately on deployment rather than expanding the accounting model or adding multi-company architecture:
 
-- documented always-on deployment with Docker/Docker Compose or an equivalent Linux service mode;
-- automatic start/restart, health checks, persistent storage, logs, upgrades, and backups;
-- access from the owner's devices inside a trusted LAN;
-- multiple isolated companies/workspaces in one installation;
-- persistent company switching in the web interface and Telegram bot;
-- continued use of SQLite with a single Holotes server process and safer concurrency settings;
-- basic protection for LAN access and improved mobile usability of the main screens.
+- documented Docker and Docker Compose deployment;
+- a reproducible Linux container image;
+- automatic database initialization and migrations before service startup;
+- graceful container shutdown through `SIGTERM`;
+- automatic restart through Compose;
+- Streamlit health checks;
+- persistent SQLite database and built-in backups through the host `data/` directory;
+- persistent `.env` configuration outside the image;
+- SQLite WAL mode and a busy timeout for safer long-running web and Telegram access;
+- localhost-only host port binding by default;
+- documented start, stop, logs, upgrade, backup, and container-recreation procedures.
 
-Full multi-user accounts and roles, PostgreSQL, public Internet deployment, a separate API/frontend architecture, and other SaaS-style capabilities are intentionally deferred beyond `v0.2.0`.
+The goal of `v0.2.0` is a stable owner-operated Holotes node that can run continuously on a PC, home server, VPS behind appropriate protection, or another trusted Linux/Docker host.
+
+Multi-company support, user accounts, roles, PostgreSQL, and direct public Internet deployment are intentionally outside the scope of `v0.2.0`.
+
+### `v0.3.0` — planned multi-company foundation
+
+The following larger milestone is planned to introduce multiple isolated companies or financial workspaces in one Holotes installation:
+
+- separate company/workspace data boundaries;
+- company creation and management;
+- persistent company selection in the web interface;
+- company-aware Telegram summaries and settings;
+- safe migration of an existing single-company installation into the multi-company model.
+
+The exact design will be finalized after the `v0.2.0` deployment architecture has been used and validated in practice.
 
 ### Longer-term ideas
 
