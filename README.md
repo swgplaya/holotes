@@ -10,7 +10,7 @@ Holotes imports bank transactions, helps classify cash movements, builds managem
 
 Financial data is stored locally in SQLite by default. The interface is available in Russian, English, and Simplified Chinese and supports light and dark themes.
 
-> **Release status:** This README describes `v0.2.1`, the current Holotes release. It supports local Python installation and owner-operated Docker deployment for an always-on instance, and adds an MTProto/Telethon Telegram transport with MTProxy support. It remains a single-company, single-user system and must not be exposed directly to the public Internet without an appropriate protected deployment layer.
+> **Release status:** This README describes `v0.2.3`, the current Holotes release. It supports local Python installation and owner-operated Docker deployment for an always-on instance, and adds an MTProto/Telethon Telegram transport with MTProxy support. It remains a single-company, single-user system and must not be exposed directly to the public Internet without an appropriate protected deployment layer.
 
 ## Contents
 
@@ -129,6 +129,7 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 - Include the calculated balance from all imported transactions in financial summaries
 - Request a summary for a specific month
 - Retrieve user and chat IDs for access configuration
+- Keep MTProto replies in the same Telegram forum topic where the command was received
 
 ### Interface
 
@@ -145,7 +146,7 @@ The P&L report currently uses bank transactions and the cash method.
 
 Holotes is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
 
-The Telegram bot in `v0.2.1` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token, Telegram API credentials, MTProxy secret, or Telethon session file.
+The Telegram bot in `v0.2.3` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token, Telegram API credentials, MTProxy secret, or Telethon session file.
 
 The calculated balance shown in Holotes is derived from the sum of all imported cash movements. It may differ from the actual bank balance if the imported history is incomplete or does not begin from a zero balance.
 
@@ -169,7 +170,7 @@ Python 3.12 is recommended.
 
 ### Installation modes
 
-`v0.2.1` supports two installation modes:
+`v0.2.3` supports two installation modes:
 
 - a local Python environment on Windows, Linux, or macOS;
 - an owner-operated Docker deployment for an always-on Holotes instance on a trusted machine or server.
@@ -248,7 +249,7 @@ Streamlit prints the local application URL in the terminal. The SQLite database 
 
 ## Docker deployment
 
-Docker deployment is officially supported in `v0.2.1` for owner-operated, always-on Holotes installations.
+Docker deployment is officially supported in `v0.2.3` for owner-operated, always-on Holotes installations.
 
 It is intended for an always-on, owner-operated Holotes instance. The default Compose configuration exposes the Streamlit interface only on the Docker host itself:
 
@@ -361,7 +362,7 @@ Production installations should remain pinned to release tags rather than follow
 To upgrade to a specific release, first create and download a database backup from Holotes **Settings**, then run:
 
 ```bash
-./scripts/server/update.sh v0.2.1
+./scripts/server/update.sh v0.2.3
 ```
 
 The update script fetches Git tags, verifies that the requested release exists, switches the production checkout to that exact tag, rebuilds the Docker image, and recreates the Holotes service.
@@ -450,7 +451,7 @@ Before upgrading, create and download a Holotes database backup from **Settings*
 Production installations should upgrade to an explicit release tag rather than following `main` directly. For example:
 
 ```bash
-./scripts/server/update.sh v0.2.1
+./scripts/server/update.sh v0.2.3
 ```
 
 The update script fetches tags, validates the requested release, switches the checkout to that exact tag, rebuilds the image, and recreates the service. Database migrations run automatically when Holotes starts.
@@ -528,7 +529,7 @@ Rules can match:
 
 Higher-priority rules are evaluated before lower-priority rules. Amount conditions are optional; when configured, they are evaluated together with direction and text conditions. Transaction amounts are compared by absolute value, while direction remains a separate rule condition.
 
-Rule configurations can be exported as versioned JSON and restored in another Holotes installation. `v0.2.1` exports rule configuration schema version 2 while continuing to accept version 1 configurations created before amount conditions were added.
+Rule configurations can be exported as versioned JSON and restored in another Holotes installation. `v0.2.3` exports rule configuration schema version 2 while continuing to accept version 1 configurations created before amount conditions were added.
 
 ### Build reports
 
@@ -665,6 +666,8 @@ Examples:
 The selected language is stored separately for each Telegram chat. In a group, Telegram may send the command in the form `/language@BotUsername en`.
 
 Telegram summaries show the calculated balance from the complete imported transaction history even when the requested P&L and Cash Flow period is narrower, such as a specific month.
+
+When a command is sent inside a Telegram forum topic, Holotes keeps the response in that same topic. The MTProto transport handles both topic-root messages and replies within a topic.
 
 ## Backup and restore
 
@@ -853,7 +856,7 @@ Changing the interface language never rewrites stored values. Built-in P&L and C
 
 ## Local data, privacy, and security
 
-Holotes `v0.2.1` is designed primarily for trusted owner-operated use by one person, either as a local Python installation or an always-on Docker deployment.
+Holotes `v0.2.3` is designed primarily for trusted owner-operated use by one person, either as a local Python installation or an always-on Docker deployment.
 
 The following files and directories should remain outside version control:
 
@@ -971,7 +974,7 @@ holotes/
 - Some low-level validation and repository errors may not yet be localized
 - Large transaction histories still require further query, caching, and pagination optimization
 - The calculated balance is derived from imported transaction history and is not a direct bank balance
-- `v0.2.1` is an owner-operated single-user release with Docker deployment; it is not a production-ready multi-user system
+- `v0.2.3` is an owner-operated single-user release with Docker deployment; it is not a production-ready multi-user system
 
 ## Roadmap
 
@@ -1049,6 +1052,23 @@ This patch release improves Telegram connectivity without changing the accountin
 - persist Telethon authorization state in the existing host-mounted `data/` directory.
 
 The MTProxy configuration applies only to Telegram traffic and does not modify server-wide networking.
+
+### `v0.2.2` — Docker environment persistence hotfix
+
+This patch release fixes Telegram and transport settings persistence in Docker deployments that bind-mount `.env` into the container:
+
+- preserve the normal atomic `.env` replacement path where supported;
+- fall back to rewriting the existing bind-mounted file when Docker prevents inode replacement;
+- keep Telegram transport and bot-token settings writable from the web interface in Docker deployments.
+
+### `v0.2.3` — MTProto forum-topic routing fix
+
+This patch release restores correct Telegram forum-topic behavior for the MTProto transport:
+
+- detect forum topics when Telegram provides the topic root through `reply_to_msg_id` without `reply_to_top_id`;
+- preserve the original topic when replying to commands sent in a forum topic;
+- keep replies inside the same topic both for topic-root commands and replies to messages within that topic;
+- add regression coverage for topic-root messages, replies inside topics, and ordinary non-topic replies.
 
 ### `v0.3.0` — planned multi-company foundation
 

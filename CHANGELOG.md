@@ -4,6 +4,15 @@ All notable changes to Holotes will be documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.2.3] - 2026-08-12
+
+### Fixed
+
+- restored Telegram forum-topic routing when using the MTProto transport;
+- correctly detect a forum topic when Telegram provides the topic root through `reply_to_msg_id` without `reply_to_top_id`;
+- keep Telegram bot responses in the same forum topic where the command was received;
+- added regression coverage for forum-topic root messages, replies inside topics, and ordinary non-topic replies.
+
 ## [Unreleased]
 
 ## [0.2.2] - 2026-08-12
