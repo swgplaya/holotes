@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from src.database import init_db
 from src.telegram_settings import (
     TelegramSettings,
     get_telegram_settings,
@@ -1608,6 +1609,7 @@ def main() -> None:
     )
 
     try:
+        init_db()
         run_bot()
 
     except KeyboardInterrupt:

@@ -552,3 +552,32 @@ def test_split_message_respects_limit() -> None:
         len(chunk) <= 11
         for chunk in chunks
     )
+
+
+def test_main_initializes_database_before_bot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        telegram_bot,
+        "init_db",
+        lambda: calls.append(
+            "init_db"
+        ),
+    )
+
+    monkeypatch.setattr(
+        telegram_bot,
+        "run_bot",
+        lambda: calls.append(
+            "run_bot"
+        ),
+    )
+
+    telegram_bot.main()
+
+    assert calls == [
+        "init_db",
+        "run_bot",
+    ]

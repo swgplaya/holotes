@@ -326,3 +326,56 @@ def test_database_upgrades_from_initial_revision(
         assert revision == get_head_revision()
     finally:
         upgraded_engine.dispose()
+
+
+def test_sqlite_runtime_pragmas(
+    tmp_path: Path,
+) -> None:
+    database_path = (
+        tmp_path
+        / "runtime-pragmas-test.db"
+    )
+
+    database_url = (
+        f"sqlite:///{database_path.as_posix()}"
+    )
+
+    environment = os.environ.copy()
+    environment[
+        "DATABASE_URL"
+    ] = database_url
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from sqlalchemy import text\n"
+                "from src.database import engine\n"
+                "\n"
+                "with engine.connect() as connection:\n"
+                "    journal_mode = connection.scalar("
+                "text('PRAGMA journal_mode'))\n"
+                "    busy_timeout = connection.scalar("
+                "text('PRAGMA busy_timeout'))\n"
+                "    foreign_keys = connection.scalar("
+                "text('PRAGMA foreign_keys'))\n"
+                "\n"
+                "assert str(journal_mode).lower() == 'wal'\n"
+                "assert busy_timeout == 30000\n"
+                "assert foreign_keys == 1\n"
+            ),
+        ],
+        cwd=PROJECT_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert result.returncode == 0, (
+        result.stdout
+        + "\n"
+        + result.stderr
+    )

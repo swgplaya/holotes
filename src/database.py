@@ -53,15 +53,17 @@ engine = create_engine(
 if DATABASE_URL.startswith("sqlite"):
 
     @event.listens_for(engine, "connect")
-    def enable_sqlite_foreign_keys(
+    def configure_sqlite_connection(
         dbapi_connection,
         connection_record,
     ) -> None:
-        """Включает поддержку внешних ключей в SQLite."""
+        """Настраивает SQLite для постоянной работы Holotes."""
 
         del connection_record
 
         cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 

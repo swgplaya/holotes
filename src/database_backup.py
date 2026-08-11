@@ -5,7 +5,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-import shutil
 import sqlite3
 import tempfile
 from threading import Lock
@@ -584,11 +583,16 @@ def upgrade_holotes_database(
     return inspection_after
 
 
-def _copy_sqlite_database(
+def _snapshot_sqlite_database(
     source_path: Path,
     target_path: Path,
 ) -> None:
-    """Copies one SQLite database into another."""
+    """
+    Creates a consistent SQLite snapshot.
+
+    SQLite Backup API includes committed data
+    that may still reside in a WAL file.
+    """
 
     source_path = Path(
         source_path
@@ -621,6 +625,18 @@ def _copy_sqlite_database(
             target_connection.commit()
         finally:
             target_connection.close()
+
+
+def _copy_sqlite_database(
+    source_path: Path,
+    target_path: Path,
+) -> None:
+    """Copies one SQLite database into another."""
+
+    _snapshot_sqlite_database(
+        source_path,
+        target_path,
+    )
 
 
 def restore_database(
@@ -672,11 +688,14 @@ def restore_database(
             )
 
             try:
-                shutil.copy2(
+                _snapshot_sqlite_database(
                     uploaded_database_path,
                     staging_path,
                 )
-            except OSError as exc:
+            except (
+                OSError,
+                sqlite3.Error,
+            ) as exc:
                 raise DatabaseBackupError(
                     "Could not prepare the uploaded "
                     "database for restoration."

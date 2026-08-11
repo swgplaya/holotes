@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import time
+
+from src.database import init_db
 
 
 PROJECT_ROOT = Path(
@@ -102,7 +105,31 @@ def _stop_processes(
 def run_services() -> int:
     """Runs Streamlit and Telegram together."""
 
-    services = build_service_commands()
+    shutdown_requested = False
+
+    def handle_sigterm(
+        signum,
+        frame,
+    ) -> None:
+        """Requests a graceful supervisor shutdown."""
+
+        nonlocal shutdown_requested
+
+        del signum
+        del frame
+
+        shutdown_requested = True
+
+    previous_sigterm_handler = (
+        signal.getsignal(
+            signal.SIGTERM
+        )
+    )
+
+    signal.signal(
+        signal.SIGTERM,
+        handle_sigterm,
+    )
 
     processes: list[
         tuple[
@@ -111,11 +138,17 @@ def run_services() -> int:
         ]
     ] = []
 
-    print(
-        "Starting Holotes services..."
-    )
-
     try:
+        init_db()
+
+        services = (
+            build_service_commands()
+        )
+
+        print(
+            "Starting Holotes services..."
+        )
+
         for service in services:
             print(
                 f"Starting {service.name}..."
@@ -142,7 +175,7 @@ def run_services() -> int:
             "all services.\n"
         )
 
-        while True:
+        while not shutdown_requested:
             for service, process in processes:
                 exit_code = process.poll()
 
@@ -162,6 +195,12 @@ def run_services() -> int:
                 PROCESS_CHECK_INTERVAL_SECONDS
             )
 
+        print(
+            "\nStopping Holotes services..."
+        )
+
+        return 0
+
     except KeyboardInterrupt:
         print(
             "\nStopping Holotes services..."
@@ -170,6 +209,11 @@ def run_services() -> int:
         return 0
 
     finally:
+        signal.signal(
+            signal.SIGTERM,
+            previous_sigterm_handler,
+        )
+
         _stop_processes(
             processes
         )
