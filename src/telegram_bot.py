@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import asyncio
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -77,6 +78,9 @@ class TelegramMessageContext:
     chat_type: str
     language_code: str
     text: str
+
+
+TelegramSendText = Callable[..., None]
 
 
 @dataclass(frozen=True)
@@ -1067,25 +1071,21 @@ def _send_localized(
     context: TelegramMessageContext,
     key: str,
     language: str | None = None,
+    send: TelegramSendText = send_text,
     **values: object,
 ) -> None:
     """Sends a localized command response."""
 
-    send_text(
+    send(
         token=token,
-        chat_id=(
-            context.telegram_chat_id
-        ),
-        message_thread_id=(
-            context.message_thread_id
-        ),
+        chat_id=context.telegram_chat_id,
+        message_thread_id=context.message_thread_id,
         text=_text(
             language or context.language_code,
             key,
             **values,
         ),
     )
-
 
 
 def _summary_language_for_context(
@@ -1114,6 +1114,7 @@ def _handle_language_command(
     token: str,
     context: TelegramMessageContext,
     arguments: str,
+    send: TelegramSendText = send_text,
 ) -> None:
     """Shows or changes one chat's summary language."""
 
@@ -1124,6 +1125,7 @@ def _handle_language_command(
             "Could not read Telegram settings."
         )
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="language_error",
@@ -1132,6 +1134,7 @@ def _handle_language_command(
 
     if not settings.is_enabled:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="disabled",
@@ -1146,6 +1149,7 @@ def _handle_language_command(
 
     if not allowed:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="access_denied",
@@ -1162,6 +1166,7 @@ def _handle_language_command(
 
     if not values:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="language_usage",
@@ -1174,6 +1179,7 @@ def _handle_language_command(
 
     if len(values) != 1:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="language_invalid",
@@ -1191,6 +1197,7 @@ def _handle_language_command(
         )
     except ValueError:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="language_invalid",
@@ -1202,6 +1209,7 @@ def _handle_language_command(
             "Could not save Telegram summary language."
         )
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="language_error",
@@ -1210,6 +1218,7 @@ def _handle_language_command(
         return
 
     _send_localized(
+        send=send,
         token=token,
         context=context,
         key="language_changed",
@@ -1223,6 +1232,7 @@ def _handle_summary_command(
     token: str,
     context: TelegramMessageContext,
     arguments: str,
+    send: TelegramSendText = send_text,
 ) -> None:
     """Handles an authorized financial summary."""
 
@@ -1237,6 +1247,7 @@ def _handle_summary_command(
         )
 
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="summary_error",
@@ -1246,6 +1257,7 @@ def _handle_summary_command(
 
     if not settings.is_enabled:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="disabled",
@@ -1269,6 +1281,7 @@ def _handle_summary_command(
 
     if not allowed:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="access_denied",
@@ -1296,6 +1309,7 @@ def _handle_summary_command(
 
     except ValueError:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="summary_usage",
@@ -1312,6 +1326,7 @@ def _handle_summary_command(
 
     except ValueError:
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="invalid_period",
@@ -1326,6 +1341,7 @@ def _handle_summary_command(
         )
 
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="summary_error",
@@ -1339,6 +1355,7 @@ def _handle_summary_command(
         )
 
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="summary_error",
@@ -1353,7 +1370,7 @@ def _handle_summary_command(
         )
     )
 
-    send_text(
+    send(
         token=token,
         chat_id=(
             context.telegram_chat_id
@@ -1365,20 +1382,19 @@ def _handle_summary_command(
     )
 
 
-def handle_update(
+def handle_message_context(
     *,
-    update: dict[str, Any],
+    context: TelegramMessageContext,
     token: str,
     bot_username: str,
+    send: TelegramSendText = send_text,
 ) -> bool:
-    """Handles one Telegram command update."""
+    """
+    Handles one Telegram command independently of transport.
 
-    context = extract_message_context(
-        update
-    )
-
-    if context is None:
-        return False
+    Bot API and MTProto both normalize incoming messages into
+    TelegramMessageContext before reaching this function.
+    """
 
     command = parse_command(
         context.text,
@@ -1390,53 +1406,46 @@ def handle_update(
 
     if command.name == "start":
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="start",
         )
-
         return True
 
     if command.name == "help":
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="help",
         )
-
         return True
 
     if command.name == "myid":
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="myid",
-            user_id=(
-                context.telegram_user_id
-            ),
+            user_id=context.telegram_user_id,
         )
-
         return True
 
     if command.name == "chatid":
         _send_localized(
+            send=send,
             token=token,
             context=context,
             key="chatid",
-            chat_id=(
-                context.telegram_chat_id
-            ),
+            chat_id=context.telegram_chat_id,
             thread_id=(
                 context.message_thread_id
-                if (
-                    context.message_thread_id
-                    is not None
-                )
-                else "—"
+                if context.message_thread_id is not None
+                else "?"
             ),
             chat_type=context.chat_type,
         )
-
         return True
 
     if command.name == "language":
@@ -1444,6 +1453,7 @@ def handle_update(
             token=token,
             context=context,
             arguments=command.arguments,
+            send=send,
         )
         return True
 
@@ -1452,17 +1462,41 @@ def handle_update(
             token=token,
             context=context,
             arguments=command.arguments,
+            send=send,
         )
-
         return True
 
     _send_localized(
+        send=send,
         token=token,
         context=context,
         key="unknown",
     )
 
     return True
+
+
+def handle_update(
+    *,
+    update: dict[str, Any],
+    token: str,
+    bot_username: str,
+) -> bool:
+    """Handles one Bot API update."""
+
+    context = extract_message_context(
+        update
+    )
+
+    if context is None:
+        return False
+
+    return handle_message_context(
+        context=context,
+        token=token,
+        bot_username=bot_username,
+        send=send_text,
+    )
 
 
 def _polling_error_is_fatal(
@@ -1498,8 +1532,8 @@ def _telegram_startup_error_is_retryable(
     )
 
 
-def run_bot() -> None:
-    """Runs the Holotes long-polling bot."""
+def _run_bot_api() -> None:
+    """Runs the Holotes Bot API long-polling bot."""
 
     token = load_telegram_bot_token()
 
@@ -1617,8 +1651,36 @@ def run_bot() -> None:
                 )
 
 
+def run_bot() -> None:
+    """Runs the configured Telegram transport."""
+
+    from src.telegram_mtproto import (
+        get_telegram_transport,
+        run_mtproto_bot,
+    )
+
+    transport = get_telegram_transport()
+
+    if transport == "mtproto":
+        token = load_telegram_bot_token()
+
+        asyncio.run(
+            run_mtproto_bot(
+                bot_token=token
+            )
+        )
+        return
+
+    _run_bot_api()
+
+
 def main() -> None:
     """CLI entry point."""
+
+    from src.telegram_mtproto import (
+        TelegramMtprotoConfigError,
+        TelegramMtprotoConnectionError,
+    )
 
     logging.basicConfig(
         level=logging.INFO,
@@ -1649,6 +1711,35 @@ def main() -> None:
             raise SystemExit(
                 f"Telegram bot startup failed: {exc}"
             ) from None
+
+        except TelegramMtprotoConfigError as exc:
+            raise SystemExit(
+                "Telegram MTProto startup failed: "
+                f"{exc}"
+            ) from None
+
+        except TelegramMtprotoConnectionError as exc:
+            delay = RETRY_DELAYS_SECONDS[
+                min(
+                    retry_index,
+                    len(
+                        RETRY_DELAYS_SECONDS
+                    ) - 1,
+                )
+            ]
+
+            retry_index += 1
+
+            LOGGER.warning(
+                "Telegram MTProto runtime failed: %s "
+                "Retrying in %s seconds.",
+                exc,
+                delay,
+            )
+
+            time.sleep(
+                delay
+            )
 
         except TelegramBotApiError as exc:
             if not (

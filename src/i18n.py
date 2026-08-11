@@ -2071,6 +2071,73 @@ for language, translations in (
     )
 # TELEGRAM MANAGEMENT TRANSLATIONS END
 
+
+# TELEGRAM TRANSPORT TRANSLATIONS START
+TELEGRAM_TRANSPORT_TRANSLATIONS = {
+    "ru": {
+        "settings.telegram.transport.title": "\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043a Telegram",
+        "settings.telegram.transport.caption": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u043f\u043e\u0441\u043e\u0431 \u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u044f Telegram-\u0431\u043e\u0442\u0430 \u0441 Telegram.",
+        "settings.telegram.transport.field": "\u0422\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442",
+        "settings.telegram.transport.option.bot_api": "Bot API \u2014 \u043f\u0440\u044f\u043c\u043e\u0435 HTTPS-\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435",
+        "settings.telegram.transport.option.mtproto": "MTProto \u2014 \u0447\u0435\u0440\u0435\u0437 Telethon \u0438 MTProxy",
+        "settings.telegram.transport.api_id": "Telegram API ID",
+        "settings.telegram.transport.api_id_help": "API ID \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f \u0438\u0437 my.telegram.org.",
+        "settings.telegram.transport.api_hash": "Telegram API Hash",
+        "settings.telegram.transport.api_hash_help": "\u0421\u0435\u043a\u0440\u0435\u0442\u043d\u043e\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0438\u0437 my.telegram.org. \u0421\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u043e\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u043e\u0431\u0440\u0430\u0442\u043d\u043e \u043d\u0435 \u043e\u0442\u043e\u0431\u0440\u0430\u0436\u0430\u0435\u0442\u0441\u044f.",
+        "settings.telegram.transport.proxy": "MTProxy link",
+        "settings.telegram.transport.proxy_help": "\u0421\u0441\u044b\u043b\u043a\u0430 \u0432\u0438\u0434\u0430 tg://proxy?server=...&port=...&secret=... . \u0421\u043e\u0445\u0440\u0430\u043d\u0451\u043d\u043d\u0430\u044f \u0441\u0441\u044b\u043b\u043a\u0430 \u043e\u0431\u0440\u0430\u0442\u043d\u043e \u043d\u0435 \u043e\u0442\u043e\u0431\u0440\u0430\u0436\u0430\u0435\u0442\u0441\u044f.",
+        "settings.telegram.transport.secret_configured": "\u0423\u0436\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d\u043e \u2014 \u043e\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u043f\u0443\u0441\u0442\u044b\u043c, \u0447\u0442\u043e\u0431\u044b \u043d\u0435 \u043c\u0435\u043d\u044f\u0442\u044c",
+        "settings.telegram.transport.save": "\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435",
+        "settings.telegram.transport.saved": "\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f Telegram \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b.",
+        "settings.telegram.transport.restart_required": "\u041f\u043e\u0441\u043b\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0442\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442\u0430 \u0438\u043b\u0438 MTProto-\u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u043e\u0432 \u043f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0435 \u043f\u0440\u043e\u0446\u0435\u0441\u0441 Telegram-\u0431\u043e\u0442\u0430 \u0438\u043b\u0438 Holotes.",
+        "settings.telegram.token.caption_mtproto": "\u0422\u043e\u043a\u0435\u043d \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442\u0441\u044f \u0447\u0435\u0440\u0435\u0437 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d\u043d\u043e\u0435 MTProto-\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0441\u043b\u0435 \u0443\u0441\u043f\u0435\u0448\u043d\u043e\u0439 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u0438.",
+    },
+    "en": {
+        "settings.telegram.transport.title": "Telegram connection",
+        "settings.telegram.transport.caption": "Choose how the Telegram bot connects to Telegram.",
+        "settings.telegram.transport.field": "Transport",
+        "settings.telegram.transport.option.bot_api": "Bot API \u2014 direct HTTPS connection",
+        "settings.telegram.transport.option.mtproto": "MTProto \u2014 Telethon through MTProxy",
+        "settings.telegram.transport.api_id": "Telegram API ID",
+        "settings.telegram.transport.api_id_help": "Application API ID from my.telegram.org.",
+        "settings.telegram.transport.api_hash": "Telegram API Hash",
+        "settings.telegram.transport.api_hash_help": "Secret value from my.telegram.org. A saved value is never displayed again.",
+        "settings.telegram.transport.proxy": "MTProxy link",
+        "settings.telegram.transport.proxy_help": "A link such as tg://proxy?server=...&port=...&secret=... . A saved link is never displayed again.",
+        "settings.telegram.transport.secret_configured": "Already configured \u2014 leave blank to keep it",
+        "settings.telegram.transport.save": "Save connection",
+        "settings.telegram.transport.saved": "Telegram connection settings saved.",
+        "settings.telegram.transport.restart_required": "After changing the transport or MTProto settings, restart the Telegram bot process or Holotes.",
+        "settings.telegram.token.caption_mtproto": "The token is validated through the configured MTProto connection and saved only after successful authentication.",
+    },
+    "zh-CN": {
+        "settings.telegram.transport.title": "Telegram \u8fde\u63a5",
+        "settings.telegram.transport.caption": "\u9009\u62e9 Telegram \u673a\u5668\u4eba\u8fde\u63a5 Telegram \u7684\u65b9\u5f0f\u3002",
+        "settings.telegram.transport.field": "\u4f20\u8f93\u65b9\u5f0f",
+        "settings.telegram.transport.option.bot_api": "Bot API \u2014 \u76f4\u63a5 HTTPS \u8fde\u63a5",
+        "settings.telegram.transport.option.mtproto": "MTProto \u2014 \u901a\u8fc7 MTProxy \u4f7f\u7528 Telethon",
+        "settings.telegram.transport.api_id": "Telegram API ID",
+        "settings.telegram.transport.api_id_help": "\u6765\u81ea my.telegram.org \u7684\u5e94\u7528 API ID\u3002",
+        "settings.telegram.transport.api_hash": "Telegram API Hash",
+        "settings.telegram.transport.api_hash_help": "\u6765\u81ea my.telegram.org \u7684\u79d8\u5bc6\u503c\u3002\u5df2\u4fdd\u5b58\u7684\u503c\u4e0d\u4f1a\u518d\u6b21\u663e\u793a\u3002",
+        "settings.telegram.transport.proxy": "MTProxy \u94fe\u63a5",
+        "settings.telegram.transport.proxy_help": "\u683c\u5f0f\u5982 tg://proxy?server=...&port=...&secret=... \u3002\u5df2\u4fdd\u5b58\u7684\u94fe\u63a5\u4e0d\u4f1a\u518d\u6b21\u663e\u793a\u3002",
+        "settings.telegram.transport.secret_configured": "\u5df2\u914d\u7f6e \u2014 \u7559\u7a7a\u4ee5\u4fdd\u6301\u4e0d\u53d8",
+        "settings.telegram.transport.save": "\u4fdd\u5b58\u8fde\u63a5",
+        "settings.telegram.transport.saved": "Telegram \u8fde\u63a5\u8bbe\u7f6e\u5df2\u4fdd\u5b58\u3002",
+        "settings.telegram.transport.restart_required": "\u66f4\u6539\u4f20\u8f93\u65b9\u5f0f\u6216 MTProto \u8bbe\u7f6e\u540e\uff0c\u8bf7\u91cd\u65b0\u542f\u52a8 Telegram \u673a\u5668\u4eba\u8fdb\u7a0b\u6216 Holotes\u3002",
+        "settings.telegram.token.caption_mtproto": "Token \u5c06\u901a\u8fc7\u5df2\u914d\u7f6e\u7684 MTProto \u8fde\u63a5\u9a8c\u8bc1\uff0c\u5e76\u4ec5\u5728\u8ba4\u8bc1\u6210\u529f\u540e\u4fdd\u5b58\u3002",
+    },
+}
+
+for language, translations in (
+    TELEGRAM_TRANSPORT_TRANSLATIONS.items()
+):
+    TRANSLATIONS[language].update(
+        translations
+    )
+# TELEGRAM TRANSPORT TRANSLATIONS END
+
 def translate(
     key: str,
     language: object = DEFAULT_LANGUAGE,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import asyncio
 from pathlib import Path
 import tempfile
 
@@ -19,7 +20,20 @@ from src.telegram_token import (
     delete_telegram_bot_token,
     get_configured_bot_identity,
     is_telegram_bot_token_configured,
+    load_telegram_bot_token,
     save_telegram_bot_token,
+    store_telegram_bot_token,
+)
+from src.telegram_transport_config import (
+    TelegramTransportConfigError,
+    get_telegram_transport_config,
+    save_telegram_transport_config,
+)
+from src.telegram_mtproto import (
+    TelegramMtprotoConfigError,
+    TelegramMtprotoConnectionError,
+    load_mtproto_settings,
+    probe_mtproto_bot,
 )
 from src.telegram_settings import (
     SUMMARY_PERIODS,
@@ -680,6 +694,29 @@ def _render_database_settings(
         )
 
 
+def _mtproto_identity_to_state(
+    identity: object,
+) -> dict[str, object]:
+    """Converts a minimal MTProto bot identity to UI state."""
+
+    return {
+        "bot_id": int(
+            getattr(
+                identity,
+                "telegram_user_id",
+            )
+        ),
+        "username": str(
+            getattr(
+                identity,
+                "username",
+                "",
+            )
+        ),
+        "display_name": "",
+    }
+
+
 def _identity_to_state(
     identity: TelegramBotIdentity,
 ) -> dict[str, object]:
@@ -781,15 +818,18 @@ def _render_bot_identity(
                 "can_join_groups"
             )
         ),
-        t(
-            "common.yes"
-            if bool(
-                identity.get(
-                    "can_join_groups",
-                    False,
+        (
+            "?"
+            if "can_join_groups" not in identity
+            else t(
+                "common.yes"
+                if bool(
+                    identity.get(
+                        "can_join_groups"
+                    )
                 )
+                else "common.no"
             )
-            else "common.no"
         ),
     )
 
@@ -800,20 +840,195 @@ def _render_bot_identity(
                 "reads_all_messages"
             )
         ),
-        t(
-            "common.yes"
-            if bool(
-                identity.get(
-                    (
-                        "can_read_all_"
-                        "group_messages"
-                    ),
-                    False,
-                )
+        (
+            "?"
+            if (
+                "can_read_all_group_messages"
+                not in identity
             )
-            else "common.no"
+            else t(
+                "common.yes"
+                if bool(
+                    identity.get(
+                        (
+                            "can_read_all_"
+                            "group_messages"
+                        )
+                    )
+                )
+                else "common.no"
+            )
         ),
     )
+
+
+def _render_transport_form(
+    *,
+    t: Translator,
+) -> str:
+    """Renders and stores Telegram transport configuration."""
+
+    config = get_telegram_transport_config()
+
+    st.markdown(
+        f"#### "
+        f"{t('settings.telegram.transport.title')}"
+    )
+
+    st.caption(
+        t(
+            "settings.telegram.transport.caption"
+        )
+    )
+
+    transport_options = [
+        "bot_api",
+        "mtproto",
+    ]
+
+    selected_index = (
+        transport_options.index(
+            config.transport
+        )
+    )
+
+    with st.form(
+        "settings_telegram_transport_form"
+    ):
+        transport = st.selectbox(
+            t(
+                "settings.telegram.transport.field"
+            ),
+            options=transport_options,
+            index=selected_index,
+            format_func=lambda value: t(
+                (
+                    "settings.telegram.transport."
+                    f"option.{value}"
+                )
+            ),
+        )
+
+        api_id = config.api_id
+        api_hash = ""
+        mtproxy_url = ""
+
+        if transport == "mtproto":
+            api_id = st.text_input(
+                t(
+                    "settings.telegram.transport.api_id"
+                ),
+                value=config.api_id,
+                help=t(
+                    (
+                        "settings.telegram.transport."
+                        "api_id_help"
+                    )
+                ),
+            )
+
+            api_hash = st.text_input(
+                t(
+                    (
+                        "settings.telegram.transport."
+                        "api_hash"
+                    )
+                ),
+                value="",
+                type="password",
+                placeholder=(
+                    t(
+                        (
+                            "settings.telegram.transport."
+                            "secret_configured"
+                        )
+                    )
+                    if config.api_hash_configured
+                    else ""
+                ),
+                help=t(
+                    (
+                        "settings.telegram.transport."
+                        "api_hash_help"
+                    )
+                ),
+            )
+
+            mtproxy_url = st.text_input(
+                t(
+                    (
+                        "settings.telegram.transport."
+                        "proxy"
+                    )
+                ),
+                value="",
+                type="password",
+                placeholder=(
+                    t(
+                        (
+                            "settings.telegram.transport."
+                            "secret_configured"
+                        )
+                    )
+                    if config.mtproxy_configured
+                    else "tg://proxy?server=..."
+                ),
+                help=t(
+                    (
+                        "settings.telegram.transport."
+                        "proxy_help"
+                    )
+                ),
+            )
+
+        submitted = st.form_submit_button(
+            t(
+                "settings.telegram.transport.save"
+            ),
+            type="primary",
+            use_container_width=True,
+        )
+
+    if submitted:
+        try:
+            saved = save_telegram_transport_config(
+                transport=transport,
+                api_id=api_id,
+                api_hash=api_hash,
+                mtproxy_url=mtproxy_url,
+            )
+
+        except TelegramTransportConfigError as exc:
+            _show_telegram_error(
+                t=t,
+                error=exc,
+            )
+
+        else:
+            st.session_state[
+                TELEGRAM_TOKEN_MESSAGE_STATE_KEY
+            ] = t(
+                (
+                    "settings.telegram.transport."
+                    "saved"
+                )
+            )
+
+            st.rerun()
+
+            return saved.transport
+
+    if config.transport == "mtproto":
+        st.info(
+            t(
+                (
+                    "settings.telegram.transport."
+                    "restart_required"
+                )
+            )
+        )
+
+    return config.transport
 
 
 def _render_token_status(
@@ -855,8 +1070,9 @@ def _render_token_status(
 def _render_token_form(
     *,
     t: Translator,
+    transport: str,
 ) -> None:
-    """Renders token validation and save form."""
+    """Renders transport-aware token validation and save."""
 
     st.markdown(
         f"#### "
@@ -865,7 +1081,12 @@ def _render_token_form(
 
     st.caption(
         t(
-            "settings.telegram.token.caption"
+            (
+                "settings.telegram.token."
+                "caption_mtproto"
+            )
+            if transport == "mtproto"
+            else "settings.telegram.token.caption"
         )
     )
 
@@ -930,7 +1151,6 @@ def _render_token_form(
                 )
             )
         )
-
         return
 
     try:
@@ -942,38 +1162,73 @@ def _render_token_form(
                 )
             )
         ):
-            identity = (
-                save_telegram_bot_token(
+            if transport == "mtproto":
+                settings = load_mtproto_settings()
+
+                identity = asyncio.run(
+                    probe_mtproto_bot(
+                        token,
+                        settings,
+                    )
+                )
+
+                store_telegram_bot_token(
                     token
                 )
-            )
 
-    except TelegramTokenError as exc:
+                identity_state = (
+                    _mtproto_identity_to_state(
+                        identity
+                    )
+                )
+
+                username = (
+                    f"@{identity.username}"
+                    if identity.username
+                    else str(
+                        identity.telegram_user_id
+                    )
+                )
+
+            else:
+                bot_api_identity = (
+                    save_telegram_bot_token(
+                        token
+                    )
+                )
+
+                identity_state = (
+                    _identity_to_state(
+                        bot_api_identity
+                    )
+                )
+
+                username = (
+                    f"@{bot_api_identity.username}"
+                    if bot_api_identity.username
+                    else bot_api_identity.display_name
+                )
+
+    except (
+        TelegramTokenError,
+        TelegramMtprotoConfigError,
+        TelegramMtprotoConnectionError,
+    ) as exc:
         _show_telegram_error(
             t=t,
             error=exc,
         )
-
         return
 
     st.session_state[
         TELEGRAM_IDENTITY_STATE_KEY
-    ] = _identity_to_state(
-        identity
-    )
+    ] = identity_state
 
     st.session_state[
         TELEGRAM_TOKEN_MESSAGE_STATE_KEY
     ] = t(
-        (
-            "settings.telegram.token."
-            "saved"
-        ),
-        username=(
-            f"@{identity.username}"
-            if identity.username
-            else identity.display_name
-        ),
+        "settings.telegram.token.saved",
+        username=username,
     )
 
     st.session_state.pop(
@@ -991,8 +1246,9 @@ def _render_token_form(
 def _render_connection_check(
     *,
     t: Translator,
+    transport: str,
 ) -> None:
-    """Checks the stored token through getMe."""
+    """Checks the stored bot through the configured transport."""
 
     check_clicked = st.button(
         t(
@@ -1016,23 +1272,62 @@ def _render_connection_check(
                 )
             )
         ):
-            identity = (
-                get_configured_bot_identity()
-            )
+            if transport == "mtproto":
+                token = load_telegram_bot_token()
+                settings = load_mtproto_settings()
 
-    except TelegramTokenError as exc:
+                identity = asyncio.run(
+                    probe_mtproto_bot(
+                        token,
+                        settings,
+                    )
+                )
+
+                identity_state = (
+                    _mtproto_identity_to_state(
+                        identity
+                    )
+                )
+
+                username = (
+                    f"@{identity.username}"
+                    if identity.username
+                    else str(
+                        identity.telegram_user_id
+                    )
+                )
+
+            else:
+                bot_api_identity = (
+                    get_configured_bot_identity()
+                )
+
+                identity_state = (
+                    _identity_to_state(
+                        bot_api_identity
+                    )
+                )
+
+                username = (
+                    f"@{bot_api_identity.username}"
+                    if bot_api_identity.username
+                    else bot_api_identity.display_name
+                )
+
+    except (
+        TelegramTokenError,
+        TelegramMtprotoConfigError,
+        TelegramMtprotoConnectionError,
+    ) as exc:
         _show_telegram_error(
             t=t,
             error=exc,
         )
-
         return
 
     st.session_state[
         TELEGRAM_IDENTITY_STATE_KEY
-    ] = _identity_to_state(
-        identity
-    )
+    ] = identity_state
 
     st.success(
         t(
@@ -1040,11 +1335,7 @@ def _render_connection_check(
                 "settings.telegram.connection."
                 "success"
             ),
-            username=(
-                f"@{identity.username}"
-                if identity.username
-                else identity.display_name
-            ),
+            username=username,
         )
     )
 
@@ -2233,6 +2524,12 @@ def _render_telegram_settings(
         t=t,
     )
 
+    transport = _render_transport_form(
+        t=t,
+    )
+
+    st.divider()
+
     token_configured = (
         is_telegram_bot_token_configured()
     )
@@ -2258,12 +2555,14 @@ def _render_telegram_settings(
     if token_configured:
         _render_connection_check(
             t=t,
+            transport=transport,
         )
 
     st.divider()
 
     _render_token_form(
         t=t,
+        transport=transport,
     )
 
     if token_configured:

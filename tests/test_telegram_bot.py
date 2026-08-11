@@ -727,3 +727,72 @@ def test_main_retries_temporary_startup_error(
         "sleep:1",
         "run_bot",
     ]
+
+
+def test_handle_message_context_uses_custom_sender():
+    import src.telegram_bot as module
+
+    calls = []
+
+    def fake_send(**kwargs):
+        calls.append(kwargs)
+
+    context = module.TelegramMessageContext(
+        update_id=1,
+        message_id=2,
+        telegram_user_id=123,
+        telegram_chat_id=123,
+        message_thread_id=None,
+        chat_type="private",
+        language_code="en",
+        text="/start",
+    )
+
+    handled = module.handle_message_context(
+        context=context,
+        token="test-token",
+        bot_username="holotes_test_bot",
+        send=fake_send,
+    )
+
+    assert handled is True
+    assert len(calls) == 1
+
+    assert calls[0]["token"] == "test-token"
+    assert calls[0]["chat_id"] == 123
+    assert calls[0]["message_thread_id"] is None
+
+    assert (
+        "Holotes Telegram bot is running."
+        in calls[0]["text"]
+    )
+
+
+def test_handle_message_context_ignores_plain_text():
+    import src.telegram_bot as module
+
+    calls = []
+
+    def fake_send(**kwargs):
+        calls.append(kwargs)
+
+    context = module.TelegramMessageContext(
+        update_id=1,
+        message_id=2,
+        telegram_user_id=123,
+        telegram_chat_id=123,
+        message_thread_id=None,
+        chat_type="private",
+        language_code="en",
+        text="hello",
+    )
+
+    handled = module.handle_message_context(
+        context=context,
+        token="test-token",
+        bot_username="holotes_test_bot",
+        send=fake_send,
+    )
+
+    assert handled is False
+    assert calls == []

@@ -488,6 +488,36 @@ def _update_env_token(
     )
 
 
+
+
+def store_telegram_bot_token(
+    token: str,
+    *,
+    env_path: Path | None = None,
+) -> None:
+    """
+    Stores a token after validation performed by another
+    Telegram transport, such as MTProto.
+    """
+
+    resolved_path = _resolve_env_path(
+        env_path
+    )
+
+    normalized = _normalize_token(
+        token
+    )
+
+    _update_env_token(
+        env_path=resolved_path,
+        token=normalized,
+    )
+
+    os.environ[
+        TOKEN_ENV_NAME
+    ] = normalized
+
+
 def save_telegram_bot_token(
     token: str,
     *,

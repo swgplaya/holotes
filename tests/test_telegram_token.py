@@ -442,3 +442,30 @@ def test_delete_removes_only_telegram_token(
         telegram_token.TOKEN_ENV_NAME
         not in os.environ
     )
+
+
+def test_store_token_without_network_validation(
+    isolated_env_path: Path,
+) -> None:
+    isolated_env_path.write_text(
+        "OTHER_SETTING=value\n",
+        encoding="utf-8",
+    )
+
+    telegram_token.store_telegram_bot_token(
+        "123456:MT_PROTO_TOKEN"
+    )
+
+    saved_text = (
+        isolated_env_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        "TELEGRAM_BOT_TOKEN="
+        "123456:MT_PROTO_TOKEN"
+        in saved_text
+    )
+
+    assert "OTHER_SETTING=value" in saved_text
