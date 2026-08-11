@@ -6,6 +6,14 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-12
+
+### Fixed
+
+- Fixed Telegram configuration persistence when `.env` is bind-mounted into a Docker container.
+- Added an in-place write fallback for Telegram transport settings and bot token storage when atomic file replacement is unavailable.
+- Added regression coverage for Docker-style bind-mounted `.env` persistence.
+
 ## [0.2.1] - 2026-08-12
 
 ### Added
