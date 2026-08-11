@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import signal
 import subprocess
 import sys
 import time
+
+from dotenv import dotenv_values
 
 from src.database import init_db
 
@@ -16,6 +19,38 @@ PROJECT_ROOT = Path(
 
 PROCESS_CHECK_INTERVAL_SECONDS = 0.5
 PROCESS_STOP_TIMEOUT_SECONDS = 5
+
+
+def _telegram_token_is_configured() -> bool:
+    """Returns whether a Telegram bot token is configured."""
+
+    environment_token = os.getenv(
+        "TELEGRAM_BOT_TOKEN"
+    )
+
+    if (
+        environment_token is not None
+        and environment_token.strip()
+    ):
+        return True
+
+    env_path = PROJECT_ROOT / ".env"
+
+    if not env_path.is_file():
+        return False
+
+    values = dotenv_values(
+        env_path
+    )
+
+    file_token = values.get(
+        "TELEGRAM_BOT_TOKEN"
+    )
+
+    return bool(
+        file_token
+        and file_token.strip()
+    )
 
 
 @dataclass(frozen=True)
@@ -144,6 +179,18 @@ def run_services() -> int:
         services = (
             build_service_commands()
         )
+
+        if not _telegram_token_is_configured():
+            services = tuple(
+                service
+                for service in services
+                if service.name != "Telegram bot"
+            )
+
+            print(
+                "Telegram bot token is not configured. "
+                "Starting web interface only."
+            )
 
         print(
             "Starting Holotes services..."

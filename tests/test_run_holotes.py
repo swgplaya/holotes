@@ -90,6 +90,12 @@ def test_run_services_initializes_database_before_children(
     )
 
     monkeypatch.setattr(
+        run_holotes,
+        "_telegram_token_is_configured",
+        lambda: True,
+    )
+
+    monkeypatch.setattr(
         run_holotes.subprocess,
         "Popen",
         lambda *args, **kwargs: (
@@ -130,6 +136,12 @@ def test_run_services_handles_sigterm_gracefully(
         run_holotes,
         "init_db",
         lambda: None,
+    )
+
+    monkeypatch.setattr(
+        run_holotes,
+        "_telegram_token_is_configured",
+        lambda: True,
     )
 
     monkeypatch.setattr(
@@ -195,3 +207,55 @@ def test_run_services_handles_sigterm_gracefully(
     assert restored_handlers == [
         previous_handler
     ]
+
+def test_run_services_skips_telegram_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    started_commands: list[
+        tuple[str, ...]
+    ] = []
+
+    monkeypatch.setattr(
+        run_holotes,
+        "init_db",
+        lambda: None,
+    )
+
+    monkeypatch.setattr(
+        run_holotes,
+        "_telegram_token_is_configured",
+        lambda: False,
+    )
+
+    def fake_popen(
+        arguments,
+        **kwargs,
+    ):
+        del kwargs
+
+        started_commands.append(
+            tuple(arguments)
+        )
+
+        return _FakeProcess(
+            exit_code=0
+        )
+
+    monkeypatch.setattr(
+        run_holotes.subprocess,
+        "Popen",
+        fake_popen,
+    )
+
+    result = run_holotes.run_services()
+
+    assert result == 0
+    assert len(started_commands) == 1
+
+    assert (
+        "src.telegram_bot"
+        not in started_commands[0]
+    )
+
+    assert "streamlit" in started_commands[0]
+
