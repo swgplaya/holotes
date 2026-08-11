@@ -6,6 +6,47 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-12
+
+### Added
+
+- Added an MTProto Telegram transport based on Telethon.
+- Added MTProxy support for Telegram connectivity in restricted networks.
+- Added support for Telegram MTProxy deep links.
+- Added persistent Telethon session storage in the `data/` directory.
+- Added Telegram transport selection and MTProto configuration to the Settings interface.
+- Added MTProto connection and bot-token validation without relying on the HTTPS Bot API.
+- Added configuration through:
+  - `TELEGRAM_TRANSPORT`;
+  - `TELEGRAM_API_ID`;
+  - `TELEGRAM_API_HASH`;
+  - `TELEGRAM_MTPROXY_URL`.
+
+### Changed
+
+- Telegram command handling is now shared between the Bot API and MTProto transports.
+- The existing Bot API transport remains available as the default and backward-compatible option.
+- Access restrictions, language preferences, commands, and financial-summary logic are transport-independent.
+- Telegram connection checks now use the currently selected transport.
+- Saved Telegram API Hash and MTProxy credentials are not displayed back in the Settings interface.
+- `python-socks` is pinned to version `3.0.0` for reproducible MTProxy support.
+
+### Reliability
+
+- Telethon authorization state persists across Docker container restarts and recreation.
+- MTProto connectivity was validated through the Docker runtime and a persistent session.
+- MTProto token validation uses a temporary Telethon session so replacement credentials are validated independently of an existing authorized session.
+
+### Notes
+
+- Holotes does not modify system-wide proxy or VPN settings; MTProxy is used only by the Telegram MTProto transport.
+- On servers where Telegram connectivity is restricted, including some networks in Russia, the Telegram bot may require MTProto through a working MTProxy or another suitable route.
+- The Holotes web interface does not depend on Telegram connectivity and continues to operate normally when the Telegram bot cannot connect.
+- On servers and networks where Telegram is reachable normally, the Bot API or direct MTProto connectivity can be used without additional routing.
+- The Telegram bot remains read-only for financial data.
+- `v0.2.1` remains an owner-operated, single-company, single-user release.
+
+
 ## [0.2.0] - 2026-08-11
 
 ### Added

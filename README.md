@@ -10,7 +10,7 @@ Holotes imports bank transactions, helps classify cash movements, builds managem
 
 Financial data is stored locally in SQLite by default. The interface is available in Russian, English, and Simplified Chinese and supports light and dark themes.
 
-> **Release status:** This README describes `v0.2.0`, the current Holotes release. It supports local Python installation and owner-operated Docker deployment for an always-on instance. It remains a single-company, single-user system and must not be exposed directly to the public Internet without an appropriate protected deployment layer.
+> **Release status:** This README describes `v0.2.1`, the current Holotes release. It supports local Python installation and owner-operated Docker deployment for an always-on instance, and adds an MTProto/Telethon Telegram transport with MTProxy support. It remains a single-company, single-user system and must not be exposed directly to the public Internet without an appropriate protected deployment layer.
 
 ## Contents
 
@@ -117,8 +117,10 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 
 ### Telegram bot
 
-- Run locally using long polling
-- Store the bot token in `.env` without displaying the full saved token
+- Use either the Telegram Bot API or the MTProto transport
+- Run MTProto through Telethon, with MTProxy support for restricted networks
+- Store the bot token and MTProto credentials in `.env` without displaying saved secrets
+- Persist the Telethon MTProto session in the `data/` directory
 - Restrict access by Telegram user ID and chat ID
 - Configure the default summary period
 - Select and persist the summary language separately for each Telegram chat
@@ -143,7 +145,7 @@ The P&L report currently uses bank transactions and the cash method.
 
 Holotes is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
 
-The Telegram bot in `v0.2.0` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
+The Telegram bot in `v0.2.1` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token, Telegram API credentials, MTProxy secret, or Telethon session file.
 
 The calculated balance shown in Holotes is derived from the sum of all imported cash movements. It may differ from the actual bank balance if the imported history is incomplete or does not begin from a zero balance.
 
@@ -157,6 +159,7 @@ The calculated balance shown in Holotes is derived from the sum of all imported 
 - Alembic
 - Plotly
 - Docker and Docker Compose
+- Telethon
 - pytest
 - GitHub Actions
 
@@ -166,7 +169,7 @@ Python 3.12 is recommended.
 
 ### Installation modes
 
-`v0.2.0` supports two installation modes:
+`v0.2.1` supports two installation modes:
 
 - a local Python environment on Windows, Linux, or macOS;
 - an owner-operated Docker deployment for an always-on Holotes instance on a trusted machine or server.
@@ -245,7 +248,7 @@ Streamlit prints the local application URL in the terminal. The SQLite database 
 
 ## Docker deployment
 
-Docker deployment is officially supported in `v0.2.0` for owner-operated, always-on Holotes installations.
+Docker deployment is officially supported in `v0.2.1` for owner-operated, always-on Holotes installations.
 
 It is intended for an always-on, owner-operated Holotes instance. The default Compose configuration exposes the Streamlit interface only on the Docker host itself:
 
@@ -385,6 +388,7 @@ data/
 ├── finance.db
 ├── finance.db-wal
 ├── finance.db-shm
+├── telegram_mtproto.session
 └── backups/
 ```
 
@@ -524,7 +528,7 @@ Rules can match:
 
 Higher-priority rules are evaluated before lower-priority rules. Amount conditions are optional; when configured, they are evaluated together with direction and text conditions. Transaction amounts are compared by absolute value, while direction remains a separate rule condition.
 
-Rule configurations can be exported as versioned JSON and restored in another Holotes installation. `v0.2.0` exports rule configuration schema version 2 while continuing to accept version 1 configurations created before amount conditions were added.
+Rule configurations can be exported as versioned JSON and restored in another Holotes installation. `v0.2.1` exports rule configuration schema version 2 while continuing to accept version 1 configurations created before amount conditions were added.
 
 ### Build reports
 
@@ -555,17 +559,74 @@ Open the **Unit economics** tab to:
 
 ## Telegram bot
 
-The current bot is designed for local access to read-only financial summaries and per-chat language preferences.
+The Telegram integration provides read-only financial summaries, access restrictions, and per-chat language preferences.
 
-### Configure the token
+Holotes supports two Telegram transports:
+
+- **Bot API** — the traditional HTTPS Telegram Bot API transport;
+- **MTProto** — a Telethon-based transport that can use MTProxy.
+
+Both transports share the same commands, access-control rules, summary settings, and financial-summary logic.
+
+### Configure the bot token
 
 1. Create a bot through Telegram's BotFather.
 2. Start the Holotes web interface.
-3. Open **Settings**.
-4. Enter and validate the Telegram bot token.
-5. Save it to `.env` through the interface.
+3. Open **Settings → Telegram**.
+4. Enter the bot token.
+5. Save it through the interface.
 
 The full saved token is not displayed after saving.
+
+### Choose the Telegram transport
+
+By default Holotes uses the HTTPS Bot API:
+
+```dotenv
+TELEGRAM_TRANSPORT=bot_api
+```
+
+For MTProto, select **MTProto** in **Settings → Telegram** and configure:
+
+```dotenv
+TELEGRAM_TRANSPORT=mtproto
+TELEGRAM_API_ID=
+TELEGRAM_API_HASH=
+TELEGRAM_MTPROXY_URL=
+```
+
+`TELEGRAM_API_ID` and `TELEGRAM_API_HASH` are Telegram application credentials from `my.telegram.org`.
+
+`TELEGRAM_MTPROXY_URL` accepts Telegram proxy deep links in either form:
+
+```text
+tg://proxy?server=host&port=443&secret=...
+https://t.me/proxy?server=host&port=443&secret=...
+```
+
+The Settings interface stores these values in `.env`. Saved secret values such as API Hash and the MTProxy link are not displayed back to the user.
+
+The **Check connection** action follows the selected transport. In MTProto mode, token validation and connectivity checks are performed through Telethon and the configured MTProxy instead of the HTTPS Bot API.
+
+### Russia-hosted servers and Telegram availability
+
+The Holotes web interface does not depend on Telegram connectivity. If Telegram is restricted or unreachable from the server's network, the web application continues to work normally.
+
+For servers physically hosted in Russia, direct Telegram connectivity may be unavailable or unstable because of current network restrictions. In that case, the Telegram bot may require the MTProto transport with a working MTProxy or another suitable network route. Holotes applies the proxy only to its Telegram transport and does not change the server's system-wide networking.
+
+For servers hosted in countries and networks where Telegram is reachable normally, the Bot API or direct MTProto transport should work without these additional routing measures.
+
+### MTProto session persistence
+
+Telethon stores its authorization session under:
+
+```text
+data/telegram_mtproto.session
+```
+
+An accompanying SQLite journal file may temporarily exist while the process is running.
+
+The Docker deployment bind-mounts `./data` to `/app/data`, so the MTProto session survives normal container restarts, rebuilds, and recreation. Treat the session file as a secret and do not commit or share it.
 
 ### Restrict access
 
@@ -759,10 +820,12 @@ alembic.ini
 
 ### Telegram integration
 
-- `src/telegram_bot.py` implements long polling and command handling.
-- `src/telegram_settings.py` stores bot settings and access restrictions.
-- `src/telegram_token.py` manages the token in `.env`.
-- `src/telegram_summary.py` builds read-only financial summaries.
+- `src/telegram_bot.py` contains the shared command dispatcher and the legacy Bot API runtime.
+- `src/telegram_mtproto.py` implements the Telethon MTProto runtime, MTProxy parsing, MTProto message adaptation, and sending.
+- `src/telegram_transport_config.py` manages Telegram transport configuration in `.env`.
+- `src/telegram_settings.py` stores bot behavior, access restrictions, and per-chat preferences.
+- `src/telegram_token.py` manages bot-token persistence and Bot API token validation.
+- `src/telegram_summary.py` builds transport-independent read-only financial summaries.
 
 ### Localization
 
@@ -790,7 +853,7 @@ Changing the interface language never rewrites stored values. Built-in P&L and C
 
 ## Local data, privacy, and security
 
-Holotes `v0.2.0` is designed primarily for trusted owner-operated use by one person, either as a local Python installation or an always-on Docker deployment.
+Holotes `v0.2.1` is designed primarily for trusted owner-operated use by one person, either as a local Python installation or an always-on Docker deployment.
 
 The following files and directories should remain outside version control:
 
@@ -863,9 +926,11 @@ holotes/
 │   ├── rule_config.py
 │   ├── rule_repository.py
 │   ├── telegram_bot.py
+│   ├── telegram_mtproto.py
 │   ├── telegram_settings.py
 │   ├── telegram_summary.py
 │   ├── telegram_token.py
+│   ├── telegram_transport_config.py
 │   ├── transaction_repository.py
 │   ├── unit_economics.py
 │   └── version.py
@@ -900,12 +965,13 @@ holotes/
 - Docker deployment is intended for localhost, trusted LAN, VPN, or another protected environment rather than direct public Internet exposure
 - The Streamlit interface is an MVP and may be replaced or supplemented by a more suitable frontend
 - The Telegram bot supports a limited command set; access to financial data is read-only
+- Telegram availability depends on the server network; Russia-hosted servers may require MTProto through MTProxy or another suitable route
 - P&L is cash-based rather than accrual-based
 - Built-in report category labels are localized, but custom categories and other user-entered content are not automatically translated
 - Some low-level validation and repository errors may not yet be localized
 - Large transaction histories still require further query, caching, and pagination optimization
 - The calculated balance is derived from imported transaction history and is not a direct bank balance
-- `v0.2.0` is an owner-operated single-user release with Docker deployment; it is not a production-ready multi-user system
+- `v0.2.1` is an owner-operated single-user release with Docker deployment; it is not a production-ready multi-user system
 
 ## Roadmap
 
@@ -970,6 +1036,19 @@ This release focuses deliberately on deployment rather than expanding the accoun
 `v0.2.0` provides a stable owner-operated Holotes node that can run continuously on a PC, home server, VPS behind appropriate protection, or another trusted Linux/Docker host.
 
 Multi-company support, user accounts, roles, PostgreSQL, and direct public Internet deployment are intentionally outside the scope of `v0.2.0`.
+
+### `v0.2.1` — Telegram MTProto transport
+
+This patch release improves Telegram connectivity without changing the accounting or deployment architecture:
+
+- retain the existing Bot API transport;
+- add a Telethon-based MTProto transport;
+- support MTProxy deep links for restricted networks;
+- share commands, access controls, language settings, and financial-summary logic between transports;
+- configure MTProto credentials from the Settings interface;
+- persist Telethon authorization state in the existing host-mounted `data/` directory.
+
+The MTProxy configuration applies only to Telegram traffic and does not modify server-wide networking.
 
 ### `v0.3.0` — planned multi-company foundation
 
