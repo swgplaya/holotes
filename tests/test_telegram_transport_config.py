@@ -188,3 +188,48 @@ def test_mtproto_requires_complete_configuration(
             mtproxy_url=proxy,
             env_path=isolated_env,
         )
+
+
+def test_save_falls_back_to_in_place_write_when_replace_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_path = tmp_path / ".env"
+
+    env_path.write_text(
+        "DATABASE_URL=sqlite:///data/test.db\n",
+        encoding="utf-8",
+    )
+
+    def fail_replace(
+        source: object,
+        destination: object,
+    ) -> None:
+        del source, destination
+        raise OSError(
+            "bind mount cannot be replaced"
+        )
+
+    monkeypatch.setattr(
+        config.os,
+        "replace",
+        fail_replace,
+    )
+
+    config.save_telegram_transport_config(
+        transport="bot_api",
+        env_path=env_path,
+    )
+
+    saved_text = env_path.read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "DATABASE_URL=sqlite:///data/test.db"
+        in saved_text
+    )
+    assert (
+        "TELEGRAM_TRANSPORT=bot_api"
+        in saved_text
+    )

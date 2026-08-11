@@ -469,3 +469,45 @@ def test_store_token_without_network_validation(
     )
 
     assert "OTHER_SETTING=value" in saved_text
+
+
+def test_store_token_falls_back_to_in_place_write_when_replace_fails(
+    isolated_env_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    isolated_env_path.write_text(
+        "DATABASE_URL=sqlite:///data/test.db\n",
+        encoding="utf-8",
+    )
+
+    def fail_replace(
+        source: object,
+        destination: object,
+    ) -> None:
+        del source, destination
+        raise OSError(
+            "bind mount cannot be replaced"
+        )
+
+    monkeypatch.setattr(
+        telegram_token.os,
+        "replace",
+        fail_replace,
+    )
+
+    telegram_token.store_telegram_bot_token(
+        "123456:TEST_TOKEN"
+    )
+
+    saved_text = isolated_env_path.read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "DATABASE_URL=sqlite:///data/test.db"
+        in saved_text
+    )
+    assert (
+        "TELEGRAM_BOT_TOKEN=123456:TEST_TOKEN"
+        in saved_text
+    )

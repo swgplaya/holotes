@@ -396,7 +396,7 @@ def _write_env_atomically(
     env_path: Path,
     content: str,
 ) -> None:
-    """Writes dotenv content through a temp file."""
+    """Writes dotenv content safely, including Docker bind mounts."""
 
     env_path.parent.mkdir(
         parents=True,
@@ -405,9 +405,7 @@ def _write_env_atomically(
 
     file_descriptor, temporary_name = (
         tempfile.mkstemp(
-            prefix=(
-                f".{env_path.name}."
-            ),
+            prefix=f".{env_path.name}.",
             suffix=".tmp",
             dir=env_path.parent,
             text=True,
@@ -428,22 +426,42 @@ def _write_env_atomically(
             temporary_file.write(
                 content
             )
-
             temporary_file.flush()
-
             os.fsync(
                 temporary_file.fileno()
             )
 
-        os.replace(
-            temporary_path,
-            env_path,
-        )
+        try:
+            os.replace(
+                temporary_path,
+                env_path,
+            )
+            return
 
-    except OSError as exc:
-        raise TelegramTokenError(
-            "Could not update the .env file."
-        ) from exc
+        except OSError as replace_error:
+            if not env_path.exists():
+                raise TelegramTokenError(
+                    "Could not update the .env file."
+                ) from replace_error
+
+        try:
+            with env_path.open(
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+            ) as env_file:
+                env_file.write(
+                    content
+                )
+                env_file.flush()
+                os.fsync(
+                    env_file.fileno()
+                )
+
+        except OSError as write_error:
+            raise TelegramTokenError(
+                "Could not update the .env file."
+            ) from write_error
 
     finally:
         temporary_path.unlink(
