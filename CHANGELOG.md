@@ -6,6 +6,52 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-11
+
+### Added
+
+- Added Docker and Docker Compose deployment for always-on Holotes installations.
+- Added a reproducible Linux container image based on Python 3.12.
+- Added a Streamlit Docker health check.
+- Added persistent host-mounted storage for:
+  - the SQLite database;
+  - built-in database backups;
+  - `.env` configuration.
+- Added configurable Docker host binding through `HOLOTES_BIND_ADDRESS`.
+- Added automatic web-only startup when the Telegram bot token is not configured.
+- Added Linux server administration scripts for:
+  - starting and stopping Holotes;
+  - restarting the service;
+  - checking status and health;
+  - following logs;
+  - upgrading production installations to an explicit release tag.
+
+### Changed
+
+- Holotes now initializes and migrates the database before starting the Streamlit and Telegram child processes.
+- The combined service launcher now handles `SIGTERM` and shuts down child processes gracefully.
+- Docker Compose restarts the Holotes container automatically unless it was explicitly stopped.
+- Docker deployment binds the Streamlit port to `127.0.0.1` on the host by default.
+- SQLite connections now use WAL journaling and a 30-second busy timeout for safer long-running web and Telegram access.
+- Database backup and restoration now use WAL-safe SQLite snapshots.
+- Docker deployment, upgrades, health checks, persistence, logs, shutdown, and network exposure are now documented in the README.
+- The roadmap now separates always-on deployment in `v0.2.0` from the planned multi-company work in `v0.3.0`.
+
+### Security
+
+- Docker does not expose the Streamlit interface to LAN or public interfaces by default.
+- `.env` is excluded from Docker image build context and remains host-mounted at runtime.
+- Application data is excluded from Docker image build context and remains outside the container lifecycle.
+- Public Internet exposure is still unsupported without an external protected deployment layer.
+
+### Notes
+
+- `v0.2.0` remains an owner-operated, single-company, single-user release.
+- Telegram integration remains optional.
+- SQLite remains the supported database backend.
+- Multi-company support is planned for a later milestone.
+- Full application authentication, user accounts, roles, PostgreSQL, and direct public Internet deployment remain outside the scope of this release.
+
 ## [0.1.2] - 2026-08-11
 
 ### Added

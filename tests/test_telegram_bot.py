@@ -581,3 +581,149 @@ def test_main_initializes_database_before_bot(
         "init_db",
         "run_bot",
     ]
+
+
+def test_telegram_startup_error_retryability() -> None:
+    network_error = (
+        telegram_bot.TelegramBotApiError(
+            "Could not connect to Telegram API."
+        )
+    )
+
+    rate_limit = (
+        telegram_bot.TelegramBotApiError(
+            "Too many requests",
+            status_code=429,
+        )
+    )
+
+    server_error = (
+        telegram_bot.TelegramBotApiError(
+            "Server error",
+            status_code=503,
+        )
+    )
+
+    unauthorized = (
+        telegram_bot.TelegramBotApiError(
+            "Unauthorized",
+            status_code=401,
+        )
+    )
+
+    conflict = (
+        telegram_bot.TelegramBotApiError(
+            "Conflict",
+            status_code=409,
+        )
+    )
+
+    invalid_response = (
+        telegram_bot.TelegramBotApiError(
+            "Telegram returned invalid JSON."
+        )
+    )
+
+    assert (
+        telegram_bot
+        ._telegram_startup_error_is_retryable(
+            network_error
+        )
+        is True
+    )
+
+    assert (
+        telegram_bot
+        ._telegram_startup_error_is_retryable(
+            rate_limit
+        )
+        is True
+    )
+
+    assert (
+        telegram_bot
+        ._telegram_startup_error_is_retryable(
+            server_error
+        )
+        is True
+    )
+
+    assert (
+        telegram_bot
+        ._telegram_startup_error_is_retryable(
+            unauthorized
+        )
+        is False
+    )
+
+    assert (
+        telegram_bot
+        ._telegram_startup_error_is_retryable(
+            conflict
+        )
+        is False
+    )
+
+    assert (
+        telegram_bot
+        ._telegram_startup_error_is_retryable(
+            invalid_response
+        )
+        is False
+    )
+
+
+def test_main_retries_temporary_startup_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+    attempts = 0
+
+    monkeypatch.setattr(
+        telegram_bot,
+        "init_db",
+        lambda: calls.append(
+            "init_db"
+        ),
+    )
+
+    def fake_run_bot() -> None:
+        nonlocal attempts
+
+        attempts += 1
+        calls.append(
+            "run_bot"
+        )
+
+        if attempts == 1:
+            raise (
+                telegram_bot
+                .TelegramBotApiError(
+                    "Could not connect to Telegram API."
+                )
+            )
+
+    monkeypatch.setattr(
+        telegram_bot,
+        "run_bot",
+        fake_run_bot,
+    )
+
+    monkeypatch.setattr(
+        telegram_bot.time,
+        "sleep",
+        lambda delay: calls.append(
+            f"sleep:{delay}"
+        ),
+    )
+
+    telegram_bot.main()
+
+    assert attempts == 2
+
+    assert calls == [
+        "init_db",
+        "run_bot",
+        "sleep:1",
+        "run_bot",
+    ]

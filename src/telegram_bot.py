@@ -1476,6 +1476,28 @@ def _polling_error_is_fatal(
     }
 
 
+
+def _telegram_startup_error_is_retryable(
+    error: TelegramBotApiError,
+) -> bool:
+    """Checks whether Telegram startup may be retried."""
+
+    if str(error) == (
+        "Could not connect to Telegram API."
+    ):
+        return True
+
+    status_code = error.status_code
+
+    if status_code == 429:
+        return True
+
+    return (
+        status_code is not None
+        and 500 <= status_code <= 599
+    )
+
+
 def run_bot() -> None:
     """Runs the Holotes long-polling bot."""
 
@@ -1608,22 +1630,58 @@ def main() -> None:
         ),
     )
 
-    try:
-        init_db()
-        run_bot()
+    init_db()
 
-    except KeyboardInterrupt:
-        print(
-            "\nHolotes Telegram bot stopped."
-        )
+    retry_index = 0
 
-    except (
-        TelegramTokenError,
-        TelegramBotApiError,
-    ) as exc:
-        raise SystemExit(
-            f"Telegram bot startup failed: {exc}"
-        ) from None
+    while True:
+        try:
+            run_bot()
+            return
+
+        except KeyboardInterrupt:
+            print(
+                "\nHolotes Telegram bot stopped."
+            )
+            return
+
+        except TelegramTokenError as exc:
+            raise SystemExit(
+                f"Telegram bot startup failed: {exc}"
+            ) from None
+
+        except TelegramBotApiError as exc:
+            if not (
+                _telegram_startup_error_is_retryable(
+                    exc
+                )
+            ):
+                raise SystemExit(
+                    "Telegram bot startup failed: "
+                    f"{exc}"
+                ) from None
+
+            delay = RETRY_DELAYS_SECONDS[
+                min(
+                    retry_index,
+                    len(
+                        RETRY_DELAYS_SECONDS
+                    ) - 1,
+                )
+            ]
+
+            retry_index += 1
+
+            LOGGER.warning(
+                "Telegram bot startup failed: %s "
+                "Retrying in %s seconds.",
+                exc,
+                delay,
+            )
+
+            time.sleep(
+                delay
+            )
 
 
 if __name__ == "__main__":

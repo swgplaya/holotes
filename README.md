@@ -10,7 +10,7 @@ Holotes imports bank transactions, helps classify cash movements, builds managem
 
 Financial data is stored locally in SQLite by default. The interface is available in Russian, English, and Simplified Chinese and supports light and dark themes.
 
-> **Release status:** This README describes `v0.1.2`, the current Holotes patch release. It is intended primarily for personal, local, single-user use and is not designed for public server deployment or production multi-user access.
+> **Release status:** This README describes `v0.2.0`, the current Holotes release. It supports local Python installation and owner-operated Docker deployment for an always-on instance. It remains a single-company, single-user system and must not be exposed directly to the public Internet without an appropriate protected deployment layer.
 
 ## Contents
 
@@ -143,7 +143,7 @@ The P&L report currently uses bank transactions and the cash method.
 
 Holotes is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
 
-The Telegram bot in `v0.1.2` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
+The Telegram bot in `v0.2.0` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
 
 The calculated balance shown in Holotes is derived from the sum of all imported cash movements. It may differ from the actual bank balance if the imported history is incomplete or does not begin from a zero balance.
 
@@ -166,9 +166,10 @@ Python 3.12 is recommended.
 
 ### Installation modes
 
-The released `v0.1.2` installation mode is a local Python environment on Windows, Linux, or macOS.
+`v0.2.0` supports two installation modes:
 
-The current development branch also includes the Docker deployment mode planned for `v0.2.0`. It is intended for an owner-operated, always-on Holotes instance on a trusted machine or server.
+- a local Python environment on Windows, Linux, or macOS;
+- an owner-operated Docker deployment for an always-on Holotes instance on a trusted machine or server.
 
 Public Internet deployment, full user authentication, multi-user accounts, and role-based access control are not part of the current architecture.
 
@@ -244,7 +245,7 @@ Streamlit prints the local application URL in the terminal. The SQLite database 
 
 ## Docker deployment
 
-Docker deployment is available on the current development branch and is planned as the main deployment improvement in `v0.2.0`.
+Docker deployment is officially supported in `v0.2.0` for owner-operated, always-on Holotes installations.
 
 It is intended for an always-on, owner-operated Holotes instance. The default Compose configuration exposes the Streamlit interface only on the Docker host itself:
 
@@ -256,31 +257,23 @@ It does not publish port `8501` to the LAN or public Internet by default.
 
 ### Requirements
 
-Install Docker Engine with Docker Compose on Linux, or Docker Desktop with the WSL 2 backend on Windows.
+For production deployment, install Docker Engine with the Docker Compose plugin on Linux. Docker Desktop on Windows is suitable for development and testing, but the production deployment path documented here assumes Linux.
 
 Verify the installation:
 
-```powershell
+```bash
 docker --version
 docker compose version
 ```
 
 ### 1. Clone Holotes
 
-```powershell
+```bash
 git clone https://github.com/swgplaya/holotes.git
 cd holotes
 ```
 
 ### 2. Create the environment file
-
-Windows PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Linux or macOS:
 
 ```bash
 cp .env.example .env
@@ -290,17 +283,87 @@ Edit `.env` if Telegram integration or another supported setting is required. Do
 
 ### 3. Build and start Holotes
 
-```powershell
+```bash
 docker compose up -d --build
 ```
 
 Check container status:
 
-```powershell
+```bash
 docker compose ps
 ```
 
 A healthy installation should report the Holotes service as `healthy`. The local web interface is available at `http://127.0.0.1:8501`.
+
+### Linux server operations
+
+For a production-style Linux installation, Holotes includes small operational scripts in:
+
+```text
+scripts/server/
+├── start.sh
+├── stop.sh
+├── restart.sh
+├── status.sh
+├── logs.sh
+├── health.sh
+└── update.sh
+```
+
+Make sure Docker Engine starts automatically with the operating system. On a systemd-based Linux distribution:
+
+```bash
+sudo systemctl enable --now docker
+```
+
+Verify it with:
+
+```bash
+systemctl is-enabled docker
+systemctl is-active docker
+```
+
+After Holotes has been created once with Docker Compose, the Compose setting:
+
+```text
+restart: unless-stopped
+```
+
+allows the Holotes container to start again automatically after the Docker daemon or server restarts.
+
+An intentionally stopped container remains stopped. Start it again with:
+
+```bash
+./scripts/server/start.sh
+```
+
+Common administration commands:
+
+```bash
+./scripts/server/status.sh
+./scripts/server/health.sh
+./scripts/server/logs.sh
+./scripts/server/restart.sh
+./scripts/server/stop.sh
+```
+
+`logs.sh` shows the latest 100 lines by default. A different initial line count can be supplied:
+
+```bash
+./scripts/server/logs.sh 250
+```
+
+Production installations should remain pinned to release tags rather than following the development branch directly.
+
+To upgrade to a specific release, first create and download a database backup from Holotes **Settings**, then run:
+
+```bash
+./scripts/server/update.sh v0.2.1
+```
+
+The update script fetches Git tags, verifies that the requested release exists, switches the production checkout to that exact tag, rebuilds the Docker image, and recreates the Holotes service.
+
+Do not use an unversioned `git pull` as the normal production upgrade procedure.
 
 ### Persistent data
 
@@ -333,7 +396,7 @@ The Docker image checks the built-in Streamlit endpoint `http://127.0.0.1:8501/_
 
 Inspect current health with:
 
-```powershell
+```bash
 docker compose ps
 ```
 
@@ -341,13 +404,13 @@ The exact generated container name can vary. `docker compose ps` is the preferre
 
 ### Logs
 
-```powershell
+```bash
 docker compose logs -f holotes
 ```
 
 Recent logs only:
 
-```powershell
+```bash
 docker compose logs --tail=100 holotes
 ```
 
@@ -355,13 +418,13 @@ docker compose logs --tail=100 holotes
 
 Stop without deleting the container:
 
-```powershell
+```bash
 docker compose stop
 ```
 
 Start it again:
 
-```powershell
+```bash
 docker compose start
 ```
 
@@ -369,7 +432,7 @@ Holotes handles Docker's normal termination signal and shuts down the Streamlit 
 
 Remove and recreate the container:
 
-```powershell
+```bash
 docker compose down
 docker compose up -d
 ```
@@ -380,19 +443,22 @@ Persistent data in `./data` and `.env` remains on the host.
 
 Before upgrading, create and download a Holotes database backup from **Settings** and keep a copy outside the project directory.
 
-Then update the repository and rebuild:
+Production installations should upgrade to an explicit release tag rather than following `main` directly. For example:
 
-```powershell
-git pull
-docker compose up -d --build
+```bash
+./scripts/server/update.sh v0.2.1
 ```
 
-Database migrations run automatically when Holotes starts. After the upgrade, confirm the service is healthy:
+The update script fetches tags, validates the requested release, switches the checkout to that exact tag, rebuilds the image, and recreates the service. Database migrations run automatically when Holotes starts.
 
-```powershell
-docker compose ps
-docker compose logs --tail=100 holotes
+After the upgrade, confirm the service is healthy:
+
+```bash
+./scripts/server/status.sh
+./scripts/server/health.sh
 ```
+
+Use `./scripts/server/logs.sh` if startup diagnostics are needed.
 
 ### Network access
 
@@ -458,7 +524,7 @@ Rules can match:
 
 Higher-priority rules are evaluated before lower-priority rules. Amount conditions are optional; when configured, they are evaluated together with direction and text conditions. Transaction amounts are compared by absolute value, while direction remains a separate rule condition.
 
-Rule configurations can be exported as versioned JSON and restored in another Holotes installation. `v0.1.2` exports rule configuration schema version 2 while continuing to accept version 1 configurations created before amount conditions were added.
+Rule configurations can be exported as versioned JSON and restored in another Holotes installation. `v0.2.0` exports rule configuration schema version 2 while continuing to accept version 1 configurations created before amount conditions were added.
 
 ### Build reports
 
@@ -636,6 +702,7 @@ Holotes separates the application into several layers.
 - `start_holotes.bat` provides a Windows launcher for both services or either service separately.
 - `Dockerfile` defines the Linux container image used for always-on deployment.
 - `compose.yaml` configures persistent host data, health checks, restart behavior, and local port publishing.
+- `scripts/server/` provides Linux operational wrappers for start, stop, restart, status, health, logs, and release-tag upgrades.
 
 ### UI layer
 
@@ -723,7 +790,7 @@ Changing the interface language never rewrites stored values. Built-in P&L and C
 
 ## Local data, privacy, and security
 
-Holotes `v0.1.2` is designed primarily for trusted local use by one person.
+Holotes `v0.2.0` is designed primarily for trusted owner-operated use by one person, either as a local Python installation or an always-on Docker deployment.
 
 The following files and directories should remain outside version control:
 
@@ -760,6 +827,15 @@ holotes/
 │   └── tbank_demo_statement.csv
 ├── migrations/
 │   └── versions/
+├── scripts/
+│   └── server/
+│       ├── health.sh
+│       ├── logs.sh
+│       ├── restart.sh
+│       ├── start.sh
+│       ├── status.sh
+│       ├── stop.sh
+│       └── update.sh
 ├── src/
 │   ├── ui/
 │   │   ├── classification.py
@@ -829,7 +905,7 @@ holotes/
 - Some low-level validation and repository errors may not yet be localized
 - Large transaction histories still require further query, caching, and pagination optimization
 - The calculated balance is derived from imported transaction history and is not a direct bank balance
-- `v0.1.2` is the latest released personal/local version; Docker deployment belongs to the upcoming `v0.2.0` milestone and does not make Holotes a production-ready multi-user system
+- `v0.2.0` is an owner-operated single-user release with Docker deployment; it is not a production-ready multi-user system
 
 ## Roadmap
 
@@ -876,7 +952,7 @@ The current patch release adds small accounting-workflow improvements without ch
 
 ### `v0.2.0` — always-on Docker deployment
 
-The next milestone is focused deliberately on deployment rather than expanding the accounting model or adding multi-company architecture:
+This release focuses deliberately on deployment rather than expanding the accounting model or adding multi-company architecture:
 
 - documented Docker and Docker Compose deployment;
 - a reproducible Linux container image;
@@ -889,8 +965,9 @@ The next milestone is focused deliberately on deployment rather than expanding t
 - SQLite WAL mode and a busy timeout for safer long-running web and Telegram access;
 - localhost-only host port binding by default;
 - documented start, stop, logs, upgrade, backup, and container-recreation procedures.
+- Linux server administration scripts for common operations and release-tag upgrades.
 
-The goal of `v0.2.0` is a stable owner-operated Holotes node that can run continuously on a PC, home server, VPS behind appropriate protection, or another trusted Linux/Docker host.
+`v0.2.0` provides a stable owner-operated Holotes node that can run continuously on a PC, home server, VPS behind appropriate protection, or another trusted Linux/Docker host.
 
 Multi-company support, user accounts, roles, PostgreSQL, and direct public Internet deployment are intentionally outside the scope of `v0.2.0`.
 
