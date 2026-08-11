@@ -40,6 +40,17 @@ DIRECTION_FILTERS = {
 }
 
 
+AMOUNT_OPERATORS = {
+    "any": "Без ограничения",
+    "gt": ">",
+    "gte": ">=",
+    "lt": "<",
+    "lte": "<=",
+    "eq": "=",
+    "between": "Между",
+}
+
+
 @dataclass(frozen=True)
 class ApplyRulesResult:
     """Результат применения правил."""
@@ -92,6 +103,33 @@ def _optional_text(value: Any) -> str | None:
     text = str(value).strip()
 
     return text or None
+
+
+def _optional_amount_kopecks(
+    value: Any,
+    *,
+    field_name: str,
+) -> int | None:
+    """Проверяет необязательное значение суммы в копейках."""
+
+    if value is None:
+        return None
+
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+    ):
+        raise ValueError(
+            f"{field_name} должна быть целым "
+            "числом копеек."
+        )
+
+    if value < 0:
+        raise ValueError(
+            f"{field_name} не может быть отрицательной."
+        )
+
+    return int(value)
 
 
 def _action_to_bool(action: str) -> bool | None:
@@ -147,6 +185,61 @@ def _get_transaction_direction(
     return "expense"
 
 
+def _amount_condition_matches(
+    rule: ClassificationRule,
+    transaction: BankTransaction,
+) -> bool:
+    """Проверяет дополнительное условие правила по сумме."""
+
+    operator = rule.amount_operator or "any"
+
+    if operator == "any":
+        return True
+
+    if operator not in AMOUNT_OPERATORS:
+        raise ValueError(
+            "Неизвестное условие по сумме: "
+            f"{operator}"
+        )
+
+    value = rule.amount_value_kopecks
+
+    if value is None:
+        return False
+
+    amount = abs(
+        int(transaction.amount_kopecks)
+    )
+
+    if operator == "gt":
+        return amount > value
+
+    if operator == "gte":
+        return amount >= value
+
+    if operator == "lt":
+        return amount < value
+
+    if operator == "lte":
+        return amount <= value
+
+    if operator == "eq":
+        return amount == value
+
+    if operator == "between":
+        upper = rule.amount_value_to_kopecks
+
+        if upper is None:
+            return False
+
+        return value <= amount <= upper
+
+    raise ValueError(
+        "Неизвестное условие по сумме: "
+        f"{operator}"
+    )
+
+
 def _get_matchable_text(
     transaction: BankTransaction,
     match_field: str,
@@ -194,6 +287,12 @@ def _rule_matches(
         if transaction_direction != rule.direction_filter:
             return False
 
+    if not _amount_condition_matches(
+        rule,
+        transaction,
+    ):
+        return False
+
     actual_value = _get_matchable_text(
         transaction=transaction,
         match_field=rule.match_field,
@@ -230,6 +329,9 @@ def _prepare_rule_values(
     pnl_category: str | None,
     cf_action: str,
     cf_category: str | None,
+    amount_operator: str = "any",
+    amount_value_kopecks: int | None = None,
+    amount_value_to_kopecks: int | None = None,
 ) -> dict[str, Any]:
     """Проверяет и нормализует данные одного правила."""
 
@@ -262,6 +364,50 @@ def _prepare_rule_values(
         raise ValueError(
             "Выбрано неизвестное условие поиска."
         )
+
+    if amount_operator not in AMOUNT_OPERATORS:
+        raise ValueError(
+            "Выбрано неизвестное условие по сумме."
+        )
+
+    clean_amount_value = _optional_amount_kopecks(
+        amount_value_kopecks,
+        field_name="Сумма",
+    )
+
+    clean_amount_value_to = _optional_amount_kopecks(
+        amount_value_to_kopecks,
+        field_name="Верхняя граница суммы",
+    )
+
+    if amount_operator == "any":
+        clean_amount_value = None
+        clean_amount_value_to = None
+
+    else:
+        if clean_amount_value is None:
+            raise ValueError(
+                "Для условия по сумме укажи сумму."
+            )
+
+        if amount_operator == "between":
+            if clean_amount_value_to is None:
+                raise ValueError(
+                    "Для диапазона укажи "
+                    "верхнюю границу суммы."
+                )
+
+            if (
+                clean_amount_value_to
+                < clean_amount_value
+            ):
+                raise ValueError(
+                    "Верхняя граница суммы "
+                    "не может быть меньше нижней."
+                )
+
+        else:
+            clean_amount_value_to = None
 
     include_in_pnl = _action_to_bool(
         pnl_action
@@ -318,6 +464,11 @@ def _prepare_rule_values(
         "match_field": match_field,
         "match_type": match_type,
         "match_value": clean_match_value,
+        "amount_operator": amount_operator,
+        "amount_value_kopecks": clean_amount_value,
+        "amount_value_to_kopecks": (
+            clean_amount_value_to
+        ),
         "include_in_pnl": include_in_pnl,
         "pnl_category": clean_pnl_category,
         "include_in_cf": include_in_cf,
@@ -337,6 +488,9 @@ def create_rule(
     pnl_category: str,
     cf_action: str,
     cf_category: str,
+    amount_operator: str = "any",
+    amount_value_kopecks: int | None = None,
+    amount_value_to_kopecks: int | None = None,
 ) -> int:
     """Создаёт правило автоматической классификации."""
 
@@ -360,6 +514,13 @@ def create_rule(
         pnl_category=pnl_category,
         cf_action=cf_action,
         cf_category=cf_category,
+        amount_operator=amount_operator,
+        amount_value_kopecks=(
+            amount_value_kopecks
+        ),
+        amount_value_to_kopecks=(
+            amount_value_to_kopecks
+        ),
     )
 
     rule = ClassificationRule(**values)
@@ -384,6 +545,9 @@ def get_rules_dataframe() -> pd.DataFrame:
         "match_field",
         "match_type",
         "match_value",
+        "amount_operator",
+        "amount_value_kopecks",
+        "amount_value_to_kopecks",
         "pnl_action",
         "pnl_category",
         "cf_action",
@@ -416,6 +580,12 @@ def get_rules_dataframe() -> pd.DataFrame:
                 "match_type":
                     MATCH_TYPES[rule.match_type],
                 "match_value": rule.match_value,
+                "amount_operator":
+                    rule.amount_operator,
+                "amount_value_kopecks":
+                    rule.amount_value_kopecks,
+                "amount_value_to_kopecks":
+                    rule.amount_value_to_kopecks,
                 "pnl_action":
                     _bool_to_action(rule.include_in_pnl),
                 "pnl_category":
@@ -430,7 +600,7 @@ def get_rules_dataframe() -> pd.DataFrame:
 
     return pd.DataFrame(rows, columns=columns)
 
-RULE_CONFIG_FIELDS = {
+RULE_CONFIG_REQUIRED_FIELDS = {
     "name",
     "priority",
     "is_active",
@@ -443,6 +613,17 @@ RULE_CONFIG_FIELDS = {
     "cf_action",
     "cf_category",
 }
+
+RULE_CONFIG_OPTIONAL_FIELDS = {
+    "amount_operator",
+    "amount_value_kopecks",
+    "amount_value_to_kopecks",
+}
+
+RULE_CONFIG_FIELDS = (
+    RULE_CONFIG_REQUIRED_FIELDS
+    | RULE_CONFIG_OPTIONAL_FIELDS
+)
 
 
 def _rule_to_config_record(
@@ -458,6 +639,13 @@ def _rule_to_config_record(
         "match_field": rule.match_field,
         "match_type": rule.match_type,
         "match_value": rule.match_value,
+        "amount_operator": rule.amount_operator,
+        "amount_value_kopecks": (
+            rule.amount_value_kopecks
+        ),
+        "amount_value_to_kopecks": (
+            rule.amount_value_to_kopecks
+        ),
         "pnl_action": _bool_to_action(
             rule.include_in_pnl
         ),
@@ -482,6 +670,13 @@ def _model_to_rule_values(
         "match_field": rule.match_field,
         "match_type": rule.match_type,
         "match_value": rule.match_value,
+        "amount_operator": rule.amount_operator,
+        "amount_value_kopecks": (
+            rule.amount_value_kopecks
+        ),
+        "amount_value_to_kopecks": (
+            rule.amount_value_to_kopecks
+        ),
         "include_in_pnl": rule.include_in_pnl,
         "pnl_category": rule.pnl_category,
         "include_in_cf": rule.include_in_cf,
@@ -506,6 +701,18 @@ def _rule_fingerprint(
         str(values["match_field"]),
         str(values["match_type"]),
         _normalize(values["match_value"]),
+        str(
+            values.get(
+                "amount_operator",
+                "any",
+            )
+        ),
+        values.get(
+            "amount_value_kopecks"
+        ),
+        values.get(
+            "amount_value_to_kopecks"
+        ),
         values["include_in_pnl"],
         _normalize(values["pnl_category"]),
         values["include_in_cf"],
@@ -530,7 +737,7 @@ def _validate_rule_record(
     record_fields = set(record)
 
     missing_fields = (
-        RULE_CONFIG_FIELDS
+        RULE_CONFIG_REQUIRED_FIELDS
         - record_fields
     )
 
@@ -579,6 +786,21 @@ def _validate_rule_record(
                 + f"поле {field_name!r} "
                 + "должно быть строкой."
             )
+
+    amount_operator = record.get(
+        "amount_operator",
+        "any",
+    )
+
+    if not isinstance(
+        amount_operator,
+        str,
+    ):
+        raise ValueError(
+            prefix
+            + "поле 'amount_operator' "
+            + "должно быть строкой."
+        )
 
     for category_field in (
         "pnl_category",
@@ -636,6 +858,13 @@ def _validate_rule_record(
             pnl_category=record["pnl_category"],
             cf_action=record["cf_action"],
             cf_category=record["cf_category"],
+            amount_operator=amount_operator,
+            amount_value_kopecks=record.get(
+                "amount_value_kopecks"
+            ),
+            amount_value_to_kopecks=record.get(
+                "amount_value_to_kopecks"
+            ),
         )
     except ValueError as exc:
         raise ValueError(

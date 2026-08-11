@@ -100,6 +100,29 @@ def test_holotes_starts_and_opens_settings(
         )
     ).to_be_visible()
 
+    expect(
+        page.get_by_text(
+            "Ограничение по сумме",
+            exact=True,
+        )
+    ).to_be_visible()
+
+    amount_operator = page.get_by_role(
+        "combobox",
+        name="Ограничение по сумме",
+        exact=True,
+    )
+
+    expect(
+        amount_operator
+    ).to_be_visible()
+
+    expect(
+        amount_operator
+    ).to_have_value(
+        "Без ограничения"
+    )
+
     pnl_tab.click()
 
     expect(

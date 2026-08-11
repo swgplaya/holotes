@@ -305,6 +305,25 @@ class ClassificationRule(Base):
         nullable=False,
     )
 
+    # Дополнительное условие по абсолютной сумме операции.
+    # any, gt, gte, lt, lte, eq, between
+    amount_operator: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="any",
+        server_default="any",
+    )
+
+    amount_value_kopecks: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+    )
+
+    amount_value_to_kopecks: Mapped[int | None] = mapped_column(
+        BigInteger,
+        nullable=True,
+    )
+
     include_in_pnl: Mapped[bool | None] = mapped_column(
         Boolean,
         nullable=True,

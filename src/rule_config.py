@@ -12,7 +12,14 @@ from src.rule_repository import (
 )
 
 
-RULE_CONFIG_SCHEMA_VERSION = 1
+RULE_CONFIG_SCHEMA_VERSION = 2
+
+SUPPORTED_RULE_CONFIG_SCHEMA_VERSIONS = frozenset(
+    {
+        1,
+        RULE_CONFIG_SCHEMA_VERSION,
+    }
+)
 
 RULE_CONFIG_FIELDS = {
     "schema_version",
@@ -192,14 +199,21 @@ def parse_rule_config_json(
 
     if (
         schema_version
-        != RULE_CONFIG_SCHEMA_VERSION
+        not in SUPPORTED_RULE_CONFIG_SCHEMA_VERSIONS
     ):
+        supported = ", ".join(
+            str(version)
+            for version in sorted(
+                SUPPORTED_RULE_CONFIG_SCHEMA_VERSIONS
+            )
+        )
+
         raise ValueError(
             "Неподдерживаемая версия "
             "конфигурации правил: "
             f"{schema_version}. "
-            "Поддерживается версия "
-            f"{RULE_CONFIG_SCHEMA_VERSION}."
+            "Поддерживаются версии "
+            f"{supported}."
         )
 
     exported_at = _validate_exported_at(

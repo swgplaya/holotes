@@ -83,7 +83,7 @@ def test_build_document_uses_schema_time_and_records(
     )
 
     assert result == {
-        "schema_version": 1,
+        "schema_version": 2,
         "exported_at":
             "2026-08-04T18:00:00Z",
         "rules": records,
@@ -272,7 +272,7 @@ def test_parse_rejects_invalid_sources(
         ),
         (
             make_document(
-                schema_version=2,
+                schema_version=3,
             ),
             "Неподдерживаемая версия",
         ),
@@ -372,4 +372,56 @@ def test_parse_preserves_preview_validation_result(
 
     assert result.preview.errors == (
         "Правило 2: ошибка.",
+    )
+
+
+def test_parse_accepts_current_schema_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        rule_config,
+        "preview_rule_records",
+        empty_preview,
+    )
+
+    current_rule = {
+        **VALID_RULE,
+        "amount_operator": "between",
+        "amount_value_kopecks": 100_000,
+        "amount_value_to_kopecks": 500_000,
+    }
+
+    document = make_document(
+        schema_version=2,
+        rules=[
+            current_rule,
+        ],
+    )
+
+    result = (
+        rule_config.parse_rule_config_json(
+            json.dumps(
+                document,
+                ensure_ascii=False,
+            )
+        )
+    )
+
+    assert result.schema_version == 2
+
+    assert result.records == (
+        current_rule,
+    )
+
+
+def test_rule_config_supports_legacy_and_current_versions() -> None:
+    assert (
+        rule_config
+        .SUPPORTED_RULE_CONFIG_SCHEMA_VERSIONS
+        == frozenset(
+            {
+                1,
+                2,
+            }
+        )
     )
