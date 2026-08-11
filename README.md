@@ -10,7 +10,7 @@ Holotes imports bank transactions, helps classify cash movements, builds managem
 
 Financial data is stored locally in SQLite by default. The interface is available in Russian, English, and Simplified Chinese and supports light and dark themes.
 
-> **Release status:** This README describes `v0.1.1`, the current tagged Holotes release. It is intended primarily for personal, local, single-user use and is not designed for public server deployment or production multi-user access.
+> **Release status:** This README describes `v0.1.2`, the current Holotes patch release. It is intended primarily for personal, local, single-user use and is not designed for public server deployment or production multi-user access.
 
 ## Contents
 
@@ -45,6 +45,7 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 - Delete old untracked transactions separately
 - Use the included anonymized demonstration statement for testing
 - Keep the application database local
+- Calculate a balance from the complete set of imported cash movements
 
 ### Classification
 
@@ -60,7 +61,9 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 - Create priority-based classification rules
 - Filter rules by transaction direction
 - Match all text fields or a selected field
-- Use exact, contains, starts-with, and other supported matching modes
+- Use exact, contains, and starts-with text matching modes
+- Add optional numeric amount conditions using `>`, `>=`, `<`, `<=`, `=`, or an inclusive range
+- Combine direction, amount, and text conditions in the same rule
 - Apply different actions to P&L and Cash Flow
 - Enable, disable, and delete rules
 - Export rules as versioned JSON
@@ -120,6 +123,7 @@ Financial data is stored locally in SQLite by default. The interface is availabl
 - Select and persist the summary language separately for each Telegram chat
 - Use Russian, English, and Simplified Chinese responses
 - Request read-only financial summaries
+- Include the calculated balance from all imported transactions in financial summaries
 - Request a summary for a specific month
 - Retrieve user and chat IDs for access configuration
 
@@ -138,7 +142,9 @@ The P&L report currently uses bank transactions and the cash method.
 
 Holotes is a management reporting tool. It is not statutory accounting, tax, payroll, banking, audit, or regulatory reporting software. Calculations should be reviewed before they are used for business decisions.
 
-The Telegram bot in `v0.1.1` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
+The Telegram bot in `v0.1.2` exposes financial data only through read-only summary commands. The `/language` command changes only the response-language preference for the current chat. Configure the allowed users and chats carefully and do not share the bot token.
+
+The calculated balance shown in Holotes is derived from the sum of all imported cash movements. It may differ from the actual bank balance if the imported history is incomplete or does not begin from a zero balance.
 
 ## Technology stack
 
@@ -158,9 +164,9 @@ Python 3.12 is recommended.
 
 ### Supported installation mode: local computer
 
-The supported `v0.1.1` installation mode is a local Python environment on Windows, Linux, or macOS.
+The supported `v0.1.2` installation mode is a local Python environment on Windows, Linux, or macOS.
 
-Docker images and supported server deployment are planned for later milestones. Public deployment, full authentication, and production multi-user configuration are not part of `v0.1.1`.
+Docker images and supported server deployment are planned for later milestones. Public deployment, full authentication, and production multi-user configuration are not part of `v0.1.2`.
 
 ### 1. Clone the repository
 
@@ -282,9 +288,9 @@ Rules can match:
 - MCC;
 - tax code.
 
-Higher-priority rules are evaluated before lower-priority rules.
+Higher-priority rules are evaluated before lower-priority rules. Amount conditions are optional; when configured, they are evaluated together with direction and text conditions. Transaction amounts are compared by absolute value, while direction remains a separate rule condition.
 
-Rule configurations can be exported as JSON and restored in another Holotes installation.
+Rule configurations can be exported as versioned JSON and restored in another Holotes installation. `v0.1.2` exports rule configuration schema version 2 while continuing to accept version 1 configurations created before amount conditions were added.
 
 ### Build reports
 
@@ -362,6 +368,8 @@ Examples:
 ```
 
 The selected language is stored separately for each Telegram chat. In a group, Telegram may send the command in the form `/language@BotUsername en`.
+
+Telegram summaries show the calculated balance from the complete imported transaction history even when the requested P&L and Cash Flow period is narrower, such as a specific month.
 
 ## Backup and restore
 
@@ -539,7 +547,7 @@ Changing the interface language never rewrites stored values. Built-in P&L and C
 
 ## Local data, privacy, and security
 
-Holotes `v0.1.1` is designed primarily for trusted local use by one person.
+Holotes `v0.1.2` is designed primarily for trusted local use by one person.
 
 The following files and directories should remain outside version control:
 
@@ -637,7 +645,8 @@ holotes/
 - Built-in report category labels are localized, but custom categories and other user-entered content are not automatically translated
 - Some low-level validation and repository errors may not yet be localized
 - Large transaction histories still require further query, caching, and pagination optimization
-- `v0.1.1` is a personal/local release, not a production-ready multi-user release
+- The calculated balance is derived from imported transaction history and is not a direct bank balance
+- `v0.1.2` is a personal/local release, not a production-ready multi-user release
 
 ## Roadmap
 
@@ -660,7 +669,7 @@ The first release established a complete local workflow for one user:
 
 ### `v0.1.1` — reporting and interface refinement
 
-The current patch release focuses on usability and regression fixes:
+This patch release focused on usability and regression fixes:
 
 - restore the saved rules list in the Rules interface;
 - add report period presets for month, year, last 30 days, all time, and custom dates;
@@ -670,13 +679,17 @@ The current patch release focuses on usability and regression fixes:
 - adapt Operations and Classification table height to the number of displayed rows;
 - keep release validation reproducible with development dependency auditing.
 
-### `v0.1.2` — planned incremental improvements
+### `v0.1.2` — rule amount conditions and calculated balance
 
-The next patch cycle is expected to focus on small accounting workflow improvements:
+The current patch release adds small accounting-workflow improvements without changing the local single-user architecture:
 
-- add numeric amount conditions to automatic rules;
-- add a calculated balance based on imported operations;
-- expose that calculated balance in Telegram summaries with an explicit scope caveat.
+- add optional numeric amount conditions to automatic classification rules;
+- support greater-than, greater-than-or-equal, less-than, less-than-or-equal, exact-value, and inclusive range comparisons;
+- keep legacy rule configurations compatible while exporting the new rule configuration schema;
+- add a calculated balance based on the complete imported transaction history;
+- show the calculated balance separately in the Operations interface;
+- include the calculated balance in Telegram financial summaries;
+- make the web interface explicitly explain that the calculated balance can differ from the actual bank balance when imported history is incomplete or starts from a non-zero balance.
 
 ### `v0.2.0` — planned local-network node and multi-company foundation
 

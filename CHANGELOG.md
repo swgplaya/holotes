@@ -6,6 +6,41 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-11
+
+### Added
+
+- Added optional numeric amount conditions to automatic classification rules:
+  - greater than;
+  - greater than or equal;
+  - less than;
+  - less than or equal;
+  - exact amount;
+  - inclusive amount range.
+- Added a calculated balance based on the complete imported transaction history.
+- Added the calculated balance to Telegram financial summaries.
+
+### Changed
+
+- Automatic rules can now combine transaction direction, absolute transaction amount, and text matching conditions.
+- Rule configuration export now uses schema version 2 with amount-condition fields.
+- Rule configuration schema version 1 remains supported for backward-compatible imports.
+- The Operations interface now shows the calculated balance separately from inflow and outflow metrics.
+- Telegram summaries show the calculated balance independently of the selected P&L and Cash Flow reporting period.
+
+### Database
+
+- Added amount-condition fields to classification rules:
+  - `amount_operator`;
+  - `amount_value_kopecks`;
+  - `amount_value_to_kopecks`.
+- Existing rules default to no amount restriction after migration.
+
+### Notes
+
+- The calculated balance is the sum of all imported signed cash movements.
+- It may differ from the actual bank balance when imported history is incomplete or does not begin from a zero balance.
+
 ## [0.1.1] - 2026-08-11
 
 ### Fixed
