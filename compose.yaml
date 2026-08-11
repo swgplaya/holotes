@@ -1,0 +1,16 @@
+services:
+  holotes:
+    build:
+      context: .
+    restart: unless-stopped
+    stop_grace_period: 15s
+
+    ports:
+      - "${HOLOTES_BIND_ADDRESS:-127.0.0.1}:8501:8501"
+
+    environment:
+      STREAMLIT_SERVER_ADDRESS: "0.0.0.0"
+
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env

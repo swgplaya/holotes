@@ -1,0 +1,39 @@
+# Git
+.git/
+.gitignore
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Local application data
+data/
+imports/
+
+# Test and development files
+.coverage
+.coverage.*
+htmlcov/
+.idea/
+.vscode/
+.tools/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
