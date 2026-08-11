@@ -25,6 +25,7 @@ from src.telegram_settings import (
     get_telegram_settings,
 )
 from src.transaction_repository import (
+    get_transaction_summary,
     get_transactions_dataframe,
 )
 
@@ -93,6 +94,7 @@ class TelegramFinancialSummary:
     """Financial data prepared for Telegram."""
 
     period: SummaryPeriod
+    calculated_balance_kopecks: int
     cash_flow: ReportTotals | None
     pnl: ReportTotals | None
     pending_classification: (
@@ -568,6 +570,15 @@ def build_telegram_summary(
         )
     )
 
+    transaction_summary = (
+        get_transaction_summary()
+    )
+
+    calculated_balance_kopecks = int(
+        transaction_summary
+        .calculated_balance_kopecks
+    )
+
     transactions: pd.DataFrame | None = (
         None
     )
@@ -683,6 +694,9 @@ def build_telegram_summary(
 
     return TelegramFinancialSummary(
         period=resolved_period,
+        calculated_balance_kopecks=(
+            calculated_balance_kopecks
+        ),
         cash_flow=cash_flow,
         pnl=pnl,
         pending_classification=(
@@ -796,6 +810,10 @@ SUMMARY_LABELS = {
     "ru": {
         "title": "📊 Holotes — финансовая сводка",
         "period": "Период",
+        "calculated_balance": (
+            "💰 Расчётный остаток "
+            "по загруженным операциям"
+        ),
         "cash_flow": "💳 Cash Flow",
         "cf_inflow": "Поступления",
         "cf_outflow": "Списания",
@@ -815,6 +833,10 @@ SUMMARY_LABELS = {
     "en": {
         "title": "📊 Holotes — financial summary",
         "period": "Period",
+        "calculated_balance": (
+            "💰 Calculated balance from "
+            "imported transactions"
+        ),
         "cash_flow": "💳 Cash Flow",
         "cf_inflow": "Inflows",
         "cf_outflow": "Outflows",
@@ -834,6 +856,9 @@ SUMMARY_LABELS = {
     "zh-CN": {
         "title": "📊 Holotes — 财务摘要",
         "period": "期间",
+        "calculated_balance": (
+            "💰 基于已导入交易的计算余额"
+        ),
         "cash_flow": "💳 现金流",
         "cf_inflow": "流入",
         "cf_outflow": "流出",
@@ -878,6 +903,20 @@ def format_telegram_summary(
             )}"
         ),
     ]
+
+    lines.extend(
+        [
+            "",
+            labels[
+                "calculated_balance"
+            ],
+            _format_money(
+                summary
+                .calculated_balance_kopecks,
+                language=language_code,
+            ),
+        ]
+    )
 
     if summary.cash_flow is not None:
         lines.extend(

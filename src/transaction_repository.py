@@ -50,6 +50,20 @@ class TransactionSummary:
     outflow_kopecks: int
     net_kopecks: int
 
+    @property
+    def calculated_balance_kopecks(
+        self,
+    ) -> int:
+        """
+        Расчётный остаток по всей загруженной истории.
+
+        Это чистая сумма импортированных денежных
+        движений без начального банковского остатка.
+        """
+
+        return self.net_kopecks
+
+
 def _optional_text(value: Any) -> str | None:
     """Возвращает очищенный текст либо None."""
 

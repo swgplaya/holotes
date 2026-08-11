@@ -8,7 +8,6 @@ from src.transaction_repository import (
 )
 from src.ui.transaction_views import (
     prepare_visible_table,
-    show_summary_metrics,
 )
 from src.ui.data_cache import (
     cached_transaction_summary,
@@ -37,19 +36,42 @@ def render_operations_tab(
         )
         return
 
-    show_summary_metrics(
-        count=summary.count,
-        inflow_kopecks=(
+    summary_columns = st.columns(3)
+
+    summary_columns[0].metric(
+        t("operations.metrics.count"),
+        f"{summary.count}",
+    )
+
+    summary_columns[1].metric(
+        t("operations.metrics.inflow"),
+        format_rubles(
             summary.inflow_kopecks
         ),
-        outflow_kopecks=(
+    )
+
+    summary_columns[2].metric(
+        t("operations.metrics.outflow"),
+        format_rubles(
             summary.outflow_kopecks
         ),
-        net_cash_flow_kopecks=(
-            summary.net_kopecks
+    )
+
+    st.metric(
+        t(
+            "operations.calculated_balance."
+            "title"
         ),
-        t=t,
-        format_rubles=format_rubles,
+        format_rubles(
+            summary.calculated_balance_kopecks
+        ),
+    )
+
+    st.caption(
+        t(
+            "operations.calculated_balance."
+            "caption"
+        )
     )
 
     st.subheader(

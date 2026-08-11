@@ -104,6 +104,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык
         'operations.metrics.inflow': 'Поступления',
         'operations.metrics.outflow': 'Списания',
         'operations.metrics.net': 'Чистое движение',
+        'operations.calculated_balance.title': 'Расчётный остаток по загруженным операциям',
+        'operations.calculated_balance.caption': 'Рассчитан как сумма всех загруженных '
+                                                 'поступлений и списаний. Может отличаться '
+                                                 'от фактического остатка банка, если '
+                                                 'история загружена не полностью или '
+                                                 'начинается не с нулевого остатка.',
         'operations.columns.date': 'Дата',
         'operations.columns.amount': 'Сумма, ₽',
         'operations.columns.direction': 'Дебет/кредит',
@@ -700,6 +706,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык
         'operations.metrics.inflow': 'Inflows',
         'operations.metrics.outflow': 'Outflows',
         'operations.metrics.net': 'Net movement',
+        'operations.calculated_balance.title': 'Calculated balance from imported transactions',
+        'operations.calculated_balance.caption': 'Calculated as the sum of all imported '
+                                                 'inflows and outflows. It may differ from '
+                                                 'the actual bank balance if the imported '
+                                                 'history is incomplete or does not start '
+                                                 'from a zero balance.',
         'operations.columns.date': 'Date',
         'operations.columns.amount': 'Amount, ₽',
         'operations.columns.direction': 'Debit/Credit',
@@ -1296,6 +1308,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {'ru': {'language.selector': 'Язык
            'operations.metrics.inflow': '资金流入',
            'operations.metrics.outflow': '资金流出',
            'operations.metrics.net': '净现金变动',
+           'operations.calculated_balance.title': '基于已导入交易的计算余额',
+           'operations.calculated_balance.caption': '该数值为所有已导入资金流入和流出的合计。'
+                                                    '如果交易历史不完整或并非从零余额开始，'
+                                                    '该数值可能与银行实际余额不同。',
            'operations.columns.date': '日期',
            'operations.columns.amount': '金额，₽',
            'operations.columns.direction': '借方/贷方',

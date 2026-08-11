@@ -211,6 +211,16 @@ def test_build_complete_summary(
 
     monkeypatch.setattr(
         telegram_summary,
+        "get_transaction_summary",
+        lambda: SimpleNamespace(
+            calculated_balance_kopecks=(
+                2_345_678
+            ),
+        ),
+    )
+
+    monkeypatch.setattr(
+        telegram_summary,
         "build_cash_flow_report",
         lambda transactions: (
             SimpleNamespace(
@@ -337,6 +347,11 @@ def test_build_complete_summary(
         31,
     )
 
+    assert (
+        result.calculated_balance_kopecks
+        == 2_345_678
+    )
+
     assert result.cash_flow is not None
 
     assert (
@@ -417,7 +432,7 @@ def test_build_complete_summary(
     ]
 
 
-def test_calendar_only_avoids_transaction_query(
+def test_calendar_only_avoids_period_transaction_query(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def unexpected_query(
@@ -426,7 +441,7 @@ def test_calendar_only_avoids_transaction_query(
         del kwargs
 
         raise AssertionError(
-            "Transaction repository "
+            "Period transaction dataframe "
             "must not be queried."
         )
 
@@ -434,6 +449,14 @@ def test_calendar_only_avoids_transaction_query(
         telegram_summary,
         "get_transactions_dataframe",
         unexpected_query,
+    )
+
+    monkeypatch.setattr(
+        telegram_summary,
+        "get_transaction_summary",
+        lambda: SimpleNamespace(
+            calculated_balance_kopecks=0,
+        ),
     )
 
     monkeypatch.setattr(
@@ -491,6 +514,9 @@ def test_format_russian_summary() -> None:
                         31,
                     ),
                 )
+            ),
+            calculated_balance_kopecks=(
+                2_345_678
             ),
             cash_flow=(
                 telegram_summary
@@ -571,6 +597,24 @@ def test_format_russian_summary() -> None:
     assert (
         "01.07.2026 — 31.07.2026"
         in text
+    )
+
+    assert (
+        "23 456,78 ₽"
+        in text
+    )
+
+    assert (
+        "💰 Расчётный остаток "
+        "по загруженным операциям\n"
+        "23 456,78 ₽"
+        in text
+    )
+
+    assert (
+        "Может отличаться от фактического "
+        "остатка банка"
+        not in text
     )
 
     assert (
