@@ -527,6 +527,96 @@ def test_mtproto_chat_type():
     )
 
 
+@pytest.mark.parametrize(
+    (
+        "forum_topic",
+        "reply_to_top_id",
+        "reply_to_msg_id",
+        "expected_thread_id",
+    ),
+    [
+        (
+            True,
+            None,
+            4,
+            4,
+        ),
+        (
+            True,
+            4,
+            95600,
+            4,
+        ),
+        (
+            False,
+            None,
+            95600,
+            None,
+        ),
+    ],
+)
+def test_extract_mtproto_message_context_preserves_forum_topic(
+    forum_topic,
+    reply_to_top_id,
+    reply_to_msg_id,
+    expected_thread_id,
+):
+    import asyncio
+    from types import SimpleNamespace
+
+    from telethon.tl.types import Channel
+
+    from src.telegram_mtproto import (
+        extract_mtproto_message_context,
+    )
+
+    channel = object.__new__(
+        Channel
+    )
+    channel.id = 789
+    channel.megagroup = True
+
+    sender = SimpleNamespace(
+        id=123456789,
+        lang_code="ru",
+    )
+
+    message = SimpleNamespace(
+        id=95682,
+        reply_to=SimpleNamespace(
+            forum_topic=forum_topic,
+            reply_to_top_id=reply_to_top_id,
+            reply_to_msg_id=reply_to_msg_id,
+        ),
+    )
+
+    class FakeEvent:
+        raw_text = "/summary@holotes_bot"
+
+        def __init__(self):
+            self.message = message
+
+        async def get_sender(self):
+            return sender
+
+        async def get_chat(self):
+            return channel
+
+    context = asyncio.run(
+        extract_mtproto_message_context(
+            FakeEvent()
+        )
+    )
+
+    assert context is not None
+    assert (
+        context.telegram_chat_id
+        == -1_000_000_000_789
+    )
+    assert context.chat_type == "supergroup"
+    assert context.message_thread_id == expected_thread_id
+
+
 def test_send_mtproto_text_splits_messages():
     import asyncio
 

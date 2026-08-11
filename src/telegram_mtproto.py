@@ -575,11 +575,27 @@ async def extract_mtproto_message_context(
 
     thread_id = None
 
-    if reply_to is not None:
-        thread_id = getattr(
-            reply_to,
-            "reply_to_top_id",
-            None,
+    if (
+        reply_to is not None
+        and bool(
+            getattr(
+                reply_to,
+                "forum_topic",
+                False,
+            )
+        )
+    ):
+        thread_id = (
+            getattr(
+                reply_to,
+                "reply_to_top_id",
+                None,
+            )
+            or getattr(
+                reply_to,
+                "reply_to_msg_id",
+                None,
+            )
         )
 
     language_code = str(
